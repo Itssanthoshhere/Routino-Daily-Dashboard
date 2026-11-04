@@ -12,6 +12,7 @@ import {
   Mail,
   MoreHorizontal,
 } from "lucide-react";
+import { appConfig } from "@/lib/config";
 
 type MobileSidebarProps = {
   isOpen: boolean;
@@ -66,7 +67,7 @@ export function MobileSidebar({
               <Command size={19} />
             </span>
             <span className="text-[16px] font-bold tracking-tight">
-              daymark<span className="text-[#9eaaa1]">.</span>
+              {appConfig.name.toLowerCase()}<span className="text-[#9eaaa1]">.</span>
             </span>
           </div>
           <button

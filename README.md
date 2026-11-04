@@ -1,18 +1,15 @@
 <div align="center">
 
-  # ☀️ Routino
+  # ☀️ Routino — Daily Dashboard
 
   <p align="center">
-    <a href="https://daily-dashboard-tau-five.vercel.app" target="_blank">
-      <img src="https://img.shields.io/badge/🟢_LIVE_DASHBOARD-daily--dashboard--tau--five.vercel.app-315b49?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Daily Dashboard" />
-    </a>
-    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
+    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
       <img src="https://img.shields.io/badge/Repository-Private-8b6b3f?style=for-the-badge&logo=github&logoColor=white" alt="Private GitHub repository" />
     </a>
-    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
+    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
       <img src="https://img.shields.io/badge/Stack-Next.js_·_TypeScript_·_Tailwind-1f2937?style=for-the-badge" alt="Next.js, TypeScript, and Tailwind CSS" />
     </a>
-    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
+    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
       <img src="https://img.shields.io/badge/Google_Access-Gmail_&_Calendar_Read--Only-6f8a61?style=for-the-badge&logo=google&logoColor=white" alt="Read-only Gmail and Google Calendar access" />
     </a>
   </p>
@@ -25,7 +22,7 @@
   </h3>
 
   <p align="center">
-    <em>A calm, responsive workspace for today’s schedule, unread email, personal priorities, and the week ahead. Google Calendar and Gmail data are fetched server-side after sign-in. Google Drive and Google Sites are not integrated.</em>
+    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, and the week ahead. Google Calendar and Gmail data are fetched server-side after sign-in. Google Drive and Google Sites are not integrated.</em>
   </p>
 
 </div>
@@ -34,7 +31,7 @@
 
 ## 📌 Executive Summary
 
-Daily Dashboard brings the parts of a busy day into one view: upcoming meetings, unread messages, tasks, focus time, deadlines, and frequently used links. The responsive interface is built with Next.js, TypeScript, and Tailwind CSS, and is deployed on Vercel.
+**Routino** brings the parts of a busy day into one calm view: upcoming meetings, unread messages, tasks, focus time, deadlines, and frequently used links. The responsive interface is built with Next.js, TypeScript, and Tailwind CSS, and is deployed on Vercel.
 
 Google sign-in uses Auth.js. When the account holder signs in and approves access, the app reads Calendar events and limited Gmail message details. Until then, the page shows clearly identified sample content. The app never writes to Gmail or Calendar.
 
@@ -131,7 +128,7 @@ For production, configure the values in the Vercel project’s **Production** en
 ## 🛠️ Repository Structure
 
 ```text
-Daily-Dashboard/
+Routino-Daily-Dashboard/
 ├── app/
 │   ├── actions.ts                 # Auth.js Google sign-in server action
 │   ├── api/
@@ -139,10 +136,14 @@ Daily-Dashboard/
 │   │   └── dashboard/             # Authenticated Calendar and Gmail data route
 │   ├── page.tsx                   # Responsive dashboard interface
 │   └── globals.css                # Global styles and Tailwind layers
+├── components/                    # Interactive UI modules, modals, and tabs
 ├── lib/
 │   ├── auth.ts                    # Google provider and session callbacks
-│   └── google.ts                  # Server-side token refresh and Google requests
+│   ├── config.ts                  # Centralized typed configuration
+│   ├── google.ts                  # Server-side token refresh and Google requests
+│   └── sound.ts                   # Web Audio synthesizers for timer feedback
 ├── types/
+│   ├── dashboard.ts               # Core domain types (Tasks, Events, Mail)
 │   └── next-auth.d.ts             # Auth.js token type declarations
 ├── .env.example                   # Environment variable template
 ├── .gitignore
@@ -154,11 +155,11 @@ Daily-Dashboard/
 
 Requirements: Node.js and npm compatible with the versions used by this project. Google credentials are needed for sign-in; without them, the dashboard remains in preview mode.
 
-1. Clone the private repository and enter its folder:
+1. Clone the repository and enter its folder:
 
    ```bash
-   git clone https://github.com/Itssanthoshhere/Daily-Dashboard.git
-   cd Daily-Dashboard
+   git clone https://github.com/Itssanthoshhere/Routino-Daily-Dashboard.git
+   cd Routino-Daily-Dashboard
    ```
 
 2. Install dependencies and create your local environment file:
@@ -202,14 +203,14 @@ vercel --prod
 
 - Gmail and Google Calendar are read-only.
 - Google Drive and Google Sites are not integrated.
-- Tasks, follow-ups, focus blocks, and deadlines are front-end examples and are not saved to a database or synced with Google Tasks.
+- Tasks, follow-ups, focus blocks, and deadlines are held in browser localStorage; not synced with Google Tasks.
 - Google OAuth testing mode may limit access to configured test users until any required Google review is completed.
 
 ---
 
 ## 👤 Project
 
-- **Repository:** [Itssanthoshhere/Daily-Dashboard](https://github.com/Itssanthoshhere/Daily-Dashboard) (private)
+- **Repository:** [Itssanthoshhere/Routino-Daily-Dashboard](https://github.com/Itssanthoshhere/Routino-Daily-Dashboard)
 - **Deployment:** [daily-dashboard-tau-five.vercel.app](https://daily-dashboard-tau-five.vercel.app)
 - **Stack:** Next.js · TypeScript · Tailwind CSS · Auth.js · Google APIs · Vercel
 

@@ -181,16 +181,16 @@ export default function Home() {
   /* ── LocalStorage Hydration ── */
   useEffect(() => {
     try {
-      const storedTasks = localStorage.getItem("daymark_tasks");
+      const storedTasks = localStorage.getItem("routino_tasks") || localStorage.getItem("daymark_tasks");
       if (storedTasks) setTasks(JSON.parse(storedTasks));
 
-      const storedLinks = localStorage.getItem("daymark_links");
+      const storedLinks = localStorage.getItem("routino_links") || localStorage.getItem("daymark_links");
       if (storedLinks) setQuickLinks(JSON.parse(storedLinks));
 
-      const storedEvents = localStorage.getItem("daymark_events");
+      const storedEvents = localStorage.getItem("routino_events") || localStorage.getItem("daymark_events");
       if (storedEvents) setCustomEvents(JSON.parse(storedEvents));
 
-      const storedFocus = localStorage.getItem("daymark_focus");
+      const storedFocus = localStorage.getItem("routino_focus") || localStorage.getItem("daymark_focus");
       if (storedFocus) setFocusMinutes(parseInt(storedFocus, 10));
 
       if (window.location.search.includes("setup=google")) {
@@ -205,28 +205,28 @@ export default function Home() {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem("daymark_tasks", JSON.stringify(tasks));
+      localStorage.setItem("routino_tasks", JSON.stringify(tasks));
     } catch {}
   }, [tasks, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem("daymark_links", JSON.stringify(quickLinks));
+      localStorage.setItem("routino_links", JSON.stringify(quickLinks));
     } catch {}
   }, [quickLinks, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem("daymark_events", JSON.stringify(customEvents));
+      localStorage.setItem("routino_events", JSON.stringify(customEvents));
     } catch {}
   }, [customEvents, hydrated]);
 
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem("daymark_focus", String(focusMinutes));
+      localStorage.setItem("routino_focus", String(focusMinutes));
     } catch {}
   }, [focusMinutes, hydrated]);
 
@@ -368,6 +368,10 @@ export default function Home() {
   };
 
   const resetData = () => {
+    localStorage.removeItem("routino_tasks");
+    localStorage.removeItem("routino_links");
+    localStorage.removeItem("routino_events");
+    localStorage.removeItem("routino_focus");
     localStorage.removeItem("daymark_tasks");
     localStorage.removeItem("daymark_links");
     localStorage.removeItem("daymark_events");
