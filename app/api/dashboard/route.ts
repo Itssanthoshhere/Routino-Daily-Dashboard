@@ -18,7 +18,17 @@ export async function GET() {
       googleFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+-category:promotions+-category:social&maxResults=8"),
     ]);
     if (!calendar.ok || !mail.ok) return NextResponse.json({ connected: true, error: "Google returned an API error. Check that Calendar and Gmail APIs are enabled and reconnect if needed." }, { status: 502 });
-    return NextResponse.json({ connected: true, events: await calendar.json(), unread: await mail.json() }, { headers: { "Cache-Control": "private, no-store" } });
+    const calendarData = await calendar.json();
+    const mailData = await mail.json();
+    const messages = await Promise.all((mailData.messages ?? []).slice(0, 8).map(async ({ id }: { id: string }) => {
+      const response = await googleFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`);
+      if (!response.ok) return null;
+      const message = await response.json();
+      const headers: Array<{ name: string; value: string }> = message.payload?.headers ?? [];
+      const header = (name: string) => headers.find((item) => item.name.toLowerCase() === name.toLowerCase())?.value ?? "";
+      return { id: message.id, threadId: message.threadId, from: header("From"), subject: header("Subject"), date: header("Date"), snippet: message.snippet ?? "" };
+    }));
+    return NextResponse.json({ connected: true, events: calendarData.items ?? [], unread: messages.filter(Boolean) }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     return NextResponse.json({ connected: true, error: "Could not retrieve dashboard data." }, { status: 502 });
   }
