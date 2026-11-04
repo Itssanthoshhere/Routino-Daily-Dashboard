@@ -1,6 +1,6 @@
 <div align="center">
 
-  # ☀️ Daily Dashboard
+  # ☀️ Routino
 
   <p align="center">
     <a href="https://daily-dashboard-tau-five.vercel.app" target="_blank">

@@ -1,6 +1,6 @@
 export const appConfig = {
-  name: process.env.NEXT_PUBLIC_APP_NAME || "Schedino",
-  tagline: process.env.NEXT_PUBLIC_APP_TAGLINE || "Your schedule, routine, and focus in one",
+  name: process.env.NEXT_PUBLIC_APP_NAME || "Routino",
+  tagline: process.env.NEXT_PUBLIC_APP_TAGLINE || "Your daily routine, schedule, and focus in one",
   user: {
     name: process.env.NEXT_PUBLIC_USER_NAME || "Santhosh",
     initial: process.env.NEXT_PUBLIC_USER_INITIAL || "S",
