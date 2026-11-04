@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Daily Dashboard — Your day, in focus",
+  title: "Schedino — Your schedule, routine, and focus in one",
   description: "A calm, private workspace for your schedule, important email, and daily priorities.",
 };
 

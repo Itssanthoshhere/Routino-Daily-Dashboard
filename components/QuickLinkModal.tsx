@@ -1,0 +1,122 @@
+"use client";
+
+import { useState } from "react";
+import { Link2, X, Plus } from "lucide-react";
+import { QuickLink } from "@/types/dashboard";
+
+type QuickLinkModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  onAddLink: (link: QuickLink) => void;
+};
+
+export function QuickLinkModal({ isOpen, onClose, onAddLink }: QuickLinkModalProps) {
+  const [title, setTitle] = useState("");
+  const [subtitle, setSubtitle] = useState("");
+  const [url, setUrl] = useState("");
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !url.trim()) return;
+
+    let formattedUrl = url.trim();
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    onAddLink({
+      id: "link-" + Date.now(),
+      title: title.trim(),
+      subtitle: subtitle.trim() || "Custom link",
+      url: formattedUrl,
+      iconName: "link",
+      available: true,
+    });
+
+    setTitle("");
+    setSubtitle("");
+    setUrl("");
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-line pb-4">
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#eaf3e8] text-forest">
+              <Link2 size={16} />
+            </span>
+            <div>
+              <h3 className="text-[15px] font-semibold text-ink">Add Quick Link</h3>
+              <p className="text-[11px] text-muted">Save your most frequent daily destinations</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted hover:bg-[#edf0e9] hover:text-ink transition"
+            aria-label="Close"
+          >
+            <X size={17} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div>
+            <label className="block text-[11px] font-semibold text-ink">Title</label>
+            <input
+              type="text"
+              required
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Notion Workspace or GitHub"
+              className="mt-1.5 w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[13px] text-ink outline-none focus:border-forest transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-ink">Subtitle / Description</label>
+            <input
+              type="text"
+              value={subtitle}
+              onChange={(e) => setSubtitle(e.target.value)}
+              placeholder="e.g. Project roadmaps & sprint docs"
+              className="mt-1.5 w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[13px] text-ink outline-none focus:border-forest transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-ink">URL</label>
+            <input
+              type="text"
+              required
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://..."
+              className="mt-1.5 w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[13px] text-ink outline-none focus:border-forest transition"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 border-t border-line pt-4 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl px-4 py-2.5 text-[12px] font-medium text-muted hover:bg-[#f1f3ed] transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#204c3d]"
+            >
+              Add Link
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
