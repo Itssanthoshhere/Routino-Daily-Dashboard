@@ -44,9 +44,10 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 | **Today’s schedule** | Upcoming events with start and end times | Google Calendar or labeled preview events |
 | **The week ahead** | A rolling seven-day calendar view | Google Calendar or labeled preview events |
 | **Worth a look** | Sender, subject, date, and short snippet for unread messages | Gmail or labeled preview messages |
-| **Priorities & follow-ups** | Checkable tasks and completion progress | Sample tasks held in browser memory; not synced or persisted |
-| **Focus plan & deadlines** | Focus blocks, breaks, and deadline examples | Illustrative dashboard content |
-| **Quick links** | Shortcuts to Calendar and Gmail | Google services; Drive and Sites are marked unavailable |
+| **Priorities & follow-ups** | Checkable tasks, custom categories, and completion progress | Local storage & server-side database sync |
+| **Focus plan & deadlines** | Focus timer with ambient soundscapes (rain, waves, brown noise) | Synthesized Web Audio API & user state |
+| **Quick links** | Shortcuts to Calendar, Gmail, LinkedIn, GitHub, and Portfolio | User configurable with custom modal & persistent links |
+| **Preferences & Settings** | Routine defaults, focus durations, audio feedback, JSON export/import | Dedicated Preferences modal and DB sync |
 
 ## ✨ Features & Capabilities
 
@@ -54,6 +55,8 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
    - Layouts adapt for mobile, tablet, and desktop.
    - Clear summary cards surface calendar and inbox counts.
    - A seven-day view starts with the current day and updates its dates automatically.
+   - Daily rotating intention quotes with interactive shuffle button.
+   - Live location-aware weather widget powered by Open-Meteo.
 
 2. **Google Calendar connection**
    - Uses Google OAuth with the `calendar.readonly` scope.
@@ -64,10 +67,23 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
    - Uses Google OAuth with the `gmail.readonly` scope.
    - Requests up to eight unread messages, excluding social and promotional categories.
    - Displays sender, subject, date, and snippet; full message bodies are not loaded.
+   - Interactive star and read-status tracking.
 
-4. **Tasks and daily planning**
-   - Check off priorities and see completion progress.
-   - Sample tasks, focus blocks, follow-ups, and deadlines are examples only. They currently remain in browser memory and are not connected to Google Tasks or a database.
+4. **Tasks & Multi-Device Database Persistence**
+   - Check off priorities, create custom tasks, and schedule custom events.
+   - Persisted instantly to browser `localStorage` and automatically synchronized with the account database via `/api/user-data`.
+   - Supports Upstash Redis, Vercel KV, or local file storage for seamless cross-device synchronization.
+
+5. **Focus Timer & Ambient Soundscapes**
+   - Customizable focus blocks (25m, 45m, 60m, 90m).
+   - Built-in Web Audio synthesis: gentle rain, ocean waves, calming brown noise, and focus white noise.
+   - Zero external audio files required.
+
+6. **Comprehensive Preferences Modal**
+   - Open via user avatar menu, sidebar bottom card (`···`), or Command Palette (`Cmd+K`).
+   - General & Routine tab: focus duration target, audio feedback toggle, clear completed tasks.
+   - Database & Sync tab: live account cloud sync status, manual sync trigger, JSON workspace backup & restore.
+   - About tab: architecture and privacy information.
 
 5. **Preview mode**
    - Shows sample data before Google is connected.

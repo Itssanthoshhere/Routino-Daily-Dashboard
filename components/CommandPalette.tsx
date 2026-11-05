@@ -13,6 +13,7 @@ import {
   Sparkles,
   X,
   ExternalLink,
+  Settings,
 } from "lucide-react";
 import { Task, DashboardEvent } from "@/types/dashboard";
 
@@ -23,6 +24,7 @@ type CommandPaletteProps = {
   onOpenFocusTimer: () => void;
   onOpenAddTask: () => void;
   onOpenAddEvent: () => void;
+  onOpenPreferences?: () => void;
   tasks: Task[];
   events: DashboardEvent[];
 };
@@ -34,6 +36,7 @@ export function CommandPalette({
   onOpenFocusTimer,
   onOpenAddTask,
   onOpenAddEvent,
+  onOpenPreferences,
   tasks,
   events,
 }: CommandPaletteProps) {
@@ -153,6 +156,15 @@ export function CommandPalette({
               <Plus size={15} className="text-[#6088d1]" />
               <span>Schedule Calendar Event</span>
             </button>
+            {onOpenPreferences && (
+              <button
+                onClick={() => handleAction(onOpenPreferences)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
+              >
+                <Settings size={15} className="text-forest" />
+                <span>Open Preferences & Settings</span>
+              </button>
+            )}
           </div>
 
           {/* Matched Tasks */}

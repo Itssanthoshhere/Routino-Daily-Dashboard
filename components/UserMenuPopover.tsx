@@ -12,6 +12,7 @@ type UserMenuPopoverProps = {
   userName?: string | null;
   userEmail?: string | null;
   userImage?: string | null;
+  onOpenPreferences?: () => void;
 };
 
 export function UserMenuPopover({
@@ -21,6 +22,7 @@ export function UserMenuPopover({
   userName,
   userEmail,
   userImage,
+  onOpenPreferences,
 }: UserMenuPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -84,7 +86,10 @@ export function UserMenuPopover({
         )}
 
         <button
-          onClick={onClose}
+          onClick={() => {
+            onClose();
+            onOpenPreferences?.();
+          }}
           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[11px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"
         >
           <Settings size={14} /> Preferences

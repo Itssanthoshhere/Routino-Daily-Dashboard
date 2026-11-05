@@ -21,6 +21,7 @@ import { UserMenuPopover } from "@/components/UserMenuPopover";
 import { CommandPalette } from "@/components/CommandPalette";
 import { MobileSidebar } from "@/components/MobileSidebar";
 import { GoogleSetupModal } from "@/components/GoogleSetupModal";
+import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { CalendarView } from "@/components/views/CalendarView";
 import { InboxView } from "@/components/views/InboxView";
@@ -180,6 +181,11 @@ export default function Home() {
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [showGoogleSetup, setShowGoogleSetup] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [dbSource, setDbSource] = useState<string>("Local Storage");
   const [viewingEvent, setViewingEvent] = useState<DashboardEvent | null>(null);
   const [viewingMail, setViewingMail] = useState<DashboardMail | null>(null);
   const [intentionIndex, setIntentionIndex] = useState(0);
@@ -229,6 +235,11 @@ export default function Home() {
       const storedFocus = localStorage.getItem("routino_focus");
       if (storedFocus !== null) {
         setFocusMinutes(parseInt(storedFocus, 10));
+      }
+
+      const storedSound = localStorage.getItem("routino_sound_enabled");
+      if (storedSound !== null) {
+        setSoundEnabled(storedSound === "true");
       }
 
       const storedNav = localStorage.getItem("routino_active_nav");
@@ -374,6 +385,104 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  /* ── Database persistence & synchronization ── */
+  const syncToDatabase = useCallback(
+    async (overrideData?: {
+      tasks?: Task[];
+      customEvents?: DashboardEvent[];
+      quickLinks?: QuickLink[];
+      focusMinutes?: number;
+      soundEnabled?: boolean;
+      activeNav?: string;
+    }) => {
+      if (!liveData?.connected) return;
+      try {
+        setIsSyncing(true);
+        const payload = {
+          tasks: overrideData?.tasks ?? tasks,
+          customEvents: overrideData?.customEvents ?? customEvents,
+          quickLinks: overrideData?.quickLinks ?? quickLinks,
+          focusMinutes: overrideData?.focusMinutes ?? focusMinutes,
+          soundEnabled: overrideData?.soundEnabled ?? soundEnabled,
+          activeNav: overrideData?.activeNav ?? activeNav,
+        };
+
+        const res = await fetch("/api/user-data", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          setLastSyncedAt(json.savedAt || new Date().toISOString());
+          if (json.dbStatus?.sourceLabel) {
+            setDbSource(json.dbStatus.sourceLabel);
+          }
+        }
+      } catch {
+        // Offline / network failure handled gracefully
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [liveData?.connected, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, activeNav]
+  );
+
+  /* ── Load user workspace from Database on session connect ── */
+  useEffect(() => {
+    if (!liveData?.connected) return;
+    let active = true;
+    fetch("/api/user-data", { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then((res) => {
+        if (!active || !res || !res.authenticated) return;
+        if (res.dbStatus?.sourceLabel) {
+          setDbSource(res.dbStatus.sourceLabel);
+        }
+        if (res.exists && res.data) {
+          const d = res.data;
+          if (Array.isArray(d.tasks) && d.tasks.length > 0) {
+            setTasks(d.tasks);
+            try { localStorage.setItem("routino_tasks", JSON.stringify(d.tasks)); } catch {}
+          }
+          if (Array.isArray(d.customEvents)) {
+            setCustomEvents(d.customEvents);
+            try { localStorage.setItem("routino_events", JSON.stringify(d.customEvents)); } catch {}
+          }
+          if (Array.isArray(d.quickLinks) && d.quickLinks.length > 0) {
+            setQuickLinks(d.quickLinks);
+            try { localStorage.setItem("routino_links", JSON.stringify(d.quickLinks)); } catch {}
+          }
+          if (typeof d.focusMinutes === "number") {
+            setFocusMinutes(d.focusMinutes);
+            try { localStorage.setItem("routino_focus", String(d.focusMinutes)); } catch {}
+          }
+          if (typeof d.soundEnabled === "boolean") {
+            setSoundEnabled(d.soundEnabled);
+            try { localStorage.setItem("routino_sound_enabled", String(d.soundEnabled)); } catch {}
+          }
+          if (d.updatedAt) {
+            setLastSyncedAt(d.updatedAt);
+          }
+        } else {
+          syncToDatabase();
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [liveData?.connected]);
+
+  const handleManualSync = async () => {
+    await syncToDatabase();
+    toast("Workspace synchronized with database!");
+  };
+
   /* ── Handlers ── */
   const toggleTask = (id: string) => {
     setTasks(prev => {
@@ -387,6 +496,7 @@ export default function Home() {
         return updated;
       });
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      syncToDatabase({ tasks: next });
       return next;
     });
   };
@@ -396,6 +506,7 @@ export default function Home() {
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      syncToDatabase({ tasks: next });
       return next;
     });
     if (task) toast(`"${task.title}" removed`, "info");
@@ -406,6 +517,7 @@ export default function Home() {
     setTasks(prev => {
       const next = [newTask, ...prev];
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      syncToDatabase({ tasks: next });
       return next;
     });
     toast(`"${newTask.title}" added to priorities`);
@@ -415,6 +527,7 @@ export default function Home() {
     setCustomEvents(prev => {
       const next = [...prev, event];
       try { localStorage.setItem("routino_events", JSON.stringify(next)); } catch {}
+      syncToDatabase({ customEvents: next });
       return next;
     });
     toast(`"${event.summary}" scheduled`);
@@ -424,6 +537,7 @@ export default function Home() {
     setQuickLinks(prev => {
       const next = [...prev, link];
       try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+      syncToDatabase({ quickLinks: next });
       return next;
     });
     toast(`"${link.title}" added to quick links`);
@@ -474,9 +588,68 @@ export default function Home() {
     setFocusMinutes(prev => {
       const next = prev + mins;
       try { localStorage.setItem("routino_focus", String(next)); } catch {}
+      syncToDatabase({ focusMinutes: next });
       return next;
     });
     toast(`Focus session complete! ${mins} minutes logged.`);
+  };
+
+  const handleUpdateFocusMinutes = (mins: number) => {
+    setFocusMinutes(mins);
+    try { localStorage.setItem("routino_focus", String(mins)); } catch {}
+    syncToDatabase({ focusMinutes: mins });
+    toast(`Focus target set to ${mins} minutes`);
+  };
+
+  const handleToggleSound = () => {
+    setSoundEnabled(prev => {
+      const next = !prev;
+      try { localStorage.setItem("routino_sound_enabled", String(next)); } catch {}
+      syncToDatabase({ soundEnabled: next });
+      toast(next ? "Audio feedback enabled" : "Audio muted", "info");
+      return next;
+    });
+  };
+
+  const handleClearCompletedTasks = () => {
+    setTasks(prev => {
+      const next = prev.filter(t => !t.checked);
+      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      syncToDatabase({ tasks: next });
+      return next;
+    });
+    toast("Completed tasks archived", "info");
+  };
+
+  const handleImportData = (imported: {
+    tasks?: Task[];
+    customEvents?: DashboardEvent[];
+    quickLinks?: QuickLink[];
+    focusMinutes?: number;
+  }) => {
+    if (imported.tasks) {
+      setTasks(imported.tasks);
+      try { localStorage.setItem("routino_tasks", JSON.stringify(imported.tasks)); } catch {}
+    }
+    if (imported.customEvents) {
+      setCustomEvents(imported.customEvents);
+      try { localStorage.setItem("routino_events", JSON.stringify(imported.customEvents)); } catch {}
+    }
+    if (imported.quickLinks) {
+      setQuickLinks(imported.quickLinks);
+      try { localStorage.setItem("routino_links", JSON.stringify(imported.quickLinks)); } catch {}
+    }
+    if (imported.focusMinutes) {
+      setFocusMinutes(imported.focusMinutes);
+      try { localStorage.setItem("routino_focus", String(imported.focusMinutes)); } catch {}
+    }
+    syncToDatabase({
+      tasks: imported.tasks,
+      customEvents: imported.customEvents,
+      quickLinks: imported.quickLinks,
+      focusMinutes: imported.focusMinutes,
+    });
+    toast("Workspace snapshot restored & synced!");
   };
 
   /* ── Render ── */
@@ -534,7 +707,15 @@ export default function Home() {
               </div>
             )}
             <span className="text-[11px] text-white/85 truncate">{liveData?.user?.name || appConfig.user.name}&apos;s workspace</span>
-            <MoreHorizontal className="ml-auto shrink-0" size={15} />
+            <button
+              type="button"
+              onClick={() => setShowPreferences(true)}
+              title="Workspace Preferences"
+              className="ml-auto shrink-0 rounded-lg p-1 text-white/70 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+              aria-label="Workspace Preferences"
+            >
+              <MoreHorizontal size={15} />
+            </button>
           </div>
         </div>
       </aside>
@@ -547,6 +728,7 @@ export default function Home() {
         onSelectNav={handleSelectNav}
         unreadCount={mailItems.filter(m => !m.read).length}
         isConnected={!!liveData?.connected}
+        onOpenPreferences={() => setShowPreferences(true)}
       />
 
       {/* ─── Main ─── */}
@@ -597,6 +779,7 @@ export default function Home() {
                 userName={liveData?.user?.name}
                 userEmail={liveData?.user?.email}
                 userImage={liveData?.user?.image}
+                onOpenPreferences={() => setShowPreferences(true)}
               />
             </div>
           </div>
@@ -1056,11 +1239,30 @@ export default function Home() {
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenAddTask={() => setShowTaskModal(true)}
         onOpenAddEvent={() => setShowEventModal(true)}
+        onOpenPreferences={() => setShowPreferences(true)}
         tasks={tasks}
         events={allEvents}
       />
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <GoogleSetupModal isOpen={showGoogleSetup} onClose={() => setShowGoogleSetup(false)} />
+      <PreferencesModal
+        isOpen={showPreferences}
+        onClose={() => setShowPreferences(false)}
+        focusMinutes={focusMinutes}
+        onUpdateFocusMinutes={handleUpdateFocusMinutes}
+        tasks={tasks}
+        customEvents={customEvents}
+        quickLinks={quickLinks}
+        onImportData={handleImportData}
+        onClearCompletedTasks={handleClearCompletedTasks}
+        soundEnabled={soundEnabled}
+        onToggleSound={handleToggleSound}
+        userEmail={liveData?.user?.email || null}
+        onSyncDatabase={handleManualSync}
+        isSyncing={isSyncing}
+        lastSyncedAt={lastSyncedAt}
+        dbSource={dbSource}
+      />
     </div>
   );
 }

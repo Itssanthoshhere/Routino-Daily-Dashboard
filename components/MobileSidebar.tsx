@@ -20,6 +20,7 @@ type MobileSidebarProps = {
   onSelectNav: (label: string) => void;
   unreadCount: number;
   isConnected: boolean;
+  onOpenPreferences?: () => void;
 };
 
 const navItems = [
@@ -36,6 +37,7 @@ export function MobileSidebar({
   onSelectNav,
   unreadCount,
   isConnected,
+  onOpenPreferences,
 }: MobileSidebarProps) {
   useEffect(() => {
     if (isOpen) {
@@ -137,9 +139,25 @@ export function MobileSidebar({
         </div>
 
         <div className="mt-auto rounded-2xl bg-forest p-4 text-white">
-          <div className="mb-2 flex items-center gap-2 text-accent">
-            <Sparkles size={15} />
-            <span className="text-[11px] font-semibold">A calmer day</span>
+          <div className="mb-2 flex items-center justify-between text-accent">
+            <div className="flex items-center gap-2">
+              <Sparkles size={15} />
+              <span className="text-[11px] font-semibold">A calmer day</span>
+            </div>
+            {onOpenPreferences && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenPreferences();
+                }}
+                className="rounded-lg p-1 text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+                title="Preferences"
+                aria-label="Preferences"
+              >
+                <MoreHorizontal size={15} />
+              </button>
+            )}
           </div>
           <p className="text-[11px] leading-relaxed text-white/70">
             Spend your hours intentionally on what matters.
