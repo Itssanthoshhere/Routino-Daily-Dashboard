@@ -43,7 +43,7 @@ export type QuickLink = {
   title: string;
   subtitle: string;
   url: string;
-  iconName: "calendar" | "mail" | "drive" | "sites" | "link" | "file";
+  iconName: "calendar" | "mail" | "drive" | "sites" | "link" | "file" | "linkedin" | "github" | "portfolio" | "globe";
   available: boolean;
 };
 

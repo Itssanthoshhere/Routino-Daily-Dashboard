@@ -26,12 +26,21 @@ export function QuickLinkModal({ isOpen, onClose, onAddLink }: QuickLinkModalPro
       formattedUrl = "https://" + formattedUrl;
     }
 
+    const lower = formattedUrl.toLowerCase();
+    const detectedIcon = lower.includes("linkedin.com")
+      ? "linkedin"
+      : lower.includes("github.com")
+      ? "github"
+      : lower.includes("portfolio") || lower.includes("vercel.app")
+      ? "globe"
+      : "link";
+
     onAddLink({
       id: "link-" + Date.now(),
       title: title.trim(),
       subtitle: subtitle.trim() || "Custom link",
       url: formattedUrl,
-      iconName: "link",
+      iconName: detectedIcon,
       available: true,
     });
 

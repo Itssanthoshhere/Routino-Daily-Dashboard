@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
-  ChevronDown, Circle, Clock3, ExternalLink, FileText, Focus,
-  Inbox, Link2, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Sparkles,
+  ChevronDown, Circle, Clock3, ExternalLink, FileText, Focus, Github, Globe,
+  Inbox, Link2, Linkedin, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Sparkles,
   Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
@@ -87,8 +87,11 @@ const seedTasks: Task[] = [
 const seedLinks: QuickLink[] = [
   { id: "ql-1", title: "Google Calendar", subtitle: "Your schedule", url: appConfig.links.calendar, iconName: "calendar", available: true },
   { id: "ql-2", title: "Gmail", subtitle: "Your inbox", url: appConfig.links.mail, iconName: "mail", available: true },
-  { id: "ql-3", title: "Google Drive", subtitle: "Not integrated", url: "#", iconName: "drive", available: false },
-  { id: "ql-4", title: "Google Sites", subtitle: "Not integrated", url: "#", iconName: "sites", available: false },
+  { id: "ql-3", title: "LinkedIn", subtitle: "thesanthoshvs", url: appConfig.links.linkedin, iconName: "linkedin", available: true },
+  { id: "ql-4", title: "GitHub", subtitle: "Itssanthoshhere", url: appConfig.links.github, iconName: "github", available: true },
+  { id: "ql-5", title: "Portfolio", subtitle: "santhosh-vs-portfolio", url: appConfig.links.portfolio, iconName: "globe", available: true },
+  { id: "ql-6", title: "Google Drive", subtitle: "Not integrated", url: "#", iconName: "drive", available: false },
+  { id: "ql-7", title: "Google Sites", subtitle: "Not integrated", url: "#", iconName: "sites", available: false },
 ];
 
 const seedNotifications: NotificationItem[] = [
@@ -124,6 +127,10 @@ function senderInitials(value: string) {
 const linkIcons: Record<string, typeof CalendarDays> = {
   calendar: CalendarDays,
   mail: Mail,
+  linkedin: Linkedin,
+  github: Github,
+  portfolio: Globe,
+  globe: Globe,
   drive: FileText,
   sites: Link2,
   link: Link2,
@@ -188,7 +195,17 @@ export default function Home() {
 
       const storedLinks = localStorage.getItem("routino_links");
       if (storedLinks !== null) {
-        setQuickLinks(JSON.parse(storedLinks));
+        const parsed: QuickLink[] = JSON.parse(storedLinks);
+        // Ensure new default links (LinkedIn, GitHub, Portfolio) are added if missing
+        const existingUrls = new Set(parsed.map(l => l.url.toLowerCase()));
+        const missingDefaults = seedLinks.filter(s => s.available && !existingUrls.has(s.url.toLowerCase()));
+        if (missingDefaults.length > 0) {
+          const merged = [...parsed, ...missingDefaults];
+          setQuickLinks(merged);
+          try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
+        } else {
+          setQuickLinks(parsed);
+        }
       }
 
       const storedEvents = localStorage.getItem("routino_events");
@@ -940,6 +957,9 @@ export default function Home() {
                           <span className={`grid h-7 w-7 place-items-center rounded-lg shadow-sm ${
                             link.iconName === "calendar" ? "bg-[#edf3ff] text-[#6088d1]" :
                             link.iconName === "mail" ? "bg-[#fbefeb] text-[#d16b5b]" :
+                            link.iconName === "linkedin" ? "bg-[#e8f3fc] text-[#0a66c2]" :
+                            link.iconName === "github" ? "bg-[#f0f1f3] text-[#24292f]" :
+                            (link.iconName === "portfolio" || link.iconName === "globe") ? "bg-[#fef7ee] text-[#d97706]" :
                             "bg-[#fdf2f2] text-forest"
                           }`}><IconComponent size={14} /></span>
                           <span className="min-w-0">
