@@ -20,9 +20,58 @@ export type DatabaseStatus = {
   sourceLabel: string;
 };
 
+export type LinkedInProfile = {
+  subject: string;
+  name: string;
+  email?: string;
+  picture?: string;
+  linkedAt: string;
+};
+
 function getNeonClient() {
   const databaseUrl = process.env.DATABASE_URL;
   return databaseUrl ? neon(databaseUrl) : null;
+}
+
+export async function getLinkedInProfile(email: string): Promise<LinkedInProfile | null> {
+  const sql = getNeonClient();
+  if (!sql) return null;
+  const normalizedEmail = email.toLowerCase().trim();
+  await sql`CREATE TABLE IF NOT EXISTS routino_linked_accounts (
+    google_email TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    profile JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (google_email, provider)
+  )`;
+  const rows = await sql`SELECT profile FROM routino_linked_accounts
+    WHERE google_email = ${normalizedEmail} AND provider = 'linkedin' LIMIT 1`;
+  return (rows[0]?.profile as LinkedInProfile | undefined) ?? null;
+}
+
+export async function saveLinkedInProfile(email: string, profile: LinkedInProfile): Promise<void> {
+  const sql = getNeonClient();
+  if (!sql) throw new Error("Persistent database is not configured.");
+  const normalizedEmail = email.toLowerCase().trim();
+  await sql`CREATE TABLE IF NOT EXISTS routino_linked_accounts (
+    google_email TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    profile JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (google_email, provider)
+  )`;
+  await sql`INSERT INTO routino_linked_accounts (google_email, provider, profile, updated_at)
+    VALUES (${normalizedEmail}, 'linkedin', ${JSON.stringify(profile)}::jsonb, NOW())
+    ON CONFLICT (google_email, provider) DO UPDATE
+    SET profile = EXCLUDED.profile, updated_at = NOW()`;
+}
+
+export async function deleteLinkedInProfile(email: string): Promise<void> {
+  const sql = getNeonClient();
+  if (!sql) return;
+  const normalizedEmail = email.toLowerCase().trim();
+  await sql`DELETE FROM routino_linked_accounts
+    WHERE google_email = ${normalizedEmail} AND provider = 'linkedin'`;
 }
 
 function getRedisConfig() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { LogOut, Settings, ShieldCheck } from "lucide-react";
+import { LogOut, Settings, ShieldCheck, Keyboard } from "lucide-react";
 import { connectGoogle } from "@/app/actions";
 import { appConfig } from "@/lib/config";
 
@@ -13,6 +13,7 @@ type UserMenuPopoverProps = {
   userEmail?: string | null;
   userImage?: string | null;
   onOpenPreferences?: () => void;
+  onOpenShortcuts?: () => void;
 };
 
 export function UserMenuPopover({
@@ -23,6 +24,7 @@ export function UserMenuPopover({
   userEmail,
   userImage,
   onOpenPreferences,
+  onOpenShortcuts,
 }: UserMenuPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -93,6 +95,19 @@ export function UserMenuPopover({
           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[11px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"
         >
           <Settings size={14} /> Preferences
+        </button>
+
+        <button
+          onClick={() => {
+            onClose();
+            onOpenShortcuts?.();
+          }}
+          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[11px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"
+        >
+          <span className="flex items-center gap-2.5">
+            <Keyboard size={14} /> Keyboard Shortcuts
+          </span>
+          <kbd className="rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted">?</kbd>
         </button>
       </div>
 

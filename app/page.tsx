@@ -860,6 +860,15 @@ export default function Home() {
               {label === "Tasks" && <span className="ml-auto rounded-full bg-[#e8efe4] px-2 py-0.5 text-[10px] font-bold text-forest">{tasks.filter(t => !t.checked).length}</span>}
             </button>
           ))}
+          <button
+            onClick={() => setShowShortcuts(true)}
+            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[12px] text-[#77827b] hover:bg-[#f1f3ed] hover:text-ink transition"
+          >
+            <span className="flex items-center gap-3">
+              <Keyboard size={15} /> Shortcuts
+            </span>
+            <kbd className="rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted">?</kbd>
+          </button>
         </nav>
         <div className="mt-9">
           <p className="px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#a2aaa2]">Connected apps</p>
@@ -918,6 +927,7 @@ export default function Home() {
         unreadCount={mailItems.filter(m => !m.read).length}
         isConnected={!!liveData?.connected}
         onOpenPreferences={() => setShowPreferences(true)}
+        onOpenShortcuts={() => setShowShortcuts(true)}
       />
 
       {/* ─── Main ─── */}
@@ -969,6 +979,7 @@ export default function Home() {
                 userEmail={liveData?.user?.email}
                 userImage={liveData?.user?.image}
                 onOpenPreferences={() => setShowPreferences(true)}
+                onOpenShortcuts={() => setShowShortcuts(true)}
               />
             </div>
           </div>

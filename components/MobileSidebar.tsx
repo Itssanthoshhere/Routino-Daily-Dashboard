@@ -10,6 +10,7 @@ import {
   X,
   Mail,
   MoreHorizontal,
+  Keyboard,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 
@@ -21,6 +22,7 @@ type MobileSidebarProps = {
   unreadCount: number;
   isConnected: boolean;
   onOpenPreferences?: () => void;
+  onOpenShortcuts?: () => void;
 };
 
 const navItems = [
@@ -38,6 +40,7 @@ export function MobileSidebar({
   unreadCount,
   isConnected,
   onOpenPreferences,
+  onOpenShortcuts,
 }: MobileSidebarProps) {
   useEffect(() => {
     if (isOpen) {
@@ -106,6 +109,21 @@ export function MobileSidebar({
               )}
             </button>
           ))}
+          {onOpenShortcuts && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenShortcuts();
+              }}
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[13px] text-[#77827b] hover:bg-[#f1f3ed] hover:text-ink transition"
+            >
+              <span className="flex items-center gap-3">
+                <Keyboard size={16} />
+                Shortcuts
+              </span>
+              <kbd className="rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted">?</kbd>
+            </button>
+          )}
         </nav>
 
         <div className="mt-8">

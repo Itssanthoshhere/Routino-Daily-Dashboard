@@ -16,9 +16,11 @@ import {
   CheckCircle2,
   ShieldCheck,
   AlertCircle,
+  Keyboard,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 import { Task, DashboardEvent, QuickLink } from "@/types/dashboard";
+import { LinkedInConnectionCard } from "@/components/LinkedInConnectionCard";
 
 type PreferencesModalProps = {
   isOpen: boolean;
@@ -62,7 +64,7 @@ export function PreferencesModal({
   lastSyncedAt,
   dbSource = "Local Cache",
 }: PreferencesModalProps) {
-  const [activeTab, setActiveTab] = useState<"general" | "data" | "about">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "data" | "shortcuts" | "about">("general");
   const [copiedStatus, setCopiedStatus] = useState(false);
   const [syncSuccessToast, setSyncSuccessToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,6 +179,16 @@ export function PreferencesModal({
             }`}
           >
             Database & Sync
+          </button>
+          <button
+            onClick={() => setActiveTab("shortcuts")}
+            className={`rounded-xl px-3.5 py-1.5 text-[11px] font-semibold transition ${
+              activeTab === "shortcuts"
+                ? "bg-forest text-white shadow-sm"
+                : "text-muted hover:bg-[#f1f3ed] hover:text-ink"
+            }`}
+          >
+            Shortcuts
           </button>
           <button
             onClick={() => setActiveTab("about")}
@@ -338,6 +350,8 @@ export function PreferencesModal({
                 )}
               </div>
 
+              <LinkedInConnectionCard googleConnected={Boolean(userEmail)} />
+
               {/* Manual Backup Download */}
               <div className="rounded-2xl border border-line bg-white p-4">
                 <h4 className="text-[12px] font-semibold text-ink flex items-center gap-1.5">
@@ -380,7 +394,39 @@ export function PreferencesModal({
             </div>
           )}
 
-          {/* Tab 3: About */}
+          {/* Tab 3: Shortcuts */}
+          {activeTab === "shortcuts" && (
+            <div className="space-y-3 text-[12px] text-ink leading-relaxed">
+              <div className="rounded-2xl border border-line bg-white p-4">
+                <h4 className="text-[12px] font-semibold text-ink flex items-center gap-1.5 mb-1">
+                  <Keyboard size={14} className="text-forest" /> Quick Keyboard Cheatsheet
+                </h4>
+                <p className="text-[11px] text-muted">
+                  Use these shortcuts anywhere across Routino to fly through your day without touching your mouse:
+                </p>
+                <div className="mt-3 divide-y divide-[#f1f3ed]">
+                  {[
+                    { key: "1 / 2 / 3 / 4", desc: "Switch views (Overview, Calendar, Inbox, Tasks)" },
+                    { key: "F", desc: "Launch Deep Work Focus Timer" },
+                    { key: "T", desc: "Add New Priority Task" },
+                    { key: "E", desc: "Schedule Calendar Event" },
+                    { key: "⌘ K / Ctrl K", desc: "Open Command Palette / Search" },
+                    { key: "?", desc: "Open Floating Shortcuts Sheet" },
+                    { key: "Esc", desc: "Close any open modal or popover" },
+                  ].map((s) => (
+                    <div key={s.key} className="flex items-center justify-between py-2 text-[11px]">
+                      <span className="text-ink font-medium">{s.desc}</span>
+                      <kbd className="rounded-md border border-[#d6ddd4] bg-[#f7f8f4] px-2 py-0.5 font-mono font-bold text-ink">
+                        {s.key}
+                      </kbd>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 4: About */}
           {activeTab === "about" && (
             <div className="space-y-3 text-[12px] text-ink leading-relaxed">
               <div className="rounded-2xl border border-line bg-white p-4 space-y-2">

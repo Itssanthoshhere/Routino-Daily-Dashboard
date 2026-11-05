@@ -123,6 +123,23 @@ Google’s OAuth consent screen may display an unverified-app warning while the 
 
 6. Set the client ID, client secret, Auth.js secret, and base URL as environment variables. Never commit actual credentials.
 
+## 🔗 Optional LinkedIn Profile Connection
+
+Routino can connect a LinkedIn account to the currently signed-in Google workspace using LinkedIn OpenID Connect. The optional connection requests only `openid`, `profile`, and `email`; it stores the returned name, email, and profile photo in the workspace database. OAuth access tokens are used only on the server for the profile lookup and are not persisted. LinkedIn messages, feed activity, and posting are not integrated.
+
+1. Create an app in the [LinkedIn Developer Portal](https://www.linkedin.com/developers/apps) and enable **Sign In with LinkedIn using OpenID Connect**.
+2. Add the redirect URI for each environment you intend to use:
+
+   ```text
+   http://localhost:3000/api/linkedin/callback
+   https://routino-daily-dashboard.vercel.app/api/linkedin/callback
+   ```
+
+3. Set `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and the exact matching `LINKEDIN_REDIRECT_URI` in local `.env.development.local` and the corresponding Vercel environment. Keep the client secret server-side and out of Git.
+4. Sign into Routino with Google, open **Preferences → Database & Sync**, and choose **Connect LinkedIn**.
+
+Removing the profile in Routino deletes the saved profile data. To revoke LinkedIn authorization too, remove Routino from the account’s permitted services in LinkedIn settings.
+
 ## ⚙️ Environment Variables
 
 Copy the example file for local development:
@@ -137,6 +154,9 @@ cp .env.example .env.local
 | `GOOGLE_CLIENT_SECRET` | Google OAuth web client secret |
 | `NEXTAUTH_SECRET` | Secret used to protect Auth.js session data |
 | `NEXTAUTH_URL` | App base URL, such as `http://localhost:3000` locally |
+| `LINKEDIN_CLIENT_ID` | Optional LinkedIn OAuth app client ID |
+| `LINKEDIN_CLIENT_SECRET` | Optional LinkedIn OAuth app client secret |
+| `LINKEDIN_REDIRECT_URI` | Exact OAuth callback URL registered in the LinkedIn app |
 
 Generate a strong local secret with:
 
