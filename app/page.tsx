@@ -948,6 +948,7 @@ export default function Home() {
     tasks?: Task[];
     customEvents?: DashboardEvent[];
     quickLinks?: QuickLink[];
+    habits?: Habit[];
     focusMinutes?: number;
   }) => {
     if (imported.tasks) {
@@ -963,6 +964,10 @@ export default function Home() {
       setQuickLinks(normalizedLinks);
       try { localStorage.setItem("routino_links", JSON.stringify(normalizedLinks)); } catch {}
     }
+    if (imported.habits && Array.isArray(imported.habits)) {
+      setHabits(imported.habits);
+      try { localStorage.setItem("routino_habits", JSON.stringify(imported.habits)); } catch {}
+    }
     if (imported.focusMinutes) {
       setFocusMinutes(imported.focusMinutes);
       try { localStorage.setItem("routino_focus", String(imported.focusMinutes)); } catch {}
@@ -971,6 +976,7 @@ export default function Home() {
       tasks: imported.tasks,
       customEvents: imported.customEvents,
       quickLinks: imported.quickLinks,
+      habits: imported.habits,
       focusMinutes: imported.focusMinutes,
     });
     toast("Workspace snapshot restored & synced!");
@@ -1669,6 +1675,7 @@ export default function Home() {
         tasks={tasks}
         customEvents={customEvents}
         quickLinks={quickLinks}
+        habits={habits}
         onImportData={handleImportData}
         onClearCompletedTasks={handleClearCompletedTasks}
         soundEnabled={soundEnabled}
