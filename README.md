@@ -1,15 +1,18 @@
 <div align="center">
 
-  # ☀️ Routino — Daily Dashboard
+  # ☀️ Routino
 
   <p align="center">
-    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
+    <a href="https://daily-dashboard-tau-five.vercel.app" target="_blank">
+      <img src="https://img.shields.io/badge/🟢_LIVE_DASHBOARD-daily--dashboard--tau--five.vercel.app-315b49?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Daily Dashboard" />
+    </a>
+    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
       <img src="https://img.shields.io/badge/Repository-Private-8b6b3f?style=for-the-badge&logo=github&logoColor=white" alt="Private GitHub repository" />
     </a>
-    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
+    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
       <img src="https://img.shields.io/badge/Stack-Next.js_·_TypeScript_·_Tailwind-1f2937?style=for-the-badge" alt="Next.js, TypeScript, and Tailwind CSS" />
     </a>
-    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
+    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
       <img src="https://img.shields.io/badge/Google_Access-Gmail_&_Calendar_Read--Only-6f8a61?style=for-the-badge&logo=google&logoColor=white" alt="Read-only Gmail and Google Calendar access" />
     </a>
   </p>
@@ -128,12 +131,14 @@ For production, configure the values in the Vercel project’s **Production** en
 ## 🛠️ Repository Structure
 
 ```text
-Routino-Daily-Dashboard/
+Daily-Dashboard/
 ├── app/
 │   ├── actions.ts                 # Auth.js Google sign-in server action
 │   ├── api/
 │   │   ├── auth/[...nextauth]/    # Auth.js route handlers
 │   │   └── dashboard/             # Authenticated Calendar and Gmail data route
+│   ├── auth/
+│   │   └── signout/               # Custom Routino sign-out confirmation page
 │   ├── page.tsx                   # Responsive dashboard interface
 │   └── globals.css                # Global styles and Tailwind layers
 ├── components/                    # Interactive UI modules, modals, and tabs
@@ -158,8 +163,8 @@ Requirements: Node.js and npm compatible with the versions used by this project.
 1. Clone the repository and enter its folder:
 
    ```bash
-   git clone https://github.com/Itssanthoshhere/Routino-Daily-Dashboard.git
-   cd Routino-Daily-Dashboard
+   git clone https://github.com/Itssanthoshhere/Daily-Dashboard.git
+   cd Daily-Dashboard
    ```
 
 2. Install dependencies and create your local environment file:
@@ -210,7 +215,7 @@ vercel --prod
 
 ## 👤 Project
 
-- **Repository:** [Itssanthoshhere/Routino-Daily-Dashboard](https://github.com/Itssanthoshhere/Routino-Daily-Dashboard)
+- **Repository:** [Itssanthoshhere/Daily-Dashboard](https://github.com/Itssanthoshhere/Daily-Dashboard)
 - **Deployment:** [daily-dashboard-tau-five.vercel.app](https://daily-dashboard-tau-five.vercel.app)
 - **Stack:** Next.js · TypeScript · Tailwind CSS · Auth.js · Google APIs · Vercel
 
