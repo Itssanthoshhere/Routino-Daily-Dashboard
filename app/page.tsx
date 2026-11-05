@@ -113,11 +113,12 @@ const seedHabits: Habit[] = [
 const seedLinks: QuickLink[] = [
   { id: "ql-1", title: "Google Calendar", subtitle: "Your schedule", url: appConfig.links.calendar, iconName: "calendar", available: true },
   { id: "ql-2", title: "Gmail", subtitle: "Your inbox", url: appConfig.links.mail, iconName: "mail", available: true },
-  { id: "ql-3", title: "LinkedIn", subtitle: "thesanthoshvs", url: appConfig.links.linkedin, iconName: "linkedin", available: true },
-  { id: "ql-4", title: "GitHub", subtitle: "Itssanthoshhere", url: appConfig.links.github, iconName: "github", available: true },
-  { id: "ql-5", title: "Portfolio", subtitle: "santhosh-vs-portfolio", url: appConfig.links.portfolio, iconName: "globe", available: true },
-  { id: "ql-6", title: "Google Drive", subtitle: "Not integrated", url: "#", iconName: "drive", available: false },
-  { id: "ql-7", title: "Google Sites", subtitle: "Not integrated", url: "#", iconName: "sites", available: false },
+  { id: "ql-3", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.live.com/mail", iconName: "outlook", available: true },
+  { id: "ql-4", title: "LinkedIn", subtitle: "thesanthoshvs", url: appConfig.links.linkedin, iconName: "linkedin", available: true },
+  { id: "ql-5", title: "GitHub", subtitle: "Itssanthoshhere", url: appConfig.links.github, iconName: "github", available: true },
+  { id: "ql-6", title: "Portfolio", subtitle: "santhosh-vs-portfolio", url: appConfig.links.portfolio, iconName: "globe", available: true },
+  { id: "ql-7", title: "Google Drive", subtitle: "Not integrated", url: "#", iconName: "drive", available: false },
+  { id: "ql-8", title: "Google Sites", subtitle: "Not integrated", url: "#", iconName: "sites", available: false },
 ];
 
 const seedNotifications: NotificationItem[] = [
@@ -168,6 +169,7 @@ function senderInitials(value: string) {
 const linkIcons: Record<string, typeof CalendarDays> = {
   calendar: CalendarDays,
   mail: Mail,
+  outlook: Mail,
   linkedin: Linkedin,
   github: Github,
   portfolio: Globe,
@@ -205,6 +207,13 @@ export default function Home() {
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(seedLinks);
   const [notifications, setNotifications] = useState<NotificationItem[]>(seedNotifications);
   const [mailItems, setMailItems] = useState<DashboardMail[]>(sampleMail);
+  const [googleMail, setGoogleMail] = useState<DashboardMail[]>([]);
+  const [outlookData, setOutlookData] = useState<{
+    connected: boolean;
+    profile?: { email: string; name?: string };
+    events: DashboardEvent[];
+    unread: DashboardMail[];
+  }>({ connected: false, events: [], unread: [] });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [focusMinutes, setFocusMinutes] = useState(appConfig.defaults.focusMinutes);
   const [hydrated, setHydrated] = useState(false);
@@ -310,6 +319,13 @@ export default function Home() {
     setHydrated(true);
   }, []);
 
+  /* ── Toast helper ── */
+  const toast = useCallback((message: string, type: "success" | "info" = "success") => {
+    const id = "toast-" + Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
+
   /* ── Fetch live data from Google OAuth ── */
   useEffect(() => {
     let active = true;
@@ -317,57 +333,163 @@ export default function Home() {
       const result = await r.json();
       if (active && result.connected) {
         setLiveData(result as DashboardData);
-
-        const storedStarred = new Set(JSON.parse(localStorage.getItem("routino_starred_mail") || "[]"));
-        const storedRead = new Set(JSON.parse(localStorage.getItem("routino_read_mail") || "[]"));
-
-        /* Replace sample mail with real unread messages, preserving read/star overrides */
-        if (result.unread && result.unread.length > 0) {
-          setMailItems(result.unread.map((m: DashboardMail) => ({
-            ...m,
-            href: "https://mail.google.com/mail/u/0/#all/" + m.id,
-            starred: storedStarred.has(m.id) || !!m.starred,
-            read: storedRead.has(m.id) || !!m.read,
-          })));
-        } else {
-          setMailItems([]);
-        }
-
-        /* Dynamic real notifications */
-        const realNotifications: NotificationItem[] = [];
-        if (result.unread && result.unread.length > 0) {
-          realNotifications.push({
-            id: "n-unread",
-            title: `You have ${result.unread.length} unread message${result.unread.length > 1 ? "s" : ""} in Gmail`,
-            time: "Now",
-            type: "mail",
-            read: false,
-            navTarget: "Inbox",
-          });
-        }
-        if (result.events && result.events.length > 0) {
-          const firstEv = result.events[0];
-          realNotifications.push({
-            id: "n-cal",
-            title: `Upcoming: ${firstEv.summary || "Event"}`,
-            time: formatTime(firstEv.start?.dateTime),
-            type: "calendar",
-            read: false,
-            navTarget: "Calendar",
-          });
-        }
-        setNotifications(realNotifications);
+        setGoogleMail(result.unread || []);
       }
     }).catch(() => undefined);
     return () => { active = false; };
   }, []);
-  useEffect(() => { if (liveData?.connected) setNotice(false); }, [liveData]);
+
+  /* ── Fetch live data from Microsoft Outlook ── */
+  const fetchOutlookData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/outlook/data", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.connected) {
+          setOutlookData({
+            connected: true,
+            profile: data.profile,
+            events: data.events || [],
+            unread: data.unread || [],
+          });
+        } else {
+          setOutlookData({ connected: false, events: [], unread: [] });
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchOutlookData();
+  }, [fetchOutlookData]);
+
+  // Handle post-redirect toast when returning from Outlook OAuth
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("connected") === "outlook") {
+        toast("Connected to Microsoft Outlook successfully!", "success");
+        void fetchOutlookData();
+        const url = new URL(window.location.href);
+        url.searchParams.delete("connected");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [toast, fetchOutlookData]);
+
+  /* ── Merge unread emails from Google and Outlook ── */
+  useEffect(() => {
+    const isGoogle = Boolean(liveData?.connected);
+    const isOutlook = Boolean(outlookData?.connected);
+
+    if (!isGoogle && !isOutlook) {
+      return;
+    }
+
+    const storedStarred = new Set(JSON.parse(localStorage.getItem("routino_starred_mail") || "[]"));
+    const storedRead = new Set(JSON.parse(localStorage.getItem("routino_read_mail") || "[]"));
+
+    const combined: DashboardMail[] = [];
+
+    if (isGoogle) {
+      combined.push(
+        ...googleMail.map(m => ({
+          ...m,
+          href: m.href || ("https://mail.google.com/mail/u/0/#all/" + m.id),
+          starred: storedStarred.has(m.id) || !!m.starred,
+          read: storedRead.has(m.id) || !!m.read,
+          source: "google" as const,
+        }))
+      );
+    }
+
+    if (isOutlook) {
+      combined.push(
+        ...(outlookData.unread || []).map(m => ({
+          ...m,
+          starred: storedStarred.has(m.id) || !!m.starred,
+          read: storedRead.has(m.id) || !!m.read,
+          source: "outlook" as const,
+        }))
+      );
+    }
+
+    combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    setMailItems(combined);
+  }, [liveData?.connected, googleMail, outlookData.connected, outlookData.unread]);
+
+  /* ── Dynamic real notifications ── */
+  useEffect(() => {
+    const isGoogle = Boolean(liveData?.connected);
+    const isOutlook = Boolean(outlookData?.connected);
+
+    if (!isGoogle && !isOutlook) return;
+
+    const realNotifications: NotificationItem[] = [];
+
+    if (isGoogle && googleMail.length > 0) {
+      realNotifications.push({
+        id: "n-unread-gmail",
+        title: `You have ${googleMail.length} unread message${googleMail.length > 1 ? "s" : ""} in Gmail`,
+        time: "Now",
+        type: "mail",
+        read: false,
+        navTarget: "Inbox",
+      });
+    }
+
+    if (isOutlook && outlookData.unread.length > 0) {
+      realNotifications.push({
+        id: "n-unread-outlook",
+        title: `You have ${outlookData.unread.length} unread message${outlookData.unread.length > 1 ? "s" : ""} in Outlook`,
+        time: "Now",
+        type: "mail",
+        read: false,
+        navTarget: "Inbox",
+      });
+    }
+
+    if (isGoogle && liveData?.events && liveData.events.length > 0) {
+      const firstEv = liveData.events[0];
+      realNotifications.push({
+        id: "n-cal-google",
+        title: `Google Calendar: ${firstEv.summary || "Event"}`,
+        time: formatTime(firstEv.start?.dateTime),
+        type: "calendar",
+        read: false,
+        navTarget: "Calendar",
+      });
+    }
+
+    if (isOutlook && outlookData.events && outlookData.events.length > 0) {
+      const firstEv = outlookData.events[0];
+      realNotifications.push({
+        id: "n-cal-outlook",
+        title: `Outlook Calendar: ${firstEv.summary || "Event"}`,
+        time: formatTime(firstEv.start?.dateTime),
+        type: "calendar",
+        read: false,
+        navTarget: "Calendar",
+      });
+    }
+
+    if (realNotifications.length > 0) {
+      setNotifications(realNotifications);
+    }
+  }, [liveData, googleMail, outlookData]);
+
+  useEffect(() => {
+    if (liveData?.connected || outlookData?.connected) setNotice(false);
+  }, [liveData?.connected, outlookData?.connected]);
 
   /* ── Computed calendar data ── */
   const allEvents = useMemo(() => {
     const live = liveData?.events ?? [];
-    return [...live, ...customEvents];
-  }, [liveData, customEvents]);
+    const outlook = outlookData?.events ?? [];
+    return [...live, ...outlook, ...customEvents];
+  }, [liveData, outlookData, customEvents]);
 
   const todayEvents = useMemo(() => allEvents.filter(ev => {
     const start = ev.start?.dateTime ?? ev.start?.date;
@@ -389,31 +511,22 @@ export default function Home() {
     };
   }), [allEvents]);
 
-  const schedule: ScheduleItem[] = liveData?.connected || customEvents.length > 0
-    ? [...(liveData?.connected ? todayEvents.filter(e => !e.isCustom) : []), ...customEvents.filter(e => {
-        const start = e.start?.dateTime ?? e.start?.date;
-        return start && new Date(start).toDateString() === new Date().toDateString();
-      })].map((ev, i) => ({
+  const isConnected = !!liveData?.connected || !!outlookData?.connected;
+
+  const schedule: ScheduleItem[] = isConnected || customEvents.length > 0
+    ? todayEvents.map((ev, i) => ({
         time: formatTime(ev.start?.dateTime),
         end: formatTime(ev.end?.dateTime),
         name: ev.summary || "Untitled event",
-        detail: ev.description?.slice(0, 90) || "Google Calendar",
-        tag: ev.tag || "",
-        color: ev.color || ["#7b8df4", "#e7a15a", "#5fa77d"][i % 3],
+        detail: ev.description?.slice(0, 90) || (ev.source === "outlook" ? "Outlook Calendar" : "Google Calendar"),
+        tag: ev.tag || (ev.source === "outlook" ? "OUTLOOK" : ""),
+        color: ev.color || (ev.source === "outlook" ? "#0078d4" : ["#7b8df4", "#e7a15a", "#5fa77d"][i % 3]),
       }))
     : sampleSchedule;
 
-  const isConnected = !!liveData?.connected;
   const displaySchedule = isConnected ? schedule : (schedule.length > 0 ? schedule : sampleSchedule);
   const rangeEnd = new Date();
   rangeEnd.setDate(rangeEnd.getDate() + 6);
-
-  /* ── Toast helper ── */
-  const toast = useCallback((message: string, type: "success" | "info" = "success") => {
-    const id = "toast-" + Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
-  }, []);
 
   /* ── Keyboard shortcuts ── */
   useEffect(() => {
@@ -883,6 +996,16 @@ export default function Home() {
               Gmail
               <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
             </div>
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] text-[#58645c]">
+              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm"><CalendarDays size={14} /></span>
+              Outlook Calendar
+              <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (outlookData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
+            </div>
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] text-[#58645c]">
+              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm"><Mail size={14} /></span>
+              Outlook Mail
+              <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (outlookData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
+            </div>
           </div>
         </div>
         <div className="mt-5 rounded-xl border border-dashed border-[#e2e6df] px-3 py-3">
@@ -926,6 +1049,7 @@ export default function Home() {
         onSelectNav={handleSelectNav}
         unreadCount={mailItems.filter(m => !m.read).length}
         isConnected={!!liveData?.connected}
+        isOutlookConnected={Boolean(outlookData?.connected)}
         onOpenPreferences={() => setShowPreferences(true)}
         onOpenShortcuts={() => setShowShortcuts(true)}
       />
@@ -1010,7 +1134,7 @@ export default function Home() {
               events={allEvents}
               onOpenAddEvent={() => { setViewingEvent(null); setShowEventModal(true); }}
               onSelectEvent={(ev) => { setViewingEvent(ev); setShowEventModal(true); }}
-              isConnected={!!liveData?.connected}
+              isConnected={isConnected}
             />
           ) : activeNav === "Inbox" ? (
             <InboxView
@@ -1018,7 +1142,7 @@ export default function Home() {
               onSelectMail={(m) => setViewingMail(m)}
               onToggleStar={toggleMailStar}
               onToggleRead={toggleMailRead}
-              isConnected={!!liveData?.connected}
+              isConnected={isConnected}
             />
           ) : activeNav === "Tasks" ? (
             <TasksView
@@ -1332,7 +1456,15 @@ export default function Home() {
                   <SectionHeading
                     icon={Mail}
                     title="Worth a look"
-                    sub={isConnected ? "Unread messages from Gmail" : "Sample messages · connect to load your inbox"}
+                    sub={
+                      isConnected
+                        ? outlookData.connected && liveData?.connected
+                          ? "Unread messages from Gmail & Outlook"
+                          : outlookData.connected
+                          ? "Unread messages from Outlook"
+                          : "Unread messages from Gmail"
+                        : "Sample messages · connect to load your inbox"
+                    }
                     right={
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => handleSelectNav("Inbox")} className="rounded-full bg-[#f7eee4] px-2.5 py-1 text-[9px] font-bold text-[#a2764b] hover:bg-[#ebdcc9] transition">
@@ -1434,6 +1566,7 @@ export default function Home() {
                           <span className={`grid h-7 w-7 place-items-center rounded-lg shadow-sm ${
                             link.iconName === "calendar" ? "bg-[#edf3ff] text-[#6088d1]" :
                             link.iconName === "mail" ? "bg-[#fbefeb] text-[#d16b5b]" :
+                            link.iconName === "outlook" ? "bg-[#ebf3fc] text-[#0078d4]" :
                             link.iconName === "linkedin" ? "bg-[#e8f3fc] text-[#0a66c2]" :
                             link.iconName === "github" ? "bg-[#f0f1f3] text-[#24292f]" :
                             (link.iconName === "portfolio" || link.iconName === "globe") ? "bg-[#fef7ee] text-[#d97706]" :
@@ -1521,6 +1654,7 @@ export default function Home() {
         isSyncing={isSyncing}
         lastSyncedAt={lastSyncedAt}
         dbSource={dbSource}
+        onOutlookChange={fetchOutlookData}
       />
       <KeyboardShortcutsModal
         isOpen={showShortcuts}

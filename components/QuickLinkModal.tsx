@@ -31,6 +31,8 @@ export function QuickLinkModal({ isOpen, onClose, onAddLink }: QuickLinkModalPro
       ? "linkedin"
       : lower.includes("github.com")
       ? "github"
+      : lower.includes("outlook") || lower.includes("microsoft") || lower.includes("live.com") || lower.includes("office.com")
+      ? "outlook"
       : lower.includes("portfolio") || lower.includes("vercel.app")
       ? "globe"
       : "link";

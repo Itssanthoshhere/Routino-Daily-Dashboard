@@ -39,6 +39,7 @@ export type DashboardEvent = {
   tag?: string;
   color?: string;
   isCustom?: boolean;
+  source?: "google" | "outlook" | "custom";
 };
 
 export type DashboardMail = {
@@ -49,8 +50,9 @@ export type DashboardMail = {
   snippet: string;
   read?: boolean;
   starred?: boolean;
-  category?: "reply" | "payment" | "update" | "general";
+  category?: "reply" | "payment" | "update" | "general" | "outlook";
   href?: string;
+  source?: "google" | "outlook";
 };
 
 export type QuickLink = {
@@ -58,8 +60,14 @@ export type QuickLink = {
   title: string;
   subtitle: string;
   url: string;
-  iconName: "calendar" | "mail" | "drive" | "sites" | "link" | "file" | "linkedin" | "github" | "portfolio" | "globe";
+  iconName: "calendar" | "mail" | "drive" | "sites" | "link" | "file" | "linkedin" | "github" | "portfolio" | "globe" | "outlook";
   available: boolean;
+};
+
+export type OutlookProfile = {
+  email: string;
+  name: string;
+  connectedAt: string;
 };
 
 export type NotificationItem = {

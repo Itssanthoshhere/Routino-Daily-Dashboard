@@ -1,7 +1,7 @@
 {
   "name": "routino",
   "version": "1.0.0",
-  "description": "A calm, responsive personal workspace for daily routines, Google Calendar, Gmail, focus timer, and priorities.",
+  "description": "A calm, responsive personal workspace for daily routines, Google Calendar, Gmail, Microsoft Outlook, focus timer, and priorities.",
   "author": "Santhosh VS <santhosh02vs@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -18,6 +18,9 @@
     "daily-planner",
     "google-calendar",
     "gmail-api",
+    "outlook",
+    "microsoft-graph",
+    "outlook-calendar",
     "focus-timer",
     "pomodoro",
     "habit-tracker",

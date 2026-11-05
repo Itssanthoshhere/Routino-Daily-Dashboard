@@ -29,11 +29,11 @@
   <br /><br />
 
   <p align="center">
-    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, and the week ahead. Google Calendar and Gmail data are fetched server-side after sign-in. Google Drive and Google Sites are not integrated.</em>
+    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, and the week ahead. Integrates with Google Calendar, Gmail, and Microsoft Outlook (Mail & Calendar via Graph API). Google Drive and Google Sites are not integrated.</em>
   </p>
 
   <p align="center">
-    <code>nextjs</code> · <code>react</code> · <code>typescript</code> · <code>tailwindcss</code> · <code>dashboard</code> · <code>productivity</code> · <code>daily-planner</code> · <code>google-calendar</code> · <code>gmail-api</code> · <code>focus-timer</code> · <code>habit-tracker</code> · <code>open-source</code>
+    <code>nextjs</code> · <code>react</code> · <code>typescript</code> · <code>tailwindcss</code> · <code>dashboard</code> · <code>productivity</code> · <code>daily-planner</code> · <code>google-calendar</code> · <code>gmail-api</code> · <code>outlook</code> · <code>microsoft-graph</code> · <code>focus-timer</code> · <code>habit-tracker</code> · <code>open-source</code>
   </p>
 
 </div>
@@ -50,10 +50,10 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 
 | Section | What it shows | Data source |
 | :--- | :--- | :--- |
-| **Daily summary** | Date, today’s event count, unread email count, and focus-time card | Calendar and Gmail after sign-in; some sample summary content remains illustrative |
-| **Today’s schedule** | Upcoming events with start and end times | Google Calendar or labeled preview events |
-| **The week ahead** | A rolling seven-day calendar view | Google Calendar or labeled preview events |
-| **Worth a look** | Sender, subject, date, and short snippet for unread messages | Gmail or labeled preview messages |
+| **Daily summary** | Date, today’s event count, unread email count, and focus-time card | Google / Outlook Calendar and Gmail / Outlook Mail after sign-in |
+| **Today’s schedule** | Upcoming events with start and end times | Google Calendar, Outlook Calendar, or labeled preview events |
+| **The week ahead** | A rolling seven-day calendar view | Google Calendar, Outlook Calendar, or labeled preview events |
+| **Worth a look** | Sender, subject, date, and short snippet for unread messages | Gmail, Outlook Mail, or labeled preview messages |
 | **Priorities & follow-ups** | Checkable tasks, custom categories, and completion progress | Local storage & server-side database sync |
 | **Focus plan & deadlines** | Focus timer with ambient soundscapes (rain, waves, brown noise) | Synthesized Web Audio API & user state |
 | **Quick links** | Shortcuts to Calendar, Gmail, LinkedIn, GitHub, and Portfolio | User configurable with custom modal & persistent links |
@@ -144,6 +144,30 @@ Routino can connect a LinkedIn account to the currently signed-in Google workspa
 
 Removing the profile in Routino deletes the saved profile data. To revoke LinkedIn authorization too, remove Routino from the account’s permitted services in LinkedIn settings.
 
+## 📬 Optional Microsoft Outlook Integration (Mail & Calendar)
+
+Routino supports connecting personal and work/school Microsoft accounts via the Microsoft Graph API. When connected:
+- Upcoming calendar meetings appear in **Daily Schedule** and **Calendar** views with the blue `OUTLOOK` badge.
+- Unread inbox messages appear in the **Inbox** view and unread summary.
+- Tokens are encrypted and refreshed automatically.
+
+### Setup Instructions
+1. Register an app in the [Azure Portal / Microsoft Entra ID](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
+2. Choose supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (or your organization only).
+3. Under **Authentication**, add a **Web** platform with the redirect URI:
+   ```text
+   http://localhost:3000/api/outlook/callback
+   https://routino-daily-dashboard.vercel.app/api/outlook/callback
+   ```
+4. Under **Certificates & secrets**, generate a new client secret.
+5. In **API permissions**, grant delegated permissions:
+   - `User.Read`
+   - `Mail.Read`
+   - `Calendars.Read`
+   - `offline_access`
+6. Set `AZURE_AD_CLIENT_ID` and `AZURE_AD_CLIENT_SECRET` in your `.env.local` or Vercel environment.
+7. Open **Preferences → Database & Sync** and click **Connect Outlook**.
+
 ## ⚙️ Environment Variables
 
 Copy the example file for local development:
@@ -158,6 +182,10 @@ cp .env.example .env.local
 | `GOOGLE_CLIENT_SECRET` | Google OAuth web client secret |
 | `NEXTAUTH_SECRET` | Secret used to protect Auth.js session data |
 | `NEXTAUTH_URL` | App base URL, such as `http://localhost:3000` locally |
+| `AZURE_AD_CLIENT_ID` | Optional Microsoft / Azure AD OAuth client ID |
+| `AZURE_AD_CLIENT_SECRET` | Optional Microsoft / Azure AD OAuth client secret |
+| `AZURE_AD_TENANT_ID` | Optional tenant ID (`common` by default for personal + work) |
+| `OUTLOOK_REDIRECT_URI` | Exact OAuth callback URL registered in Azure |
 | `LINKEDIN_CLIENT_ID` | Optional LinkedIn OAuth app client ID |
 | `LINKEDIN_CLIENT_SECRET` | Optional LinkedIn OAuth app client secret |
 | `LINKEDIN_REDIRECT_URI` | Exact OAuth callback URL registered in the LinkedIn app |

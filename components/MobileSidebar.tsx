@@ -21,6 +21,7 @@ type MobileSidebarProps = {
   onSelectNav: (label: string) => void;
   unreadCount: number;
   isConnected: boolean;
+  isOutlookConnected?: boolean;
   onOpenPreferences?: () => void;
   onOpenShortcuts?: () => void;
 };
@@ -39,6 +40,7 @@ export function MobileSidebar({
   onSelectNav,
   unreadCount,
   isConnected,
+  isOutlookConnected = false,
   onOpenPreferences,
   onOpenShortcuts,
 }: MobileSidebarProps) {
@@ -150,6 +152,28 @@ export function MobileSidebar({
               <span
                 className={`ml-auto h-1.5 w-1.5 rounded-full ${
                   isConnected ? "bg-forest" : "bg-[#efbd60]"
+                }`}
+              />
+            </div>
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] text-[#58645c]">
+              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm">
+                <CalendarDays size={14} />
+              </span>
+              Outlook Calendar
+              <span
+                className={`ml-auto h-1.5 w-1.5 rounded-full ${
+                  isOutlookConnected ? "bg-forest" : "bg-[#efbd60]"
+                }`}
+              />
+            </div>
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] text-[#58645c]">
+              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm">
+                <Mail size={14} />
+              </span>
+              Outlook Mail
+              <span
+                className={`ml-auto h-1.5 w-1.5 rounded-full ${
+                  isOutlookConnected ? "bg-forest" : "bg-[#efbd60]"
                 }`}
               />
             </div>

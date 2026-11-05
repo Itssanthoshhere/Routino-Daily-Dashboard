@@ -30,7 +30,7 @@ export function InboxView({
   isConnected,
 }: InboxViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "unread" | "starred" | "reply">("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "unread" | "starred" | "reply" | "outlook">("all");
 
   const filteredMail = mailList.filter((m) => {
     // Search query
@@ -44,6 +44,7 @@ export function InboxView({
     if (selectedFilter === "unread") return !m.read;
     if (selectedFilter === "starred") return m.starred;
     if (selectedFilter === "reply") return m.category === "reply";
+    if (selectedFilter === "outlook") return m.category === "outlook" || m.source === "outlook";
     return true;
   });
 
@@ -135,6 +136,18 @@ export function InboxView({
           >
             Reply Needed
           </button>
+          {mailList.some((m) => m.category === "outlook" || m.source === "outlook") && (
+            <button
+              onClick={() => setSelectedFilter("outlook")}
+              className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
+                selectedFilter === "outlook"
+                  ? "bg-[#0078d4] text-white"
+                  : "bg-white border border-line text-[#0078d4] hover:bg-[#ebf3fc]"
+              }`}
+            >
+              Outlook ({mailList.filter((m) => m.category === "outlook" || m.source === "outlook").length})
+            </button>
+          )}
         </div>
       </div>
 
@@ -215,7 +228,13 @@ export function InboxView({
                   <p className="mt-1 line-clamp-1 text-[11px] text-muted">{mail.snippet}</p>
 
                   {mail.category && (
-                    <span className="mt-2 inline-block rounded bg-[#fbf0e5] px-1.5 py-0.5 text-[8px] font-bold tracking-wide text-[#a7764b]">
+                    <span
+                      className={`mt-2 inline-block rounded px-1.5 py-0.5 text-[8px] font-bold tracking-wide ${
+                        mail.category === "outlook" || mail.source === "outlook"
+                          ? "bg-[#ebf3fc] text-[#0078d4]"
+                          : "bg-[#fbf0e5] text-[#a7764b]"
+                      }`}
+                    >
                       {mail.category.toUpperCase()}
                     </span>
                   )}

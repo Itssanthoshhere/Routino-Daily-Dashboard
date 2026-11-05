@@ -74,6 +74,151 @@ export async function deleteLinkedInProfile(email: string): Promise<void> {
     WHERE google_email = ${normalizedEmail} AND provider = 'linkedin'`;
 }
 
+export type OutlookAccountRecord = {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt: number;
+  email: string;
+  name: string;
+  connectedAt: string;
+};
+
+export async function getOutlookAccount(email: string): Promise<OutlookAccountRecord | null> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const sql = getNeonClient();
+
+  if (sql) {
+    try {
+      await sql`CREATE TABLE IF NOT EXISTS routino_linked_accounts (
+        google_email TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        profile JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (google_email, provider)
+      )`;
+      const rows = await sql`SELECT profile FROM routino_linked_accounts
+        WHERE google_email = ${normalizedEmail} AND provider = 'outlook' LIMIT 1`;
+      if (rows.length > 0 && rows[0]?.profile) {
+        return rows[0].profile as OutlookAccountRecord;
+      }
+    } catch (err) {
+      console.error("[db] Error fetching Outlook account from SQL:", err);
+    }
+  }
+
+  // Redis fallback
+  const redis = getRedisConfig();
+  if (redis) {
+    try {
+      const res = await fetch(redis.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${redis.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(["GET", `routino:outlook:${normalizedEmail}`]),
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.result) {
+          return (typeof json.result === "string" ? JSON.parse(json.result) : json.result) as OutlookAccountRecord;
+        }
+      }
+    } catch {}
+  }
+
+  // Filesystem fallback
+  try {
+    const dataDir = path.join(process.cwd(), ".data");
+    const safeEmail = encodeURIComponent(normalizedEmail);
+    const content = await fs.readFile(path.join(dataDir, `outlook-${safeEmail}.json`), "utf-8");
+    return JSON.parse(content) as OutlookAccountRecord;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveOutlookAccount(email: string, record: OutlookAccountRecord): Promise<void> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const sql = getNeonClient();
+
+  if (sql) {
+    try {
+      await sql`CREATE TABLE IF NOT EXISTS routino_linked_accounts (
+        google_email TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        profile JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (google_email, provider)
+      )`;
+      await sql`INSERT INTO routino_linked_accounts (google_email, provider, profile, updated_at)
+        VALUES (${normalizedEmail}, 'outlook', ${JSON.stringify(record)}::jsonb, NOW())
+        ON CONFLICT (google_email, provider) DO UPDATE
+        SET profile = EXCLUDED.profile, updated_at = NOW()`;
+      return;
+    } catch (err) {
+      console.error("[db] Error saving Outlook account to SQL:", err);
+    }
+  }
+
+  // Redis fallback
+  const redis = getRedisConfig();
+  if (redis) {
+    try {
+      await fetch(redis.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${redis.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(["SET", `routino:outlook:${normalizedEmail}`, JSON.stringify(record)]),
+      });
+      return;
+    } catch {}
+  }
+
+  // Filesystem fallback
+  try {
+    const dataDir = path.join(process.cwd(), ".data");
+    await fs.mkdir(dataDir, { recursive: true });
+    const safeEmail = encodeURIComponent(normalizedEmail);
+    await fs.writeFile(path.join(dataDir, `outlook-${safeEmail}.json`), JSON.stringify(record, null, 2), "utf-8");
+  } catch {}
+}
+
+export async function deleteOutlookAccount(email: string): Promise<void> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const sql = getNeonClient();
+
+  if (sql) {
+    try {
+      await sql`DELETE FROM routino_linked_accounts
+        WHERE google_email = ${normalizedEmail} AND provider = 'outlook'`;
+    } catch {}
+  }
+
+  const redis = getRedisConfig();
+  if (redis) {
+    try {
+      await fetch(redis.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${redis.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(["DEL", `routino:outlook:${normalizedEmail}`]),
+      });
+    } catch {}
+  }
+
+  try {
+    const dataDir = path.join(process.cwd(), ".data");
+    const safeEmail = encodeURIComponent(normalizedEmail);
+    await fs.unlink(path.join(dataDir, `outlook-${safeEmail}.json`));
+  } catch {}
+}
+
 function getRedisConfig() {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;

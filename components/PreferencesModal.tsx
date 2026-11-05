@@ -21,6 +21,7 @@ import {
 import { appConfig } from "@/lib/config";
 import { Task, DashboardEvent, QuickLink } from "@/types/dashboard";
 import { LinkedInConnectionCard } from "@/components/LinkedInConnectionCard";
+import { OutlookConnectionCard } from "@/components/OutlookConnectionCard";
 
 type PreferencesModalProps = {
   isOpen: boolean;
@@ -44,6 +45,7 @@ type PreferencesModalProps = {
   isSyncing?: boolean;
   lastSyncedAt?: string | null;
   dbSource?: string;
+  onOutlookChange?: () => void;
 };
 
 export function PreferencesModal({
@@ -63,6 +65,7 @@ export function PreferencesModal({
   isSyncing = false,
   lastSyncedAt,
   dbSource = "Local Cache",
+  onOutlookChange,
 }: PreferencesModalProps) {
   const [activeTab, setActiveTab] = useState<"general" | "data" | "shortcuts" | "about">("general");
   const [copiedStatus, setCopiedStatus] = useState(false);
@@ -349,6 +352,11 @@ export function PreferencesModal({
                   </p>
                 )}
               </div>
+
+              <OutlookConnectionCard
+                googleConnected={Boolean(userEmail)}
+                onConnectionChange={onOutlookChange}
+              />
 
               <LinkedInConnectionCard googleConnected={Boolean(userEmail)} />
 
