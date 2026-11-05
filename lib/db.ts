@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { neon } from "@neondatabase/serverless";
 import { Task, DashboardEvent, QuickLink } from "@/types/dashboard";
 
 export type UserWorkspaceData = {
@@ -13,10 +14,15 @@ export type UserWorkspaceData = {
 };
 
 export type DatabaseStatus = {
-  provider: "vercel-kv" | "upstash-redis" | "filesystem" | "none";
+  provider: "neon-postgres" | "vercel-kv" | "upstash-redis" | "filesystem" | "none";
   configured: boolean;
   sourceLabel: string;
 };
+
+function getNeonClient() {
+  const databaseUrl = process.env.DATABASE_URL;
+  return databaseUrl ? neon(databaseUrl) : null;
+}
 
 function getRedisConfig() {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
@@ -36,6 +42,13 @@ function getRedisKey(email: string) {
 }
 
 export function getDatabaseStatus(): DatabaseStatus {
+  if (process.env.DATABASE_URL) {
+    return {
+      provider: "neon-postgres",
+      configured: true,
+      sourceLabel: "Neon Postgres",
+    };
+  }
   const redis = getRedisConfig();
   if (redis) {
     return {
@@ -53,10 +66,27 @@ export function getDatabaseStatus(): DatabaseStatus {
 
 /**
  * Fetch workspace data for a given user email.
- * Checks Redis (Upstash / Vercel KV) first, then falls back to filesystem (.data/).
+ * Checks durable Postgres first, then Redis, then local development files.
  */
 export async function getUserWorkspace(email: string): Promise<UserWorkspaceData | null> {
   const normalizedEmail = email.toLowerCase().trim();
+  const sql = getNeonClient();
+
+  if (sql) {
+    try {
+      await sql`CREATE TABLE IF NOT EXISTS routino_workspaces (
+        email TEXT PRIMARY KEY,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`;
+      const rows = await sql`SELECT data FROM routino_workspaces WHERE email = ${normalizedEmail} LIMIT 1`;
+      return (rows[0]?.data as UserWorkspaceData | undefined) ?? null;
+    } catch (err) {
+      console.error("[db] Error fetching user workspace from Neon:", err);
+      if (process.env.NODE_ENV === "production") return null;
+    }
+  }
+
   const redis = getRedisConfig();
 
   if (redis) {
@@ -104,6 +134,26 @@ export async function saveUserWorkspace(
   data: UserWorkspaceData
 ): Promise<{ success: boolean; source: string; error?: string }> {
   const normalizedEmail = email.toLowerCase().trim();
+  const sql = getNeonClient();
+
+  if (sql) {
+    try {
+      await sql`CREATE TABLE IF NOT EXISTS routino_workspaces (
+        email TEXT PRIMARY KEY,
+        data JSONB NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`;
+      await sql`INSERT INTO routino_workspaces (email, data, updated_at)
+        VALUES (${normalizedEmail}, ${JSON.stringify(data)}::jsonb, NOW())
+        ON CONFLICT (email) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`;
+      return { success: true, source: "neon-postgres" };
+    } catch (err) {
+      console.error("[db] Error saving user workspace to Neon:", err);
+      const message = err instanceof Error ? err.message : "Neon database error";
+      return { success: false, source: "neon-postgres", error: message };
+    }
+  }
+
   const redis = getRedisConfig();
 
   if (redis) {
@@ -127,6 +177,10 @@ export async function saveUserWorkspace(
     } catch (err) {
       console.error("[db] Error saving user workspace to Redis:", err);
     }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return { success: false, source: "none", error: "No persistent database is configured." };
   }
 
   // Filesystem fallback

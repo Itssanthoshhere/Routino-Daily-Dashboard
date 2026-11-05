@@ -72,7 +72,7 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 4. **Tasks & Multi-Device Database Persistence**
    - Check off priorities, create custom tasks, and schedule custom events.
    - Persisted instantly to browser `localStorage` and automatically synchronized with the account database via `/api/user-data`.
-   - Supports Upstash Redis, Vercel KV, or local file storage for seamless cross-device synchronization.
+   - Supports durable Neon Postgres, Upstash Redis, Vercel KV, or local development file storage for cross-device synchronization.
 
 5. **Focus Timer & Ambient Soundscapes**
    - Customizable focus blocks (25m, 45m, 60m, 90m).
