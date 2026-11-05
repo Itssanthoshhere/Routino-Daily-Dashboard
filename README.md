@@ -12,6 +12,12 @@
     <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
       <img src="https://img.shields.io/badge/Google_Access-Gmail_&_Calendar_Read--Only-6f8a61?style=for-the-badge&logo=google&logoColor=white" alt="Read-only Gmail and Google Calendar access" />
     </a>
+    <a href="LICENSE">
+      <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT License" />
+    </a>
+    <a href="CONTRIBUTING.md">
+      <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome" />
+    </a>
   </p>
 
   <br />
@@ -222,16 +228,33 @@ vercel --prod
 
 - Gmail and Google Calendar are read-only.
 - Google Drive and Google Sites are not integrated.
-- Tasks, follow-ups, focus blocks, and deadlines are held in browser localStorage; not synced with Google Tasks.
+- Tasks, scheduled custom events, and focus targets are stored in browser `localStorage` and automatically synchronized with the account database via `/api/user-data`.
 - Google OAuth testing mode may limit access to configured test users until any required Google review is completed.
 
 ---
 
-## 👤 Project
+## 🤝 Contributing
 
-- **Repository:** [Itssanthoshhere/Routino-Daily-Dashboard](https://github.com/Itssanthoshhere/Routino-Daily-Dashboard)
-- **Deployment:** [routino-daily-dashboard.vercel.app](https://routino-daily-dashboard.vercel.app)
-- **Stack:** Next.js · TypeScript · Tailwind CSS · Auth.js · Google APIs · Vercel
+Contributions, issues, and feature requests are welcome!
+- Check out [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up the project locally and submit improvements.
+- Please review our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## 🛡️ Security
+
+If you discover a security issue or vulnerability, please read our [Security Policy](SECURITY.md) and report it privately via email to `santhosh02vs@gmail.com`.
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE) - see the LICENSE file for details.
 
 ---
-*Last updated: 5 November 2026*
+
+## 👤 Author & Maintainer
+
+- **Santhosh VS**
+- **GitHub:** [@Itssanthoshhere](https://github.com/Itssanthoshhere)
+- **LinkedIn:** [thesanthoshvs](https://www.linkedin.com/in/thesanthoshvs/)
+- **Portfolio:** [santhosh-vs-portfolio.vercel.app](https://santhosh-vs-portfolio.vercel.app/)
+
+---
+*Open source release · November 2026*

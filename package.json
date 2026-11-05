@@ -1,6 +1,24 @@
 {
   "name": "routino",
   "version": "1.0.0",
+  "description": "A calm, responsive personal workspace for daily routines, Google Calendar, Gmail, focus timer, and priorities.",
+  "author": "Santhosh VS <santhosh02vs@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Itssanthoshhere/Routino-Daily-Dashboard.git"
+  },
+  "keywords": [
+    "dashboard",
+    "productivity",
+    "nextjs",
+    "react",
+    "typescript",
+    "tailwind",
+    "google-calendar",
+    "gmail",
+    "focus-timer"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev",
