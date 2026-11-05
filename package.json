@@ -9,15 +9,26 @@
     "url": "https://github.com/Itssanthoshhere/Routino-Daily-Dashboard.git"
   },
   "keywords": [
-    "dashboard",
-    "productivity",
     "nextjs",
     "react",
     "typescript",
-    "tailwind",
+    "tailwindcss",
+    "dashboard",
+    "productivity",
+    "daily-planner",
     "google-calendar",
-    "gmail",
-    "focus-timer"
+    "gmail-api",
+    "focus-timer",
+    "pomodoro",
+    "habit-tracker",
+    "soundscapes",
+    "web-audio-api",
+    "authjs",
+    "nextauth",
+    "minimalist",
+    "open-source",
+    "workspace",
+    "personal-dashboard"
   ],
   "private": true,
   "scripts": {

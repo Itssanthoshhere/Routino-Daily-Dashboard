@@ -32,6 +32,10 @@
     <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, and the week ahead. Google Calendar and Gmail data are fetched server-side after sign-in. Google Drive and Google Sites are not integrated.</em>
   </p>
 
+  <p align="center">
+    <code>nextjs</code> · <code>react</code> · <code>typescript</code> · <code>tailwindcss</code> · <code>dashboard</code> · <code>productivity</code> · <code>daily-planner</code> · <code>google-calendar</code> · <code>gmail-api</code> · <code>focus-timer</code> · <code>habit-tracker</code> · <code>open-source</code>
+  </p>
+
 </div>
 
 ---
