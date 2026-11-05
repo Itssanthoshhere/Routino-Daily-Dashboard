@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#a4161a"/>
+  <!-- Sunrise arc (daily rhythm) -->
+  <path d="M128 320 C128 240 192 160 256 160 C320 160 384 240 384 320" stroke="#faf9f7" stroke-width="28" stroke-linecap="round" fill="none"/>
+  <!-- Horizon line -->
+  <line x1="100" y1="320" x2="412" y2="320" stroke="#faf9f7" stroke-width="22" stroke-linecap="round"/>
+  <!-- Sun rays -->
+  <line x1="256" y1="100" x2="256" y2="140" stroke="#d4af37" stroke-width="18" stroke-linecap="round"/>
+  <line x1="165" y1="138" x2="186" y2="170" stroke="#d4af37" stroke-width="14" stroke-linecap="round"/>
+  <line x1="347" y1="138" x2="326" y2="170" stroke="#d4af37" stroke-width="14" stroke-linecap="round"/>
+  <!-- Checkmark (productivity/routine) -->
+  <polyline points="210,380 248,418 310,356" stroke="#d4af37" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

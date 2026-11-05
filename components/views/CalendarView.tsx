@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
+import { connectGoogle } from "@/app/actions";
 
 type CalendarViewProps = {
   events: DashboardEvent[];
@@ -74,13 +75,23 @@ export function CalendarView({
           <p className="text-[12px] text-muted">
             {isConnected
               ? "Synced with Google Calendar · Today + upcoming 7 days"
-              : "Showing workspace schedule · Connect Google for real-time calendar sync"}
+              : "Connect Google for real-time calendar events"}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {!isConnected && (
+            <form action={connectGoogle}>
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 rounded-xl bg-forest px-3.5 py-2.5 text-[12px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
+              >
+                Connect Google Account
+              </button>
+            </form>
+          )}
           <button
             onClick={onOpenAddEvent}
-            className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
+            className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[12px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"
           >
             <Plus size={14} /> Schedule Event
           </button>
@@ -176,14 +187,28 @@ export function CalendarView({
             <CalendarDays size={32} className="mx-auto text-muted/40 mb-3" />
             <p className="text-[13px] font-semibold text-ink">No events scheduled for this day</p>
             <p className="mt-1 text-[11px] text-muted">
-              Take advantage of the free space for focused work or plan something new.
+              {isConnected
+                ? "Your Google Calendar is completely clear for this date."
+                : "Connect your Google account above to sync your real calendar schedule."}
             </p>
-            <button
-              onClick={onOpenAddEvent}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-[11px] font-semibold text-forest hover:bg-[#fdf2f2] transition"
-            >
-              <Plus size={13} /> Add event
-            </button>
+            <div className="mt-4 flex items-center justify-center gap-2">
+              {!isConnected && (
+                <form action={connectGoogle}>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-3.5 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
+                  >
+                    Connect Google
+                  </button>
+                </form>
+              )}
+              <button
+                onClick={onOpenAddEvent}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-[11px] font-semibold text-forest hover:bg-[#fdf2f2] transition"
+              >
+                <Plus size={13} /> Add event
+              </button>
+            </div>
           </div>
         ) : (
           <div className="divide-y divide-[#eff1ec]">

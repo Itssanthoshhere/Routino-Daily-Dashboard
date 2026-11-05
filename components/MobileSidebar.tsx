@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import {
   CalendarDays,
-  Command,
   Inbox,
   ListTodo,
   Sparkles,
@@ -63,9 +62,8 @@ export function MobileSidebar({
       <div className="relative flex w-[280px] max-w-[85vw] flex-col bg-[#fbfcf8] p-6 shadow-2xl animate-in slide-in-from-left duration-200">
         <div className="flex items-center justify-between pb-6">
           <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-[13px] bg-forest text-accent">
-              <Command size={19} />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/favicon.svg" alt="Routino" className="h-9 w-9 rounded-[13px]" />
             <span className="text-[16px] font-bold tracking-tight">
               {appConfig.name.toLowerCase()}<span className="text-[#9eaaa1]">.</span>
             </span>

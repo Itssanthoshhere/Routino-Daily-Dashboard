@@ -3,26 +3,24 @@
   # ☀️ Routino
 
   <p align="center">
-    <a href="https://daily-dashboard-tau-five.vercel.app" target="_blank">
-      <img src="https://img.shields.io/badge/🟢_LIVE_DASHBOARD-daily--dashboard--tau--five.vercel.app-315b49?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Daily Dashboard" />
+    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
+      <img src="https://img.shields.io/badge/Repository-Routino--Daily--Dashboard-8b6b3f?style=for-the-badge&logo=github&logoColor=white" alt="GitHub repository" />
     </a>
-    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
-      <img src="https://img.shields.io/badge/Repository-Private-8b6b3f?style=for-the-badge&logo=github&logoColor=white" alt="Private GitHub repository" />
-    </a>
-    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
+    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
       <img src="https://img.shields.io/badge/Stack-Next.js_·_TypeScript_·_Tailwind-1f2937?style=for-the-badge" alt="Next.js, TypeScript, and Tailwind CSS" />
     </a>
-    <a href="https://github.com/Itssanthoshhere/Daily-Dashboard">
+    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
       <img src="https://img.shields.io/badge/Google_Access-Gmail_&_Calendar_Read--Only-6f8a61?style=for-the-badge&logo=google&logoColor=white" alt="Read-only Gmail and Google Calendar access" />
     </a>
   </p>
 
-  <h3>
-    🌐 <strong>Live Dashboard:</strong>
-    <a href="https://daily-dashboard-tau-five.vercel.app" target="_blank">
-      daily-dashboard-tau-five.vercel.app
-    </a>
-  </h3>
+  <br />
+
+  <a href="https://routino-daily-dashboard.vercel.app" target="_blank">
+    <img src="https://img.shields.io/badge/🚀_OPEN_LIVE_DASHBOARD-routino--daily--dashboard.vercel.app-a4161a?style=for-the-badge&logo=vercel&logoColor=white" alt="Open Live Dashboard" />
+  </a>
+
+  <br /><br />
 
   <p align="center">
     <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, and the week ahead. Google Calendar and Gmail data are fetched server-side after sign-in. Google Drive and Google Sites are not integrated.</em>
@@ -98,7 +96,7 @@ Google’s OAuth consent screen may display an unverified-app warning while the 
 
    ```text
    http://localhost:3000/api/auth/callback/google
-   https://daily-dashboard-tau-five.vercel.app/api/auth/callback/google
+   https://routino-daily-dashboard.vercel.app/api/auth/callback/google
    ```
 
 6. Set the client ID, client secret, Auth.js secret, and base URL as environment variables. Never commit actual credentials.
@@ -131,7 +129,7 @@ For production, configure the values in the Vercel project’s **Production** en
 ## 🛠️ Repository Structure
 
 ```text
-Daily-Dashboard/
+Routino-Daily-Dashboard/
 ├── app/
 │   ├── actions.ts                 # Auth.js Google sign-in server action
 │   ├── api/
@@ -163,8 +161,8 @@ Requirements: Node.js and npm compatible with the versions used by this project.
 1. Clone the repository and enter its folder:
 
    ```bash
-   git clone https://github.com/Itssanthoshhere/Daily-Dashboard.git
-   cd Daily-Dashboard
+   git clone https://github.com/Itssanthoshhere/Routino-Daily-Dashboard.git
+   cd Routino-Daily-Dashboard
    ```
 
 2. Install dependencies and create your local environment file:
@@ -193,7 +191,7 @@ npm start
 
 The GitHub repository is connected to Vercel for production deployment from `main`.
 
-- **Production URL:** [daily-dashboard-tau-five.vercel.app](https://daily-dashboard-tau-five.vercel.app)
+- **Production URL:** [routino-daily-dashboard.vercel.app](https://routino-daily-dashboard.vercel.app)
 - **Framework:** Next.js
 - **Build command:** `npm run build`
 - **Environment:** Set Google OAuth values and `NEXTAUTH_URL` in the Vercel project settings; do not add secrets to GitHub.
@@ -215,8 +213,8 @@ vercel --prod
 
 ## 👤 Project
 
-- **Repository:** [Itssanthoshhere/Daily-Dashboard](https://github.com/Itssanthoshhere/Daily-Dashboard)
-- **Deployment:** [daily-dashboard-tau-five.vercel.app](https://daily-dashboard-tau-five.vercel.app)
+- **Repository:** [Itssanthoshhere/Routino-Daily-Dashboard](https://github.com/Itssanthoshhere/Routino-Daily-Dashboard)
+- **Deployment:** [routino-daily-dashboard.vercel.app](https://routino-daily-dashboard.vercel.app)
 - **Stack:** Next.js · TypeScript · Tailwind CSS · Auth.js · Google APIs · Vercel
 
 ---

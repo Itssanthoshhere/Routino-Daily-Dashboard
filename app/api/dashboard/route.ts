@@ -28,7 +28,16 @@ export async function GET() {
       const header = (name: string) => headers.find((item) => item.name.toLowerCase() === name.toLowerCase())?.value ?? "";
       return { id: message.id, threadId: message.threadId, from: header("From"), subject: header("Subject"), date: header("Date"), snippet: message.snippet ?? "" };
     }));
-    return NextResponse.json({ connected: true, events: calendarData.items ?? [], unread: messages.filter(Boolean) }, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json({
+      connected: true,
+      user: {
+        name: session.user?.name ?? null,
+        email: session.user?.email ?? null,
+        image: session.user?.image ?? null,
+      },
+      events: calendarData.items ?? [],
+      unread: messages.filter(Boolean),
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     return NextResponse.json({ connected: true, error: "Could not retrieve dashboard data." }, { status: 502 });
   }

@@ -12,6 +12,7 @@ import {
   Reply,
 } from "lucide-react";
 import { DashboardMail } from "@/types/dashboard";
+import { connectGoogle } from "@/app/actions";
 
 type InboxViewProps = {
   mailList: DashboardMail[];
@@ -55,17 +56,29 @@ export function InboxView({
           <p className="text-[12px] text-muted">
             {isConnected
               ? "Live unread messages from Gmail · Important & updates"
-              : "Showing preview messages · Connect Google for real-time Gmail inbox"}
+              : "Connect Google to see and manage your real unread emails"}
           </p>
         </div>
-        <a
-          href="https://mail.google.com"
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[12px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition self-start sm:self-auto"
-        >
-          Open Gmail <ExternalLink size={12} />
-        </a>
+        <div className="flex items-center gap-2">
+          {!isConnected && (
+            <form action={connectGoogle}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-3.5 py-2.5 text-[12px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
+              >
+                Connect Google Account
+              </button>
+            </form>
+          )}
+          <a
+            href="https://mail.google.com"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[12px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition self-start sm:self-auto"
+          >
+            Open Gmail <ExternalLink size={12} />
+          </a>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -130,8 +143,24 @@ export function InboxView({
         {filteredMail.length === 0 ? (
           <div className="py-16 text-center">
             <Inbox size={32} className="mx-auto text-muted/40 mb-3" />
-            <p className="text-[13px] font-semibold text-ink">No messages match your criteria</p>
-            <p className="mt-1 text-[11px] text-muted">Try adjusting your search terms or filter selection.</p>
+            <p className="text-[13px] font-semibold text-ink">
+              {isConnected ? "All caught up!" : "No messages found"}
+            </p>
+            <p className="mt-1 text-[11px] text-muted">
+              {isConnected
+                ? "No unread messages in your primary Gmail categories."
+                : "Connect your Google account above to load your real unread emails."}
+            </p>
+            {!isConnected && (
+              <form action={connectGoogle} className="mt-4">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-[11px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
+                >
+                  Connect Google
+                </button>
+              </form>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-[#eff1ec]">

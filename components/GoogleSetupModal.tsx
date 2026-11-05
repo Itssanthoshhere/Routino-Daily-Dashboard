@@ -9,16 +9,23 @@ type GoogleSetupModalProps = {
 };
 
 export function GoogleSetupModal({ isOpen, onClose }: GoogleSetupModalProps) {
-  const [copied, setCopied] = useState(false);
+  const [copiedLocal, setCopiedLocal] = useState(false);
+  const [copiedProd, setCopiedProd] = useState(false);
 
   if (!isOpen) return null;
 
-  const redirectUri = "http://localhost:3000/api/auth/callback/google";
+  const localUri = "http://localhost:3000/api/auth/callback/google";
+  const prodUri = "https://routino-daily-dashboard.vercel.app/api/auth/callback/google";
 
-  const handleCopyUri = () => {
-    navigator.clipboard.writeText(redirectUri);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = (uri: string, isProd: boolean) => {
+    navigator.clipboard.writeText(uri);
+    if (isProd) {
+      setCopiedProd(true);
+      setTimeout(() => setCopiedProd(false), 2000);
+    } else {
+      setCopiedLocal(true);
+      setTimeout(() => setCopiedLocal(false), 2000);
+    }
   };
 
   return (
@@ -69,15 +76,26 @@ export function GoogleSetupModal({ isOpen, onClose }: GoogleSetupModalProps) {
                 Under <strong>APIs & Services &gt; Credentials</strong>, create an <strong>OAuth 2.0 Client ID</strong> (Web Application).
               </li>
               <li>
-                Add this exact <strong>Authorized redirect URI</strong>:
-                <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-[#f4f7ef] p-2 font-mono text-[11px] text-forest">
-                  <span className="truncate flex-1">{redirectUri}</span>
-                  <button
-                    onClick={handleCopyUri}
-                    className="shrink-0 rounded bg-white px-2 py-1 text-[10px] font-bold text-forest shadow-sm border border-line hover:bg-[#fdf2f2]"
-                  >
-                    {copied ? <Check size={12} className="inline text-forest" /> : "Copy"}
-                  </button>
+                Add these <strong>Authorized redirect URIs</strong> in Google Cloud Console:
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center gap-2 rounded-lg bg-[#f4f7ef] p-2 font-mono text-[10px] text-forest">
+                    <span className="truncate flex-1">{localUri}</span>
+                    <button
+                      onClick={() => handleCopy(localUri, false)}
+                      className="shrink-0 rounded bg-white px-2 py-1 text-[9px] font-bold text-forest shadow-sm border border-line hover:bg-[#fdf2f2]"
+                    >
+                      {copiedLocal ? <Check size={11} className="inline text-forest" /> : "Copy Local"}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg bg-[#f4f7ef] p-2 font-mono text-[10px] text-forest">
+                    <span className="truncate flex-1">{prodUri}</span>
+                    <button
+                      onClick={() => handleCopy(prodUri, true)}
+                      className="shrink-0 rounded bg-white px-2 py-1 text-[9px] font-bold text-forest shadow-sm border border-line hover:bg-[#fdf2f2]"
+                    >
+                      {copiedProd ? <Check size={11} className="inline text-forest" /> : "Copy Prod"}
+                    </button>
+                  </div>
                 </div>
               </li>
             </ol>

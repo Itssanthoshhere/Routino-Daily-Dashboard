@@ -8,6 +8,16 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Routino — Your daily routine, schedule, and focus in one",
   description: "A calm, private workspace for your schedule, important email, and daily priorities.",
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/apple-touch-icon.svg",
+  },
+  openGraph: {
+    title: "Routino — Your daily routine, schedule, and focus in one",
+    description: "A calm, private workspace for your schedule, important email, and daily priorities.",
+    siteName: "Routino",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

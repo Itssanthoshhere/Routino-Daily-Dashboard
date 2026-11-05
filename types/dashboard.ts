@@ -59,6 +59,11 @@ export type NotificationItem = {
 
 export type DashboardData = {
   connected: boolean;
+  user?: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  };
   events: DashboardEvent[];
   unread: DashboardMail[];
   error?: string;

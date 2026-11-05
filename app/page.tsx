@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
-  ChevronDown, Circle, Clock3, Command, ExternalLink, FileText, Focus,
+  ChevronDown, Circle, Clock3, ExternalLink, FileText, Focus,
   Inbox, Link2, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Sparkles,
   Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
@@ -256,12 +256,46 @@ export default function Home() {
       const result = await r.json();
       if (active && result.connected) {
         setLiveData(result as DashboardData);
+        /* Replace sample mail with real unread messages */
         if (result.unread && result.unread.length > 0) {
           setMailItems(result.unread.map((m: DashboardMail) => ({
             ...m,
             href: "https://mail.google.com/mail/u/0/#all/" + m.id,
             read: false,
           })));
+        } else {
+          /* Connected but no unread — show empty instead of sample */
+          setMailItems([]);
+        }
+
+        /* Dynamic real notifications */
+        const realNotifications: NotificationItem[] = [];
+        if (result.unread && result.unread.length > 0) {
+          realNotifications.push({
+            id: "n-unread",
+            title: `You have ${result.unread.length} unread message${result.unread.length > 1 ? "s" : ""} in Gmail`,
+            time: "Now",
+            type: "mail",
+            read: false,
+            navTarget: "Inbox",
+          });
+        }
+        if (result.events && result.events.length > 0) {
+          const firstEv = result.events[0];
+          realNotifications.push({
+            id: "n-cal",
+            title: `Upcoming: ${firstEv.summary || "Event"}`,
+            time: formatTime(firstEv.start?.dateTime),
+            type: "calendar",
+            read: false,
+            navTarget: "Calendar",
+          });
+        }
+        setNotifications(realNotifications);
+
+        /* If user hasn't saved custom tasks in storage, clear fictional sample tasks */
+        if (!localStorage.getItem("routino_tasks")) {
+          setTasks([]);
         }
       }
     }).catch(() => undefined);
@@ -309,7 +343,8 @@ export default function Home() {
       }))
     : sampleSchedule;
 
-  const displaySchedule = schedule.length > 0 ? schedule : sampleSchedule;
+  const isConnected = !!liveData?.connected;
+  const displaySchedule = isConnected ? schedule : (schedule.length > 0 ? schedule : sampleSchedule);
   const rangeEnd = new Date();
   rangeEnd.setDate(rangeEnd.getDate() + 6);
 
@@ -367,23 +402,6 @@ export default function Home() {
     setMailItems(prev => prev.map(m => m.id === id ? { ...m, read: !m.read } : m));
   };
 
-  const resetData = () => {
-    localStorage.removeItem("routino_tasks");
-    localStorage.removeItem("routino_links");
-    localStorage.removeItem("routino_events");
-    localStorage.removeItem("routino_focus");
-    localStorage.removeItem("daymark_tasks");
-    localStorage.removeItem("daymark_links");
-    localStorage.removeItem("daymark_events");
-    localStorage.removeItem("daymark_focus");
-    setTasks(seedTasks);
-    setCustomEvents([]);
-    setQuickLinks(seedLinks);
-    setNotifications(seedNotifications);
-    setMailItems(sampleMail);
-    setFocusMinutes(appConfig.defaults.focusMinutes);
-    toast("Dashboard reset to defaults", "info");
-  };
 
   const handleFocusComplete = (mins: number) => {
     setFocusMinutes(prev => prev + mins);
@@ -396,7 +414,8 @@ export default function Home() {
       {/* ─── Sidebar (desktop) ─── */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col border-r border-line bg-[#fbfcf8] px-5 py-6 lg:flex">
         <a href="#overview" onClick={() => setActiveNav("Overview")} className="mb-10 flex items-center gap-3 px-1">
-          <span className="grid h-9 w-9 place-items-center rounded-[13px] bg-forest text-accent"><Command size={19} /></span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/favicon.svg" alt="Routino" className="h-9 w-9 rounded-[13px]" />
           <span className="text-[15px] font-bold tracking-tight">{appConfig.name.toLowerCase()}<span className="text-[#9eaaa1]">.</span></span>
         </a>
         <p className="px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#a2aaa2]">Workspace</p>
@@ -435,9 +454,16 @@ export default function Home() {
           <div className="mb-3 flex items-center gap-2 text-accent"><Sparkles size={15} /><span className="text-[11px] font-semibold">A calmer day</span></div>
           <p className="text-[11px] leading-relaxed text-white/70">{appConfig.tagline}</p>
           <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3">
-            <div className="h-6 w-6 rounded-full bg-[#f0c6ae]" />
-            <span className="text-[11px] text-white/85">{appConfig.user.name}&apos;s workspace</span>
-            <MoreHorizontal className="ml-auto" size={15} />
+            {liveData?.user?.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={liveData.user.image} alt={liveData.user.name || "User"} className="h-6 w-6 rounded-full object-cover" />
+            ) : (
+              <div className="grid h-6 w-6 place-items-center rounded-full bg-[#f0c6ae] text-[10px] font-bold text-[#614d3f]">
+                {liveData?.user?.name ? liveData.user.name.charAt(0).toUpperCase() : appConfig.user.initial}
+              </div>
+            )}
+            <span className="text-[11px] text-white/85 truncate">{liveData?.user?.name || appConfig.user.name}&apos;s workspace</span>
+            <MoreHorizontal className="ml-auto shrink-0" size={15} />
           </div>
         </div>
       </aside>
@@ -458,13 +484,13 @@ export default function Home() {
         <header className="sticky top-0 z-10 flex h-[68px] items-center justify-between border-b border-line bg-[#f7f7f2]/90 px-5 backdrop-blur-md sm:px-8 xl:px-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setShowMobileSidebar(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white lg:hidden" aria-label="Open menu"><Menu size={17} /></button>
-            <div className="hidden h-8 w-8 place-items-center rounded-[11px] bg-forest text-accent sm:grid lg:hidden"><Command size={16} /></div>
+            <img src="/favicon.svg" alt="Routino" className="hidden h-8 w-8 rounded-[11px] sm:block lg:hidden" />
             <div className="text-[12px] text-muted">Workspace <span className="mx-2 text-[#c4cbc3]">/</span><span className="font-semibold text-ink">{activeNav}</span></div>
           </div>
           <div className="flex items-center gap-2">
-            <span className={"hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-semibold sm:flex " + (liveData?.connected ? "border-[#fecaca] bg-[#fdf2f2] text-forest" : "border-[#eadfc6] bg-[#fbf5e9] text-[#987537]")}>
-              <span className={"h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-forest" : "bg-[#e7ae51]")} />
-              {liveData?.connected ? "GOOGLE CONNECTED" : "PREVIEW MODE"}
+            <span className={"hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-semibold sm:flex " + (isConnected ? "border-[#fecaca] bg-[#fdf2f2] text-forest" : "border-[#eadfc6] bg-[#fbf5e9] text-[#987537]")}>
+              <span className={"h-1.5 w-1.5 rounded-full " + (isConnected ? "bg-forest" : "bg-[#e7ae51]")} />
+              {isConnected ? "GOOGLE CONNECTED" : "PREVIEW MODE"}
             </span>
             <button onClick={() => setShowCommandPalette(true)} aria-label="Search or command palette" className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition" title="Press Cmd+K">
               <Search size={15} />
@@ -485,14 +511,21 @@ export default function Home() {
               />
             </div>
             <div className="relative">
-              <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }} className="ml-1 grid h-8 w-8 place-items-center rounded-full bg-[#e4d4c2] text-[11px] font-semibold text-[#614d3f] hover:ring-2 hover:ring-forest/20 transition">
-                {appConfig.user.initial}
+              <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }} aria-label="User profile" className="ml-1 grid h-8 w-8 place-items-center rounded-full bg-[#e4d4c2] text-[11px] font-semibold text-[#614d3f] hover:ring-2 hover:ring-forest/20 transition overflow-hidden">
+                {liveData?.user?.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={liveData.user.image} alt={liveData.user.name || "User"} className="h-full w-full object-cover" />
+                ) : (
+                  liveData?.user?.name ? liveData.user.name.charAt(0).toUpperCase() : appConfig.user.initial
+                )}
               </button>
               <UserMenuPopover
                 isOpen={showUserMenu}
                 onClose={() => setShowUserMenu(false)}
                 isConnected={!!liveData?.connected}
-                onResetData={resetData}
+                userName={liveData?.user?.name}
+                userEmail={liveData?.user?.email}
+                userImage={liveData?.user?.image}
               />
             </div>
           </div>
@@ -505,10 +538,10 @@ export default function Home() {
             <div className="mb-6 flex items-start gap-3 rounded-2xl border border-[#eadfc6] bg-[#fffaf0] px-4 py-3.5 animate-in fade-in slide-in-from-top-2 duration-300">
               <span className="mt-0.5 text-[#b28948]"><TriangleAlert size={16} /></span>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-[#715a31]">{liveData?.error ? "Google data needs attention" : "Connect your accounts to see your real day"}</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-[#927e58]">{liveData?.error ?? (liveData?.connected ? "Calendar and unread Gmail data are connected. Tasks remain editable in this browser session. Drive and Sites aren't integrated." : "You're viewing sample content. Gmail and Calendar will populate after secure Google sign-in. Drive and Sites aren't integrated.")}</p>
+                <p className="text-[12px] font-semibold text-[#715a31]">{liveData?.error ? "Google data needs attention" : (isConnected ? "Your accounts are connected" : "Connect your accounts to see your real day")}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-[#927e58]">{liveData?.error ?? (isConnected ? "Calendar and Gmail data are live. Tasks are stored locally in this browser. Drive and Sites aren't integrated." : "You're viewing sample content. Gmail and Calendar will populate after secure Google sign-in. Drive and Sites aren't integrated.")}</p>
               </div>
-              {!liveData?.connected && (
+              {!isConnected && (
                 <form action={connectGoogle} className="hidden shrink-0 sm:inline-flex">
                   <button className="rounded-lg bg-forest px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#8b1116] transition">Connect Google <ArrowRight className="ml-1.5 inline" size={13} /></button>
                 </form>
@@ -555,7 +588,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => setActiveNav("Calendar")} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[11px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"><CalendarDays size={14} />Today<ChevronDown size={13} /></button>
-                  {!liveData?.connected && (
+                  {!isConnected && (
                     <form action={connectGoogle}>
                       <button className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#8b1116]">Connect Google <ArrowUpRight size={14} /></button>
                     </form>
@@ -575,12 +608,12 @@ export default function Home() {
                 {/* Calendar summary */}
                 <button onClick={() => setActiveNav("Calendar")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-forest/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">On your calendar</span><CalendarDays size={16} className="text-[#809184] group-hover:text-forest transition" /></div>
-                  <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{liveData?.connected ? todayEvents.length : displaySchedule.length}</span><span className="text-[11px] text-muted">events today</span></div>
+                  <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{isConnected ? todayEvents.length : displaySchedule.length}</span><span className="text-[11px] text-muted">events today</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]">
                     <Clock3 size={13} />
-                    {liveData?.connected
+                    {isConnected
                       ? (todayEvents[0] ? <>Next at <strong className="text-ink">{formatTime(todayEvents[0].start?.dateTime)}</strong></> : "No more events today")
-                      : <>Next up at <strong className="text-ink">9:30 AM</strong></>}
+                      : <>Connect Google to see your schedule</>}
                   </div>
                 </button>
 
@@ -588,7 +621,7 @@ export default function Home() {
                 <button onClick={() => setActiveNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">Needs a response</span><Inbox size={16} className="text-[#bd8054] group-hover:text-[#a0622e] transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{mailItems.filter(m => !m.read).length}</span><span className="text-[11px] text-muted">unread emails</span></div>
-                  <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{liveData?.connected ? "Filtered to important inbox categories" : "1 reply · 1 payment update"}</div>
+                  <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? "Filtered to important inbox categories" : "Connect Google to load your inbox"}</div>
                 </button>
 
                 {/* Focus summary */}
@@ -618,7 +651,7 @@ export default function Home() {
                   />
                   <div className="mb-4 flex items-center gap-2 rounded-xl bg-[#faf6ed] px-3 py-2.5 text-[10px] text-[#90744a]">
                     <Sparkles size={13} />
-                    <span><strong>{liveData?.connected ? "Your calendar:" : "One thing to prep:"}</strong> {liveData?.connected ? "Events for today and the coming week are synced from Google Calendar." : "have your Q4 proposal notes ready for the 11 AM review."}</span>
+                    <span><strong>{isConnected ? "Your calendar:" : "Sample data:"}</strong> {isConnected ? "Events for today and the coming week are synced from Google Calendar." : "Connect Google to see your real schedule and events."}</span>
                   </div>
                   <div className="space-y-0">
                     {displaySchedule.length ? displaySchedule.map((item, idx) => (
@@ -649,7 +682,7 @@ export default function Home() {
                     )) : <p className="py-5 text-center text-[11px] text-muted">No more events on your calendar today.</p>}
                   </div>
                   <div className="mt-5 flex items-center justify-between border-t border-line pt-4 text-[10px] text-muted">
-                    <span>{liveData?.connected ? todayEvents.length + " events today · From Google Calendar" : displaySchedule.length + " events · Click to view details"}</span>
+                    <span>{isConnected ? todayEvents.length + " events today · From Google Calendar" : displaySchedule.length + " sample events · Connect Google for real data"}</span>
                     <button onClick={() => setActiveNav("Calendar")} className="font-semibold text-[#648170] hover:text-forest">Full 7-day view <ArrowDownRight size={12} className="ml-1 inline" /></button>
                   </div>
                 </section>
@@ -671,40 +704,48 @@ export default function Home() {
                   <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-[#f0f2ed]">
                     <div className="h-full rounded-full bg-forest transition-all duration-500 ease-out" style={{ width: (tasks.length > 0 ? done / tasks.length * 100 : 0) + "%" }} />
                   </div>
-                  <div className="space-y-1">
-                    {tasks.map(task => (
-                      <div key={task.id} className="group flex w-full items-start gap-3 rounded-xl px-2.5 py-3 text-left transition hover:bg-[#f8f9f5]">
-                        <button
-                          onClick={() => toggleTask(task.id)}
-                          className={"mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border transition-all duration-200 " + (task.checked ? "border-forest bg-forest text-white scale-110" : "border-[#d6ddd4] text-transparent group-hover:border-forest/50")}
-                        >
-                          {task.checked ? <Check size={11} /> : <Circle size={10} />}
-                        </button>
-                        <span className="min-w-0 flex-1">
-                          <span className={"block text-[11px] font-medium transition-all duration-200 " + (task.checked ? "text-[#9aa49b] line-through" : "text-[#314239]")}>{task.title}</span>
-                          <span className="mt-1 flex items-center gap-2 text-[10px] text-[#98a198]">
-                            {task.meta}
-                            {task.category && (
-                              <span className={`rounded px-1 py-0.5 text-[8px] font-bold ${
-                                task.category === "urgent" ? "bg-[#fce8e6] text-[#c05746]" :
-                                task.category === "meeting" ? "bg-[#edf0ff] text-[#6d76b1]" :
-                                task.category === "personal" ? "bg-[#eaf3e9] text-[#648266]" :
-                                "bg-[#f1f2ee] text-[#808a81]"
-                              }`}>{task.category.toUpperCase()}</span>
-                            )}
+                  {tasks.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <ListTodo size={28} className="mx-auto text-muted/40 mb-2" />
+                      <p className="text-[12px] font-semibold text-ink">No priorities planned for today</p>
+                      <p className="mt-1 text-[10px] text-muted">Click below to add a focus task or daily goal.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {tasks.map(task => (
+                        <div key={task.id} className="group flex w-full items-start gap-3 rounded-xl px-2.5 py-3 text-left transition hover:bg-[#f8f9f5]">
+                          <button
+                            onClick={() => toggleTask(task.id)}
+                            className={"mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border transition-all duration-200 " + (task.checked ? "border-forest bg-forest text-white scale-110" : "border-[#d6ddd4] text-transparent group-hover:border-forest/50")}
+                          >
+                            {task.checked ? <Check size={11} /> : <Circle size={10} />}
+                          </button>
+                          <span className="min-w-0 flex-1">
+                            <span className={"block text-[11px] font-medium transition-all duration-200 " + (task.checked ? "text-[#9aa49b] line-through" : "text-[#314239]")}>{task.title}</span>
+                            <span className="mt-1 flex items-center gap-2 text-[10px] text-[#98a198]">
+                              {task.meta}
+                              {task.category && (
+                                <span className={`rounded px-1 py-0.5 text-[8px] font-bold ${
+                                  task.category === "urgent" ? "bg-[#fce8e6] text-[#c05746]" :
+                                  task.category === "meeting" ? "bg-[#edf0ff] text-[#6d76b1]" :
+                                  task.category === "personal" ? "bg-[#eaf3e9] text-[#648266]" :
+                                  "bg-[#f1f2ee] text-[#808a81]"
+                               }`}>{task.category.toUpperCase()}</span>
+                              )}
+                            </span>
                           </span>
-                        </span>
-                        {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
-                        <button
-                          onClick={() => deleteTask(task.id)}
-                          className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6]"
-                          aria-label={"Delete " + task.title}
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                          {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
+                          <button
+                            onClick={() => deleteTask(task.id)}
+                            className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6]"
+                            aria-label={"Delete " + task.title}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mt-3">
                     <button onClick={() => setShowTaskModal(true)} className="flex-1 rounded-xl border border-dashed border-[#dfe5dc] py-2.5 text-[10px] font-semibold text-[#79887b] hover:bg-[#fafbf8] hover:border-forest/30 transition">
                       <Plus size={12} className="mr-1 inline" /> Add a personal task
@@ -757,7 +798,7 @@ export default function Home() {
                   <SectionHeading
                     icon={Mail}
                     title="Worth a look"
-                    sub={liveData?.connected ? "Unread messages from Gmail" : "Sample messages · connect to load your inbox"}
+                    sub={isConnected ? "Unread messages from Gmail" : "Sample messages · connect to load your inbox"}
                     right={
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => setActiveNav("Inbox")} className="rounded-full bg-[#f7eee4] px-2.5 py-1 text-[9px] font-bold text-[#a2764b] hover:bg-[#ebdcc9] transition">
