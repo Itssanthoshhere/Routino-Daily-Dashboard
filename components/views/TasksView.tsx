@@ -74,7 +74,7 @@ export function TasksView({
         </div>
         <button
           onClick={onOpenTaskModal}
-          className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm hover:bg-[#204c3d] transition self-start sm:self-auto"
+          className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition self-start sm:self-auto"
         >
           <Plus size={14} /> Add Priority
         </button>
@@ -93,7 +93,7 @@ export function TasksView({
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f0f2ed]">
           <div
-            className="h-full rounded-full bg-[#a2c38c] transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-forest transition-all duration-500 ease-out"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -120,7 +120,7 @@ export function TasksView({
         </select>
         <button
           type="submit"
-          className="flex items-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#204c3d] transition"
+          className="flex items-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition"
         >
           <Plus size={13} /> Add
         </button>
@@ -203,8 +203,8 @@ export function TasksView({
                     onClick={() => onToggleTask(task.id)}
                     className={`grid h-5 w-5 place-items-center rounded-full border transition-all ${
                       task.checked
-                        ? "border-[#a0bd8b] bg-[#a0bd8b] text-white"
-                        : "border-[#d6ddd4] text-transparent hover:border-[#9fb39f]"
+                        ? "border-forest bg-forest text-white"
+                        : "border-[#d6ddd4] text-transparent hover:border-forest/50"
                     }`}
                   >
                     {task.checked ? <Check size={12} /> : <Circle size={10} />}

@@ -108,7 +108,7 @@ export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead }
         {/* Quick Reply Form */}
         <div className="mt-6 border-t border-line pt-4">
           {replied ? (
-            <div className="flex items-center justify-center gap-2 rounded-xl bg-[#eef5ea] py-3 text-[12px] font-semibold text-forest">
+            <div className="flex items-center justify-center gap-2 rounded-xl bg-[#fdf2f2] py-3 text-[12px] font-semibold text-forest">
               <Check size={16} /> Draft saved / Simulation sent!
             </div>
           ) : (
@@ -141,7 +141,7 @@ export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead }
                   </button>
                   <button
                     type="submit"
-                    className="rounded-xl bg-forest px-4 py-2 text-[11px] font-semibold text-white shadow hover:bg-[#204c3d] transition"
+                    className="rounded-xl bg-forest px-4 py-2 text-[11px] font-semibold text-white shadow hover:bg-[#8b1116] transition"
                   >
                     Send reply
                   </button>

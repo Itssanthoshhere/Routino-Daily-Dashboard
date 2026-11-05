@@ -93,7 +93,7 @@ export function MobileSidebar({
               }}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition ${
                 activeNav === label
-                  ? "bg-[#eaf3e8] font-semibold text-forest"
+                  ? "bg-[#fdf2f2] font-semibold text-forest"
                   : "text-[#77827b] hover:bg-[#f1f3ed]"
               }`}
             >
@@ -120,7 +120,7 @@ export function MobileSidebar({
               Google Calendar
               <span
                 className={`ml-auto h-1.5 w-1.5 rounded-full ${
-                  isConnected ? "bg-[#78a36d]" : "bg-[#efbd60]"
+                  isConnected ? "bg-forest" : "bg-[#efbd60]"
                 }`}
               />
             </div>
@@ -131,7 +131,7 @@ export function MobileSidebar({
               Gmail
               <span
                 className={`ml-auto h-1.5 w-1.5 rounded-full ${
-                  isConnected ? "bg-[#78a36d]" : "bg-[#efbd60]"
+                  isConnected ? "bg-forest" : "bg-[#efbd60]"
                 }`}
               />
             </div>

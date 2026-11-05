@@ -26,9 +26,9 @@ export function ToastContainer({
           className="pointer-events-auto flex items-center gap-3 rounded-xl border border-line bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all animate-in fade-in slide-in-from-bottom-2"
         >
           {toast.type === "info" ? (
-            <Info size={16} className="text-[#648266] shrink-0" />
+            <Info size={16} className="text-muted shrink-0" />
           ) : (
-            <CheckCircle2 size={16} className="text-[#5fa77d] shrink-0" />
+            <CheckCircle2 size={16} className="text-forest shrink-0" />
           )}
           <span className="text-[12px] font-medium text-ink">{toast.message}</span>
           <button

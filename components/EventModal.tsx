@@ -111,7 +111,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
                   href={eventToView.meetLink || eventToView.htmlLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#204c3d]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#8b1116]"
                 >
                   <Video size={14} /> Join Meeting <ExternalLink size={12} />
                 </a>
@@ -203,7 +203,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
               </button>
               <button
                 type="submit"
-                className="rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#204c3d]"
+                className="rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#8b1116]"
               >
                 Schedule Event
               </button>

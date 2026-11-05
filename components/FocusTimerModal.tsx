@@ -138,7 +138,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
               <span className="font-mono text-[38px] font-bold tracking-tight text-ink">
                 {formattedTime}
               </span>
-              <span className="mt-1 flex items-center gap-1 rounded-full bg-[#eef5ea] px-2.5 py-0.5 text-[10px] font-semibold text-forest">
+              <span className="mt-1 flex items-center gap-1 rounded-full bg-[#fdf2f2] px-2.5 py-0.5 text-[10px] font-semibold text-forest">
                 <Sparkles size={11} />
                 {isRunning ? "FOCUSING" : timeLeft === 0 ? "DONE" : "READY"}
               </span>
@@ -181,7 +181,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
             </button>
             <button
               onClick={handleTogglePlay}
-              className="flex items-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#204c3d]"
+              className="flex items-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#8b1116]"
             >
               {isRunning ? (
                 <>

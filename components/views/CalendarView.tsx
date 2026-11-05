@@ -80,7 +80,7 @@ export function CalendarView({
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenAddEvent}
-            className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm hover:bg-[#204c3d] transition"
+            className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
           >
             <Plus size={14} /> Schedule Event
           </button>
@@ -180,7 +180,7 @@ export function CalendarView({
             </p>
             <button
               onClick={onOpenAddEvent}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-[11px] font-semibold text-forest hover:bg-[#eaf3e8] transition"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-[11px] font-semibold text-forest hover:bg-[#fdf2f2] transition"
             >
               <Plus size={13} /> Add event
             </button>
@@ -243,7 +243,7 @@ export function CalendarView({
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1.5 rounded-lg bg-[#eaf3e8] px-2.5 py-1.5 text-[11px] font-semibold text-forest hover:bg-[#d8edd3] transition"
+                        className="flex items-center gap-1.5 rounded-lg bg-[#fdf2f2] px-2.5 py-1.5 text-[11px] font-semibold text-forest hover:bg-[#d8edd3] transition"
                       >
                         <Video size={13} /> Join Meet
                       </a>

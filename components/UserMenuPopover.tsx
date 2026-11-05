@@ -46,7 +46,7 @@ export function UserMenuPopover({
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold text-ink leading-tight">{appConfig.user.name}</p>
           <span className="text-[10px] text-muted flex items-center gap-1 mt-0.5">
-            <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-[#78a36d]" : "bg-[#efbd60]"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-forest" : "bg-[#efbd60]"}`} />
             {isConnected ? "Google Connected" : "Local Workspace"}
           </span>
         </div>
@@ -57,7 +57,7 @@ export function UserMenuPopover({
           <form action={connectGoogle}>
             <button
               type="submit"
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[11px] font-medium text-forest hover:bg-[#eaf3e8] transition"
+              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[11px] font-medium text-forest hover:bg-[#fdf2f2] transition"
             >
               <ShieldCheck size={14} /> Connect Google Account
             </button>

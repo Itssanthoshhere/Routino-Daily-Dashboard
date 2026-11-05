@@ -40,7 +40,7 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
       <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl">
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#eaf3e8] text-forest">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#fdf2f2] text-forest">
               <Plus size={16} />
             </span>
             <div>
@@ -124,7 +124,7 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#204c3d]"
+              className="rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#8b1116]"
             >
               Add Priority
             </button>

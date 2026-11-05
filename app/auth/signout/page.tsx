@@ -91,7 +91,7 @@ export default async function SignOutPage() {
           <div className="mt-6 space-y-3">
             <Link
               href="/"
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest px-5 py-3 text-[13px] font-semibold text-white shadow-sm hover:bg-[#204c3d] transition"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest px-5 py-3 text-[13px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
             >
               <ArrowLeft size={14} /> Return to Dashboard
             </Link>

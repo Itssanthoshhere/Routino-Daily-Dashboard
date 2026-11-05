@@ -106,49 +106,49 @@ export function CommandPalette({
           <div className="space-y-1">
             <button
               onClick={() => handleAction(() => onNavigate("Overview"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
             >
               <Target size={15} className="text-forest" />
               <span>Go to Overview</span>
             </button>
             <button
               onClick={() => handleAction(() => onNavigate("Calendar"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
             >
               <CalendarDays size={15} className="text-[#6088d1]" />
               <span>Open Calendar View</span>
             </button>
             <button
               onClick={() => handleAction(() => onNavigate("Inbox"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
             >
               <Inbox size={15} className="text-[#d16b5b]" />
               <span>Open Inbox View</span>
             </button>
             <button
               onClick={() => handleAction(() => onNavigate("Tasks"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
             >
-              <ListTodo size={15} className="text-[#819a65]" />
+              <ListTodo size={15} className="text-forest" />
               <span>Open Tasks Manager</span>
             </button>
             <button
               onClick={() => handleAction(onOpenFocusTimer)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
             >
-              <Focus size={15} className="text-[#7d9b68]" />
+              <Focus size={15} className="text-forest" />
               <span>Start Focus Mode / Timer</span>
             </button>
             <button
               onClick={() => handleAction(onOpenAddTask)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
             >
-              <Plus size={15} className="text-[#79887b]" />
+              <Plus size={15} className="text-muted" />
               <span>Create New Task</span>
             </button>
             <button
               onClick={() => handleAction(onOpenAddEvent)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
             >
               <Plus size={15} className="text-[#6088d1]" />
               <span>Schedule Calendar Event</span>

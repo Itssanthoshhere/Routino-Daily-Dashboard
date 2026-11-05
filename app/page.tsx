@@ -402,7 +402,7 @@ export default function Home() {
         <p className="px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#a2aaa2]">Workspace</p>
         <nav className="mt-3 space-y-1">
           {nav.map(({ icon: Icon, label }) => (
-            <button key={label} onClick={() => setActiveNav(label)} className={"flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition " + (activeNav === label ? "bg-[#eaf3e8] font-semibold text-forest" : "text-[#77827b] hover:bg-[#f1f3ed]")}>
+            <button key={label} onClick={() => setActiveNav(label)} className={"flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition " + (activeNav === label ? "bg-[#fdf2f2] font-semibold text-forest" : "text-[#77827b] hover:bg-[#f1f3ed]")}>
               <Icon size={16} />{label}
               {label === "Inbox" && <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{mailItems.filter(m => !m.read).length}</span>}
               {label === "Tasks" && <span className="ml-auto rounded-full bg-[#e8efe4] px-2 py-0.5 text-[10px] font-bold text-forest">{tasks.filter(t => !t.checked).length}</span>}
@@ -462,8 +462,8 @@ export default function Home() {
             <div className="text-[12px] text-muted">Workspace <span className="mx-2 text-[#c4cbc3]">/</span><span className="font-semibold text-ink">{activeNav}</span></div>
           </div>
           <div className="flex items-center gap-2">
-            <span className={"hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-semibold sm:flex " + (liveData?.connected ? "border-[#dce9d8] bg-[#eef5ea] text-forest" : "border-[#eadfc6] bg-[#fbf5e9] text-[#987537]")}>
-              <span className={"h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-[#78a36d]" : "bg-[#e7ae51]")} />
+            <span className={"hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-semibold sm:flex " + (liveData?.connected ? "border-[#fecaca] bg-[#fdf2f2] text-forest" : "border-[#eadfc6] bg-[#fbf5e9] text-[#987537]")}>
+              <span className={"h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-forest" : "bg-[#e7ae51]")} />
               {liveData?.connected ? "GOOGLE CONNECTED" : "PREVIEW MODE"}
             </span>
             <button onClick={() => setShowCommandPalette(true)} aria-label="Search or command palette" className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition" title="Press Cmd+K">
@@ -510,7 +510,7 @@ export default function Home() {
               </div>
               {!liveData?.connected && (
                 <form action={connectGoogle} className="hidden shrink-0 sm:inline-flex">
-                  <button className="rounded-lg bg-forest px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#204c3d] transition">Connect Google <ArrowRight className="ml-1.5 inline" size={13} /></button>
+                  <button className="rounded-lg bg-forest px-3 py-2 text-[11px] font-semibold text-white hover:bg-[#8b1116] transition">Connect Google <ArrowRight className="ml-1.5 inline" size={13} /></button>
                 </form>
               )}
               <button onClick={() => setNotice(false)} aria-label="Dismiss" className="text-[#a99772] hover:text-[#715a31] transition"><X size={15} /></button>
@@ -557,7 +557,7 @@ export default function Home() {
                   <button onClick={() => setActiveNav("Calendar")} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[11px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"><CalendarDays size={14} />Today<ChevronDown size={13} /></button>
                   {!liveData?.connected && (
                     <form action={connectGoogle}>
-                      <button className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#204c3d]">Connect Google <ArrowUpRight size={14} /></button>
+                      <button className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#8b1116]">Connect Google <ArrowUpRight size={14} /></button>
                     </form>
                   )}
                 </div>
@@ -609,7 +609,7 @@ export default function Home() {
                     sub="A quick look at what's ahead"
                     right={
                       <div className="flex items-center gap-2">
-                        <button onClick={() => { setViewingEvent(null); setShowEventModal(true); }} className="rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-forest hover:bg-[#eaf3e8] transition">
+                        <button onClick={() => { setViewingEvent(null); setShowEventModal(true); }} className="rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition">
                           <Plus size={11} className="mr-0.5 inline" /> Add
                         </button>
                         <button onClick={() => setActiveNav("Calendar")} className="text-[10px] font-semibold text-[#648170] hover:text-forest transition">Calendar view <ArrowRight size={12} className="ml-1 inline" /></button>
@@ -662,21 +662,21 @@ export default function Home() {
                     sub={done + " of " + tasks.length + " complete · Keep it manageable"}
                     right={
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setShowTaskModal(true)} aria-label="Add task" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#eaf3e8] hover:text-forest transition">
+                        <button onClick={() => setShowTaskModal(true)} aria-label="Add task" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition">
                           <Plus size={14} />
                         </button>
                       </div>
                     }
                   />
                   <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-[#f0f2ed]">
-                    <div className="h-full rounded-full bg-[#a2c38c] transition-all duration-500 ease-out" style={{ width: (tasks.length > 0 ? done / tasks.length * 100 : 0) + "%" }} />
+                    <div className="h-full rounded-full bg-forest transition-all duration-500 ease-out" style={{ width: (tasks.length > 0 ? done / tasks.length * 100 : 0) + "%" }} />
                   </div>
                   <div className="space-y-1">
                     {tasks.map(task => (
                       <div key={task.id} className="group flex w-full items-start gap-3 rounded-xl px-2.5 py-3 text-left transition hover:bg-[#f8f9f5]">
                         <button
                           onClick={() => toggleTask(task.id)}
-                          className={"mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border transition-all duration-200 " + (task.checked ? "border-[#a0bd8b] bg-[#a0bd8b] text-white scale-110" : "border-[#d6ddd4] text-transparent group-hover:border-[#9fb39f]")}
+                          className={"mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border transition-all duration-200 " + (task.checked ? "border-forest bg-forest text-white scale-110" : "border-[#d6ddd4] text-transparent group-hover:border-forest/50")}
                         >
                           {task.checked ? <Check size={11} /> : <Circle size={10} />}
                         </button>
@@ -709,7 +709,7 @@ export default function Home() {
                     <button onClick={() => setShowTaskModal(true)} className="flex-1 rounded-xl border border-dashed border-[#dfe5dc] py-2.5 text-[10px] font-semibold text-[#79887b] hover:bg-[#fafbf8] hover:border-forest/30 transition">
                       <Plus size={12} className="mr-1 inline" /> Add a personal task
                     </button>
-                    <button onClick={() => setActiveNav("Tasks")} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[10px] font-semibold text-forest hover:bg-[#eaf3e8] transition">
+                    <button onClick={() => setActiveNav("Tasks")} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition">
                       Manage all →
                     </button>
                   </div>
@@ -806,10 +806,10 @@ export default function Home() {
                     icon={Clock3}
                     title="Make room for focus"
                     sub="A gentle shape for the rest of your day"
-                    right={<button onClick={() => setShowFocusTimer(true)} aria-label="Start focus timer" className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[10px] font-semibold text-forest hover:bg-[#eaf3e8] transition"><Focus size={12} className="mr-1 inline" /> Timer</button>}
+                    right={<button onClick={() => setShowFocusTimer(true)} aria-label="Start focus timer" className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition"><Focus size={12} className="mr-1 inline" /> Timer</button>}
                   />
                   <div className="space-y-2">
-                    <button onClick={() => setShowFocusTimer(true)} className="flex w-full items-center gap-3 rounded-xl bg-[#f4f7ef] px-3 py-3 text-left hover:bg-[#eaf3e8] transition group">
+                    <button onClick={() => setShowFocusTimer(true)} className="flex w-full items-center gap-3 rounded-xl bg-[#f4f7ef] px-3 py-3 text-left hover:bg-[#fdf2f2] transition group">
                       <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#7d9b68] group-hover:text-forest transition"><Focus size={15} /></span>
                       <div className="min-w-0 flex-1">
                         <p className="text-[10px] font-semibold">Focused work session</p>
@@ -837,7 +837,7 @@ export default function Home() {
                     icon={Link2}
                     title="Quick links"
                     sub="Your frequently used places"
-                    right={<button onClick={() => setShowQuickLinkModal(true)} aria-label="Add link" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#eaf3e8] hover:text-forest transition"><Plus size={14} /></button>}
+                    right={<button onClick={() => setShowQuickLinkModal(true)} aria-label="Add link" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition"><Plus size={14} /></button>}
                   />
                   <div className="grid grid-cols-2 gap-2.5">
                     {quickLinks.map(link => {
@@ -858,7 +858,7 @@ export default function Home() {
                           <span className={`grid h-7 w-7 place-items-center rounded-lg shadow-sm ${
                             link.iconName === "calendar" ? "bg-[#edf3ff] text-[#6088d1]" :
                             link.iconName === "mail" ? "bg-[#fbefeb] text-[#d16b5b]" :
-                            "bg-[#eaf3e8] text-forest"
+                            "bg-[#fdf2f2] text-forest"
                           }`}><IconComponent size={14} /></span>
                           <span className="min-w-0">
                             <span className="block truncate text-[10px] font-semibold">{link.title}</span>

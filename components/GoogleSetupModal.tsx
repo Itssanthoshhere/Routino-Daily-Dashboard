@@ -74,7 +74,7 @@ export function GoogleSetupModal({ isOpen, onClose }: GoogleSetupModalProps) {
                   <span className="truncate flex-1">{redirectUri}</span>
                   <button
                     onClick={handleCopyUri}
-                    className="shrink-0 rounded bg-white px-2 py-1 text-[10px] font-bold text-forest shadow-sm border border-line hover:bg-[#eaf3e8]"
+                    className="shrink-0 rounded bg-white px-2 py-1 text-[10px] font-bold text-forest shadow-sm border border-line hover:bg-[#fdf2f2]"
                   >
                     {copied ? <Check size={12} className="inline text-forest" /> : "Copy"}
                   </button>
@@ -91,7 +91,7 @@ export function GoogleSetupModal({ isOpen, onClose }: GoogleSetupModalProps) {
         <div className="mt-5 flex items-center justify-end border-t border-line pt-4">
           <button
             onClick={onClose}
-            className="rounded-xl bg-forest px-4 py-2 text-[12px] font-semibold text-white shadow hover:bg-[#204c3d] transition"
+            className="rounded-xl bg-forest px-4 py-2 text-[12px] font-semibold text-white shadow hover:bg-[#8b1116] transition"
           >
             Got it, use Preview Mode for now
           </button>
