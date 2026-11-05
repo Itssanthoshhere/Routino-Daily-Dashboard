@@ -1,5 +1,11 @@
 export type Priority = "low" | "medium" | "high";
 
+export type SubTask = {
+  id: string;
+  title: string;
+  completed: boolean;
+};
+
 export type Task = {
   id: string;
   title: string;
@@ -9,6 +15,15 @@ export type Task = {
   category?: "work" | "personal" | "meeting" | "urgent";
   dueDate?: string;
   createdAt: number;
+  subtasks?: SubTask[];
+};
+
+export type Habit = {
+  id: string;
+  name: string;
+  streak: number;
+  completedDates: string[]; // ['YYYY-MM-DD']
+  icon?: string;
 };
 
 export type DashboardEvent = {

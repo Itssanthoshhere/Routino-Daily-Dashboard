@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { neon } from "@neondatabase/serverless";
-import { Task, DashboardEvent, QuickLink } from "@/types/dashboard";
+import { Task, DashboardEvent, QuickLink, Habit } from "@/types/dashboard";
 
 export type UserWorkspaceData = {
   tasks: Task[];
@@ -9,6 +9,7 @@ export type UserWorkspaceData = {
   quickLinks: QuickLink[];
   focusMinutes: number;
   soundEnabled: boolean;
+  habits?: Habit[];
   activeNav?: string;
   updatedAt: string;
 };

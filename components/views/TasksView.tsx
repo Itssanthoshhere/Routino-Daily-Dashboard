@@ -11,6 +11,9 @@ import {
   Filter,
   AlertCircle,
   Trash2,
+  ChevronDown,
+  ChevronUp,
+  CheckSquare,
 } from "lucide-react";
 import { Task } from "@/types/dashboard";
 
@@ -20,6 +23,7 @@ type TasksViewProps = {
   onDeleteTask: (id: string) => void;
   onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">) => void;
   onOpenTaskModal: () => void;
+  onToggleSubTask?: (taskId: string, subtaskId: string) => void;
 };
 
 export function TasksView({
@@ -28,11 +32,17 @@ export function TasksView({
   onDeleteTask,
   onAddTask,
   onOpenTaskModal,
+  onToggleSubTask,
 }: TasksViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "completed" | "priority">("all");
   const [quickTitle, setQuickTitle] = useState("");
   const [quickCategory, setQuickCategory] = useState<"work" | "personal" | "meeting" | "urgent">("work");
+  const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedTasks((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const doneCount = tasks.filter((t) => t.checked).length;
   const progressPercent = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
@@ -193,68 +203,115 @@ export function TasksView({
           </div>
         ) : (
           <div className="divide-y divide-[#eff1ec]">
-            {filteredTasks.map((task) => (
-              <div
-                key={task.id}
-                className="group flex items-center justify-between gap-3 p-4 hover:bg-[#fbfcf9] transition"
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <button
-                    onClick={() => onToggleTask(task.id)}
-                    className={`grid h-5 w-5 place-items-center rounded-full border transition-all ${
-                      task.checked
-                        ? "border-forest bg-forest text-white"
-                        : "border-[#d6ddd4] text-transparent hover:border-forest/50"
-                    }`}
-                  >
-                    {task.checked ? <Check size={12} /> : <Circle size={10} />}
-                  </button>
+            {filteredTasks.map((task) => {
+              const hasSubtasks = Boolean(task.subtasks && task.subtasks.length > 0);
+              const completedSubCount = task.subtasks?.filter((s) => s.completed).length || 0;
+              const totalSubCount = task.subtasks?.length || 0;
+              const isExpanded = expandedTasks[task.id];
 
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`text-[13px] transition ${
-                        task.checked ? "text-muted line-through" : "font-medium text-ink"
-                      }`}
-                    >
-                      {task.title}
-                    </p>
-                    <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted">
-                      <span>{task.meta}</span>
-                      {task.category && (
-                        <span
-                          className={`rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${
-                            task.category === "urgent"
-                              ? "bg-[#fce8e6] text-[#c05746]"
-                              : task.category === "meeting"
-                              ? "bg-[#edf0ff] text-[#6d76b1]"
-                              : task.category === "personal"
-                              ? "bg-[#eaf3e9] text-[#648266]"
-                              : "bg-[#f1f2ee] text-[#808a81]"
+              return (
+                <div key={task.id} className="group hover:bg-[#fbfcf9] transition">
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <button
+                        onClick={() => onToggleTask(task.id)}
+                        className={`grid h-5 w-5 place-items-center rounded-full border transition-all ${
+                          task.checked
+                            ? "border-forest bg-forest text-white"
+                            : "border-[#d6ddd4] text-transparent hover:border-forest/50"
+                        }`}
+                      >
+                        {task.checked ? <Check size={12} /> : <Circle size={10} />}
+                      </button>
+
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`text-[13px] transition ${
+                            task.checked ? "text-muted line-through" : "font-medium text-ink"
                           }`}
                         >
-                          {task.category}
+                          {task.title}
+                        </p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted">
+                          <span>{task.meta}</span>
+                          {task.category && (
+                            <span
+                              className={`rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${
+                                task.category === "urgent"
+                                  ? "bg-[#fce8e6] text-[#c05746]"
+                                  : task.category === "meeting"
+                                  ? "bg-[#edf0ff] text-[#6d76b1]"
+                                  : task.category === "personal"
+                                  ? "bg-[#eaf3e9] text-[#648266]"
+                                  : "bg-[#f1f2ee] text-[#808a81]"
+                              }`}
+                            >
+                              {task.category}
+                            </span>
+                          )}
+                          {hasSubtasks && (
+                            <button
+                              type="button"
+                              onClick={() => toggleExpand(task.id)}
+                              className="inline-flex items-center gap-1 rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[9px] font-semibold text-[#5c6960] hover:bg-[#e2e6df] transition"
+                            >
+                              <CheckSquare size={10} />
+                              {completedSubCount}/{totalSubCount} sub-steps
+                              {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {task.priority && !task.checked && (
+                        <span className="rounded-md bg-[#fcf0e7] px-2 py-0.5 text-[9px] font-bold text-[#b4794e]">
+                          PRIORITY
                         </span>
                       )}
+                      <button
+                        onClick={() => onDeleteTask(task.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-[#c05746] rounded transition"
+                        aria-label="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                  {task.priority && !task.checked && (
-                    <span className="rounded-md bg-[#fcf0e7] px-2 py-0.5 text-[9px] font-bold text-[#b4794e]">
-                      PRIORITY
-                    </span>
+                  {/* Expandable subtasks checklist */}
+                  {hasSubtasks && isExpanded && (
+                    <div className="bg-[#fafbf7] border-t border-[#f0f2eb] px-12 py-2.5 space-y-1.5">
+                      {task.subtasks!.map((st) => (
+                        <div
+                          key={st.id}
+                          onClick={() => onToggleSubTask?.(task.id, st.id)}
+                          className="flex items-center gap-2.5 py-1 text-[11px] cursor-pointer group/sub"
+                        >
+                          <span
+                            className={`grid h-3.5 w-3.5 place-items-center rounded border transition ${
+                              st.completed
+                                ? "border-forest bg-forest text-white"
+                                : "border-[#cfd6cd] bg-white group-hover/sub:border-forest"
+                            }`}
+                          >
+                            {st.completed && <Check size={9} />}
+                          </span>
+                          <span
+                            className={`transition ${
+                              st.completed ? "text-muted line-through" : "text-ink"
+                            }`}
+                          >
+                            {st.title}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   )}
-                  <button
-                    onClick={() => onDeleteTask(task.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-[#c05746] rounded transition"
-                    aria-label="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

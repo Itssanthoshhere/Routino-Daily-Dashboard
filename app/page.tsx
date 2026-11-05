@@ -1,15 +1,16 @@
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
-  ChevronDown, Circle, Clock3, ExternalLink, FileText, Focus, Github, Globe,
-  Inbox, Link2, Linkedin, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Shuffle, Sparkles,
+  ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, Github, Globe,
+  Inbox, Keyboard, Link2, Linkedin, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Shuffle, Sparkles,
   Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
 
-import type { Task, DashboardEvent, DashboardMail, DashboardData, QuickLink, NotificationItem } from "@/types/dashboard";
+import type { Task, DashboardEvent, DashboardMail, DashboardData, QuickLink, NotificationItem, Habit, SubTask } from "@/types/dashboard";
 import { ToastContainer, ToastMessage } from "@/components/Toast";
 import { FocusTimerModal } from "@/components/FocusTimerModal";
 import { TaskModal } from "@/components/TaskModal";
@@ -23,6 +24,8 @@ import { MobileSidebar } from "@/components/MobileSidebar";
 import { GoogleSetupModal } from "@/components/GoogleSetupModal";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
+import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
+import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal";
 import { CalendarView } from "@/components/views/CalendarView";
 import { InboxView } from "@/components/views/InboxView";
 import { TasksView } from "@/components/views/TasksView";
@@ -81,10 +84,30 @@ const sampleMail: DashboardMail[] = [
 ];
 
 const seedTasks: Task[] = [
-  { id: "t-1", title: "Review the Q4 proposal", meta: "Before project review · 11:00 AM", checked: false, priority: true, category: "work", createdAt: 1 },
+  {
+    id: "t-1",
+    title: "Review the Q4 proposal",
+    meta: "Before project review · 11:00 AM",
+    checked: false,
+    priority: true,
+    category: "work",
+    createdAt: 1,
+    subtasks: [
+      { id: "st-1", title: "Outline key milestones", completed: true },
+      { id: "st-2", title: "Verify budget projection table", completed: false },
+      { id: "st-3", title: "Format executive summary", completed: false },
+    ],
+  },
   { id: "t-2", title: "Reply to Riya about the scope", meta: "Today · Email follow-up", checked: false, priority: false, category: "personal", createdAt: 2 },
   { id: "t-3", title: "Send invoice to finance", meta: "Due Friday · 2 days left", checked: false, priority: false, category: "urgent", createdAt: 3 },
   { id: "t-4", title: "Block focus time for roadmap", meta: "Suggested · 90 min", checked: true, priority: false, category: "work", createdAt: 4 },
+];
+
+const seedHabits: Habit[] = [
+  { id: "h-1", name: "Hydrate 2L", streak: 3, completedDates: [], icon: "droplet" },
+  { id: "h-2", name: "Morning Walk", streak: 5, completedDates: [], icon: "footprints" },
+  { id: "h-3", name: "Read 20 min", streak: 2, completedDates: [], icon: "book" },
+  { id: "h-4", name: "Inbox Zero", streak: 4, completedDates: [], icon: "mail" },
 ];
 
 const seedLinks: QuickLink[] = [
@@ -204,6 +227,9 @@ export default function Home() {
   const [viewingEvent, setViewingEvent] = useState<DashboardEvent | null>(null);
   const [viewingMail, setViewingMail] = useState<DashboardMail | null>(null);
   const [intentionIndex, setIntentionIndex] = useState(0);
+  const [habits, setHabits] = useState<Habit[]>(seedHabits);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setIntentionIndex(getTodayIntentionIndex());
@@ -268,6 +294,11 @@ export default function Home() {
           starred: starredSet.has(m.id) || !!m.starred,
           read: readSet.has(m.id) || !!m.read,
         })));
+      }
+
+      const storedHabits = localStorage.getItem("routino_habits");
+      if (storedHabits !== null) {
+        setHabits(JSON.parse(storedHabits));
       }
 
       if (window.location.search.includes("setup=google")) {
@@ -384,12 +415,73 @@ export default function Home() {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
 
-  /* ── Keyboard shortcut: Cmd+K ── */
+  /* ── Keyboard shortcuts ── */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      );
+
+      // Cmd+K / Ctrl+K
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setShowCommandPalette(prev => !prev);
+        return;
+      }
+
+      if (isInput) return;
+
+      // ? key (Shift + /)
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setShowShortcuts(prev => !prev);
+        return;
+      }
+
+      // 1, 2, 3, 4 view switches
+      if (e.key === "1") {
+        e.preventDefault();
+        handleSelectNav("Overview");
+        return;
+      }
+      if (e.key === "2") {
+        e.preventDefault();
+        handleSelectNav("Calendar");
+        return;
+      }
+      if (e.key === "3") {
+        e.preventDefault();
+        handleSelectNav("Inbox");
+        return;
+      }
+      if (e.key === "4") {
+        e.preventDefault();
+        handleSelectNav("Tasks");
+        return;
+      }
+
+      // F for focus timer
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        setShowFocusTimer(true);
+        return;
+      }
+
+      // T for new task
+      if (e.key === "t" || e.key === "T") {
+        e.preventDefault();
+        setShowTaskModal(true);
+        return;
+      }
+
+      // E for new event
+      if (e.key === "e" || e.key === "E") {
+        e.preventDefault();
+        setShowEventModal(true);
+        return;
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -404,6 +496,7 @@ export default function Home() {
       quickLinks?: QuickLink[];
       focusMinutes?: number;
       soundEnabled?: boolean;
+      habits?: Habit[];
       activeNav?: string;
     }) => {
       if (!liveData?.connected) return;
@@ -415,6 +508,7 @@ export default function Home() {
           quickLinks: overrideData?.quickLinks ?? quickLinks,
           focusMinutes: overrideData?.focusMinutes ?? focusMinutes,
           soundEnabled: overrideData?.soundEnabled ?? soundEnabled,
+          habits: overrideData?.habits ?? habits,
           activeNav: overrideData?.activeNav ?? activeNav,
         };
 
@@ -437,7 +531,7 @@ export default function Home() {
         setIsSyncing(false);
       }
     },
-    [liveData?.connected, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, activeNav]
+    [liveData?.connected, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, activeNav]
   );
 
   /* ── Load user workspace from Database on session connect ── */
@@ -476,6 +570,10 @@ export default function Home() {
           if (typeof d.soundEnabled === "boolean") {
             setSoundEnabled(d.soundEnabled);
             try { localStorage.setItem("routino_sound_enabled", String(d.soundEnabled)); } catch {}
+          }
+          if (Array.isArray(d.habits) && d.habits.length > 0) {
+            setHabits(d.habits);
+            try { localStorage.setItem("routino_habits", JSON.stringify(d.habits)); } catch {}
           }
           if (d.updatedAt) {
             setLastSyncedAt(d.updatedAt);
@@ -522,6 +620,84 @@ export default function Home() {
       return next;
     });
     if (task) toast(`"${task.title}" removed`, "info");
+  };
+
+  const toggleSubTask = (taskId: string, subtaskId: string) => {
+    setTasks(prev => {
+      const next = prev.map(t => {
+        if (t.id !== taskId || !t.subtasks) return t;
+        const nextSubtasks = t.subtasks.map(st => {
+          if (st.id !== subtaskId) return st;
+          const nextCompleted = !st.completed;
+          if (nextCompleted) {
+            playTick();
+          }
+          return { ...st, completed: nextCompleted };
+        });
+        return { ...t, subtasks: nextSubtasks };
+      });
+      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      syncToDatabase({ tasks: next });
+      return next;
+    });
+  };
+
+  const toggleHabit = (id: string) => {
+    const todayStr = getLocalDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalDateString(yesterday);
+
+    setHabits(prev => {
+      const next = prev.map(h => {
+        if (h.id !== id) return h;
+        const isDone = h.completedDates.includes(todayStr);
+        let nextDates: string[];
+        let nextStreak: number;
+
+        if (isDone) {
+          nextDates = h.completedDates.filter(d => d !== todayStr);
+          nextStreak = Math.max(0, h.streak - 1);
+        } else {
+          nextDates = [...h.completedDates, todayStr];
+          const didYesterday = h.completedDates.includes(yesterdayStr);
+          nextStreak = didYesterday ? h.streak + 1 : 1;
+          playTick();
+          toast(`Habit "${h.name}" completed for today! 🔥`);
+        }
+        return { ...h, completedDates: nextDates, streak: nextStreak };
+      });
+      try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
+      syncToDatabase({ habits: next });
+      return next;
+    });
+  };
+
+  const addHabit = (name: string, icon?: string) => {
+    const newHabit: Habit = {
+      id: "h-" + Date.now(),
+      name,
+      streak: 0,
+      completedDates: [],
+      icon,
+    };
+    setHabits(prev => {
+      const next = [...prev, newHabit];
+      try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
+      syncToDatabase({ habits: next });
+      return next;
+    });
+    toast(`Habit "${name}" created!`);
+  };
+
+  const deleteHabit = (id: string) => {
+    setHabits(prev => {
+      const next = prev.filter(h => h.id !== id);
+      try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
+      syncToDatabase({ habits: next });
+      return next;
+    });
+    toast("Habit deleted", "info");
   };
 
   const addTask = (data: Omit<Task, "id" | "checked" | "createdAt">) => {
@@ -840,6 +1016,7 @@ export default function Home() {
               onDeleteTask={deleteTask}
               onAddTask={addTask}
               onOpenTaskModal={() => setShowTaskModal(true)}
+              onToggleSubTask={toggleSubTask}
             />
           ) : (
             /* ─── OVERVIEW DASHBOARD VIEW ─── */
@@ -922,6 +1099,16 @@ export default function Home() {
                 </button>
               </div>
 
+              {/* ─── Micro-Habits & Streak Tracker ─── */}
+              <div className="mt-6">
+                <HabitTracker
+                  habits={habits}
+                  onToggleHabit={toggleHabit}
+                  onAddHabit={addHabit}
+                  onDeleteHabit={deleteHabit}
+                />
+              </div>
+
               {/* ─── Schedule + Tasks row ─── */}
               <div className="mt-4 grid gap-4 xl:grid-cols-[1.12fr_.88fr]">
                 {/* Today's schedule */}
@@ -1002,38 +1189,84 @@ export default function Home() {
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {tasks.map(task => (
-                        <div key={task.id} className="group flex w-full items-start gap-3 rounded-xl px-2.5 py-3 text-left transition hover:bg-[#f8f9f5]">
-                          <button
-                            onClick={() => toggleTask(task.id)}
-                            className={"mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border transition-all duration-200 " + (task.checked ? "border-forest bg-forest text-white scale-110" : "border-[#d6ddd4] text-transparent group-hover:border-forest/50")}
-                          >
-                            {task.checked ? <Check size={11} /> : <Circle size={10} />}
-                          </button>
-                          <span className="min-w-0 flex-1">
-                            <span className={"block text-[11px] font-medium transition-all duration-200 " + (task.checked ? "text-[#9aa49b] line-through" : "text-[#314239]")}>{task.title}</span>
-                            <span className="mt-1 flex items-center gap-2 text-[10px] text-[#98a198]">
-                              {task.meta}
-                              {task.category && (
-                                <span className={`rounded px-1 py-0.5 text-[8px] font-bold ${
-                                  task.category === "urgent" ? "bg-[#fce8e6] text-[#c05746]" :
-                                  task.category === "meeting" ? "bg-[#edf0ff] text-[#6d76b1]" :
-                                  task.category === "personal" ? "bg-[#eaf3e9] text-[#648266]" :
-                                  "bg-[#f1f2ee] text-[#808a81]"
-                               }`}>{task.category.toUpperCase()}</span>
-                              )}
-                            </span>
-                          </span>
-                          {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
-                          <button
-                            onClick={() => deleteTask(task.id)}
-                            className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6]"
-                            aria-label={"Delete " + task.title}
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
+                      {tasks.map(task => {
+                        const hasSubtasks = Boolean(task.subtasks && task.subtasks.length > 0);
+                        const completedSubCount = task.subtasks?.filter(s => s.completed).length || 0;
+                        const totalSubCount = task.subtasks?.length || 0;
+                        const isExpanded = expandedOverviewTasks[task.id];
+
+                        return (
+                          <div key={task.id} className="rounded-xl transition hover:bg-[#f8f9f5]">
+                            <div className="group flex w-full items-start gap-3 px-2.5 py-3 text-left">
+                              <button
+                                onClick={() => toggleTask(task.id)}
+                                className={"mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border transition-all duration-200 " + (task.checked ? "border-forest bg-forest text-white scale-110" : "border-[#d6ddd4] text-transparent group-hover:border-forest/50")}
+                              >
+                                {task.checked ? <Check size={11} /> : <Circle size={10} />}
+                              </button>
+                              <span className="min-w-0 flex-1">
+                                <span className={"block text-[11px] font-medium transition-all duration-200 " + (task.checked ? "text-[#9aa49b] line-through" : "text-[#314239]")}>{task.title}</span>
+                                <span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[#98a198]">
+                                  {task.meta}
+                                  {task.category && (
+                                    <span className={`rounded px-1 py-0.5 text-[8px] font-bold ${
+                                      task.category === "urgent" ? "bg-[#fce8e6] text-[#c05746]" :
+                                      task.category === "meeting" ? "bg-[#edf0ff] text-[#6d76b1]" :
+                                      task.category === "personal" ? "bg-[#eaf3e9] text-[#648266]" :
+                                      "bg-[#f1f2ee] text-[#808a81]"
+                                    }`}>{task.category.toUpperCase()}</span>
+                                  )}
+                                  {hasSubtasks && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedOverviewTasks(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
+                                      className="inline-flex items-center gap-1 rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[8px] font-semibold text-[#5c6960] hover:bg-[#e2e6df] transition"
+                                    >
+                                      <CheckSquare size={9} />
+                                      {completedSubCount}/{totalSubCount} sub-steps
+                                      {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                    </button>
+                                  )}
+                                </span>
+                              </span>
+                              {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
+                              <button
+                                onClick={() => deleteTask(task.id)}
+                                className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6]"
+                                aria-label={"Delete " + task.title}
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+
+                            {/* Expanded sub-steps checklist */}
+                            {hasSubtasks && isExpanded && (
+                              <div className="bg-[#f5f7f2] rounded-lg mx-2.5 mb-2 px-3 py-2 space-y-1.5 border border-[#ebeee6]">
+                                {task.subtasks!.map(st => (
+                                  <div
+                                    key={st.id}
+                                    onClick={() => toggleSubTask(task.id, st.id)}
+                                    className="flex items-center gap-2 py-0.5 text-[10px] cursor-pointer group/st"
+                                  >
+                                    <span
+                                      className={`grid h-3 w-3 place-items-center rounded-sm border transition ${
+                                        st.completed
+                                          ? "border-forest bg-forest text-white"
+                                          : "border-[#cfd6cd] bg-white group-hover/st:border-forest"
+                                      }`}
+                                    >
+                                      {st.completed && <Check size={8} />}
+                                    </span>
+                                    <span className={st.completed ? "text-muted line-through" : "text-[#404e45]"}>
+                                      {st.title}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   <div className="flex items-center gap-2 mt-3">
@@ -1254,6 +1487,7 @@ export default function Home() {
         onOpenAddTask={() => setShowTaskModal(true)}
         onOpenAddEvent={() => setShowEventModal(true)}
         onOpenPreferences={() => setShowPreferences(true)}
+        onOpenShortcuts={() => setShowShortcuts(true)}
         tasks={tasks}
         events={allEvents}
       />
@@ -1276,6 +1510,10 @@ export default function Home() {
         isSyncing={isSyncing}
         lastSyncedAt={lastSyncedAt}
         dbSource={dbSource}
+      />
+      <KeyboardShortcutsModal
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
       />
     </div>
   );

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Tag, Calendar, AlertCircle } from "lucide-react";
-import { Task } from "@/types/dashboard";
+import { Plus, X, AlertCircle, CheckSquare, Trash2 } from "lucide-react";
+import { Task, SubTask } from "@/types/dashboard";
 
 type TaskModalProps = {
   isOpen: boolean;
@@ -15,8 +15,25 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
   const [meta, setMeta] = useState("");
   const [priority, setPriority] = useState(false);
   const [category, setCategory] = useState<"work" | "personal" | "meeting" | "urgent">("work");
+  const [subtasks, setSubtasks] = useState<SubTask[]>([]);
+  const [subtaskInput, setSubtaskInput] = useState("");
 
   if (!isOpen) return null;
+
+  const handleAddSubtask = () => {
+    if (!subtaskInput.trim()) return;
+    const newSub: SubTask = {
+      id: "sub-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+      title: subtaskInput.trim(),
+      completed: false,
+    };
+    setSubtasks((prev) => [...prev, newSub]);
+    setSubtaskInput("");
+  };
+
+  const handleRemoveSubtask = (id: string) => {
+    setSubtasks((prev) => prev.filter((s) => s.id !== id));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,17 +44,20 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
       meta: meta.trim() || `Today · ${category.charAt(0).toUpperCase() + category.slice(1)}`,
       priority,
       category,
+      subtasks: subtasks.length > 0 ? subtasks : undefined,
     });
 
     setTitle("");
     setMeta("");
     setPriority(false);
+    setSubtasks([]);
+    setSubtaskInput("");
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+      <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#fdf2f2] text-forest">
@@ -45,7 +65,7 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
             </span>
             <div>
               <h3 className="text-[15px] font-semibold text-ink">Add New Task</h3>
-              <p className="text-[11px] text-muted">Create a priority to keep your day intentional</p>
+              <p className="text-[11px] text-muted">Create a priority with checklist sub-steps</p>
             </div>
           </div>
           <button
@@ -66,7 +86,7 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Finalize presentation slides"
+              placeholder="e.g. Finalize Q4 proposal"
               className="mt-1.5 w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[13px] text-ink outline-none focus:border-forest transition"
             />
           </div>
@@ -110,6 +130,61 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
               >
                 <AlertCircle size={14} />
                 {priority ? "High Priority" : "Normal"}
+              </button>
+            </div>
+          </div>
+
+          {/* Sub-steps / Checklists */}
+          <div className="rounded-xl border border-line bg-white p-3.5 space-y-2.5">
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-ink">
+              <CheckSquare size={13} className="text-forest" />
+              Sub-steps / Mini Checklist (Optional)
+            </label>
+
+            {subtasks.length > 0 && (
+              <div className="space-y-1.5 mb-2 max-h-36 overflow-y-auto pr-1">
+                {subtasks.map((st, i) => (
+                  <div
+                    key={st.id}
+                    className="flex items-center justify-between rounded-lg bg-[#f8f9f5] px-2.5 py-1.5 text-[11px] text-ink"
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <span className="text-[10px] text-muted font-mono">{i + 1}.</span>
+                      <span className="truncate">{st.title}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSubtask(st.id)}
+                      className="p-1 text-muted hover:text-[#c05746] transition"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={subtaskInput}
+                onChange={(e) => setSubtaskInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddSubtask();
+                  }
+                }}
+                placeholder="e.g. Outline key points, check budget table..."
+                className="flex-1 rounded-lg border border-line bg-[#fdfcf9] px-2.5 py-1.5 text-[11px] text-ink outline-none focus:border-forest"
+              />
+              <button
+                type="button"
+                onClick={handleAddSubtask}
+                disabled={!subtaskInput.trim()}
+                className="rounded-lg bg-[#f1f3ed] px-3 py-1.5 text-[11px] font-semibold text-ink hover:bg-[#e2e6df] disabled:opacity-40 transition"
+              >
+                + Add
               </button>
             </div>
           </div>

@@ -14,6 +14,7 @@ import {
   X,
   ExternalLink,
   Settings,
+  Keyboard,
 } from "lucide-react";
 import { Task, DashboardEvent } from "@/types/dashboard";
 
@@ -25,6 +26,7 @@ type CommandPaletteProps = {
   onOpenAddTask: () => void;
   onOpenAddEvent: () => void;
   onOpenPreferences?: () => void;
+  onOpenShortcuts?: () => void;
   tasks: Task[];
   events: DashboardEvent[];
 };
@@ -37,6 +39,7 @@ export function CommandPalette({
   onOpenAddTask,
   onOpenAddEvent,
   onOpenPreferences,
+  onOpenShortcuts,
   tasks,
   events,
 }: CommandPaletteProps) {
@@ -163,6 +166,15 @@ export function CommandPalette({
               >
                 <Settings size={15} className="text-forest" />
                 <span>Open Preferences & Settings</span>
+              </button>
+            )}
+            {onOpenShortcuts && (
+              <button
+                onClick={() => handleAction(onOpenShortcuts)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
+              >
+                <Keyboard size={15} className="text-[#6d76b1]" />
+                <span>Keyboard Shortcuts Guide (?)</span>
               </button>
             )}
           </div>
