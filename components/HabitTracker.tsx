@@ -1,13 +1,45 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Check, Flame, X, Sparkles } from "lucide-react";
+import {
+  Plus,
+  Check,
+  Flame,
+  X,
+  Pencil,
+  Book,
+  Footprints,
+  Droplets,
+  Dumbbell,
+  Coffee,
+  Sun,
+  Heart,
+  Brain,
+  CheckCircle2,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Habit } from "@/types/dashboard";
+import { HabitModal } from "@/components/HabitModal";
+import { HabitsManagerModal } from "@/components/HabitsManagerModal";
+
+export const HABIT_ICON_MAP: Record<string, React.ElementType> = {
+  flame: Flame,
+  book: Book,
+  footprints: Footprints,
+  droplets: Droplets,
+  dumbbell: Dumbbell,
+  coffee: Coffee,
+  sun: Sun,
+  heart: Heart,
+  brain: Brain,
+  check: CheckCircle2,
+};
 
 type HabitTrackerProps = {
   habits: Habit[];
   onToggleHabit: (id: string) => void;
   onAddHabit: (name: string, icon?: string) => void;
+  onUpdateHabit?: (id: string, updates: Partial<Habit>) => void;
   onDeleteHabit: (id: string) => void;
 };
 
@@ -23,10 +55,13 @@ export function HabitTracker({
   habits,
   onToggleHabit,
   onAddHabit,
+  onUpdateHabit,
   onDeleteHabit,
 }: HabitTrackerProps) {
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newHabitName, setNewHabitName] = useState("");
+  const [showHabitModal, setShowHabitModal] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  const [showManagerModal, setShowManagerModal] = useState(false);
+
   const todayStr = getLocalDateString();
 
   // Generate the last 7 days for the weekly mini progress bar
@@ -40,12 +75,33 @@ export function HabitTracker({
     };
   });
 
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newHabitName.trim()) return;
-    onAddHabit(newHabitName.trim());
-    setNewHabitName("");
-    setShowAddModal(false);
+  const handleOpenCreate = () => {
+    setEditingHabit(null);
+    setShowHabitModal(true);
+  };
+
+  const handleOpenEdit = (habit: Habit) => {
+    setEditingHabit(habit);
+    setShowHabitModal(true);
+  };
+
+  const handleSaveHabit = (data: {
+    id?: string;
+    name: string;
+    icon?: string;
+    streak?: number;
+  }) => {
+    if (data.id && onUpdateHabit) {
+      onUpdateHabit(data.id, {
+        name: data.name,
+        icon: data.icon,
+        streak: data.streak,
+      });
+    } else {
+      onAddHabit(data.name, data.icon);
+    }
+    setShowHabitModal(false);
+    setEditingHabit(null);
   };
 
   const completedTodayCount = habits.filter((h) =>
@@ -61,7 +117,9 @@ export function HabitTracker({
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-[14px] font-semibold text-ink leading-tight">Daily Micro-Habits</h2>
+              <h2 className="text-[14px] font-semibold text-ink leading-tight">
+                Daily Micro-Habits
+              </h2>
               <span className="rounded-full bg-[#fdf2f2] px-2 py-0.5 text-[9px] font-bold text-forest">
                 {completedTodayCount}/{habits.length} Done Today
               </span>
@@ -72,18 +130,31 @@ export function HabitTracker({
           </div>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 self-start sm:self-auto rounded-xl border border-line bg-[#fbfcf9] px-3 py-1.5 text-[11px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition"
-        >
-          <Plus size={13} /> Add Habit
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowManagerModal(true)}
+            title="Open Habits Manager Modal"
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-[#fbfcf9] px-2.5 py-1.5 text-[11px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition"
+          >
+            <SlidersHorizontal size={13} />
+            <span className="hidden sm:inline">Manage</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenCreate}
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-[#fbfcf9] px-3 py-1.5 text-[11px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition"
+          >
+            <Plus size={13} /> Add Habit
+          </button>
+        </div>
       </div>
 
       {/* Habit Cards Grid */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {habits.map((habit) => {
           const isDoneToday = habit.completedDates.includes(todayStr);
+          const IconComp = HABIT_ICON_MAP[habit.icon || "flame"] || Flame;
 
           return (
             <div
@@ -112,21 +183,34 @@ export function HabitTracker({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-1">
                     <span
-                      onClick={() => onToggleHabit(habit.id)}
-                      className={`cursor-pointer text-[12px] font-semibold truncate select-none ${
+                      onClick={() => handleOpenEdit(habit)}
+                      title="Click to edit habit"
+                      className={`cursor-pointer text-[12px] font-semibold truncate select-none hover:underline ${
                         isDoneToday ? "text-forest" : "text-ink"
                       }`}
                     >
                       {habit.name}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteHabit(habit.id)}
-                      className="opacity-0 group-hover:opacity-100 p-0.5 text-muted hover:text-[#c05746] rounded transition"
-                      aria-label="Delete habit"
-                    >
-                      <X size={12} />
-                    </button>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(habit)}
+                        className="p-1 text-muted hover:text-ink rounded hover:bg-[#f1f3ed] transition"
+                        aria-label={`Edit habit ${habit.name}`}
+                        title="Edit habit"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteHabit(habit.id)}
+                        className="p-1 text-muted hover:text-[#c05746] rounded hover:bg-[#fef2f2] transition"
+                        aria-label="Delete habit"
+                        title="Delete habit"
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mt-1 flex items-center gap-1.5">
@@ -137,7 +221,10 @@ export function HabitTracker({
                           : "bg-[#f1f3ed] text-muted"
                       }`}
                     >
-                      <Flame size={10} className={habit.streak > 0 ? "fill-orange-500 text-orange-500" : ""} />
+                      <IconComp
+                        size={10}
+                        className={habit.streak > 0 ? "fill-orange-500 text-orange-500" : ""}
+                      />
                       {habit.streak} {habit.streak === 1 ? "day" : "days"} streak
                     </span>
                   </div>
@@ -173,53 +260,34 @@ export function HabitTracker({
         })}
       </div>
 
-      {/* Add Custom Habit Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm rounded-2xl border border-line bg-white p-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-[14px] font-semibold text-ink flex items-center gap-2">
-                <Sparkles size={15} className="text-forest" /> Create Daily Micro-Habit
-              </h3>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="rounded-lg p-1 text-muted hover:bg-[#edf0e9] hover:text-ink transition"
-              >
-                <X size={15} />
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="mt-4 space-y-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-ink">Habit Name</label>
-                <input
-                  type="text"
-                  required
-                  autoFocus
-                  placeholder="e.g. 10 Min Meditation, Hydrate 2L..."
-                  value={newHabitName}
-                  onChange={(e) => setNewHabitName(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-line bg-white px-3 py-2 text-[12px] text-ink outline-none focus:border-forest"
-                />
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="rounded-xl px-3 py-1.5 text-[11px] font-medium text-muted hover:bg-[#f1f3ed]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-forest px-4 py-1.5 text-[11px] font-semibold text-white shadow hover:bg-[#8b1116] transition"
-                >
-                  Save Habit
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Habit Create / Edit Modal */}
+      <HabitModal
+        isOpen={showHabitModal}
+        onClose={() => {
+          setShowHabitModal(false);
+          setEditingHabit(null);
+        }}
+        habit={editingHabit}
+        onSaveHabit={handleSaveHabit}
+        onDeleteHabit={onDeleteHabit}
+      />
+
+      {/* Habits Manager Modal (View, filter, manage, edit all habits in a modal) */}
+      <HabitsManagerModal
+        isOpen={showManagerModal}
+        onClose={() => setShowManagerModal(false)}
+        habits={habits}
+        onToggleHabit={onToggleHabit}
+        onEditHabit={(h) => {
+          setShowManagerModal(false);
+          handleOpenEdit(h);
+        }}
+        onAddNewHabit={() => {
+          setShowManagerModal(false);
+          handleOpenCreate();
+        }}
+        onDeleteHabit={onDeleteHabit}
+      />
     </section>
   );
 }

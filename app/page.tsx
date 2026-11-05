@@ -25,6 +25,8 @@ import { GoogleSetupModal } from "@/components/GoogleSetupModal";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
+import { HabitsManagerModal } from "@/components/HabitsManagerModal";
+import { HabitModal } from "@/components/HabitModal";
 import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal";
 import { CalendarView } from "@/components/views/CalendarView";
 import { InboxView } from "@/components/views/InboxView";
@@ -237,6 +239,9 @@ export default function Home() {
   const [viewingMail, setViewingMail] = useState<DashboardMail | null>(null);
   const [intentionIndex, setIntentionIndex] = useState(0);
   const [habits, setHabits] = useState<Habit[]>(seedHabits);
+  const [showHabitsModal, setShowHabitsModal] = useState(false);
+  const [editingHabitInModal, setEditingHabitInModal] = useState<Habit | null>(null);
+  const [showIndividualHabitModal, setShowIndividualHabitModal] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
 
@@ -596,6 +601,13 @@ export default function Home() {
         setShowEventModal(true);
         return;
       }
+
+      // H for habits manager modal
+      if (e.key === "h" || e.key === "H") {
+        e.preventDefault();
+        setShowHabitsModal(true);
+        return;
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -801,6 +813,16 @@ export default function Home() {
       return next;
     });
     toast(`Habit "${name}" created!`);
+  };
+
+  const updateHabit = (id: string, updates: Partial<Habit>) => {
+    setHabits(prev => {
+      const next = prev.map(h => (h.id === id ? { ...h, ...updates } : h));
+      try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
+      syncToDatabase({ habits: next });
+      return next;
+    });
+    toast("Habit updated!");
   };
 
   const deleteHabit = (id: string) => {
@@ -1240,6 +1262,7 @@ export default function Home() {
                   habits={habits}
                   onToggleHabit={toggleHabit}
                   onAddHabit={addHabit}
+                  onUpdateHabit={updateHabit}
                   onDeleteHabit={deleteHabit}
                 />
               </div>
@@ -1630,6 +1653,7 @@ export default function Home() {
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenAddTask={() => setShowTaskModal(true)}
         onOpenAddEvent={() => setShowEventModal(true)}
+        onOpenHabits={() => setShowHabitsModal(true)}
         onOpenPreferences={() => setShowPreferences(true)}
         onOpenShortcuts={() => setShowShortcuts(true)}
         tasks={tasks}
@@ -1659,6 +1683,45 @@ export default function Home() {
       <KeyboardShortcutsModal
         isOpen={showShortcuts}
         onClose={() => setShowShortcuts(false)}
+      />
+      <HabitsManagerModal
+        isOpen={showHabitsModal}
+        onClose={() => setShowHabitsModal(false)}
+        habits={habits}
+        onToggleHabit={toggleHabit}
+        onEditHabit={(h) => {
+          setShowHabitsModal(false);
+          setEditingHabitInModal(h);
+          setShowIndividualHabitModal(true);
+        }}
+        onAddNewHabit={() => {
+          setShowHabitsModal(false);
+          setEditingHabitInModal(null);
+          setShowIndividualHabitModal(true);
+        }}
+        onDeleteHabit={deleteHabit}
+      />
+      <HabitModal
+        isOpen={showIndividualHabitModal}
+        onClose={() => {
+          setShowIndividualHabitModal(false);
+          setEditingHabitInModal(null);
+        }}
+        habit={editingHabitInModal}
+        onSaveHabit={(data) => {
+          if (data.id) {
+            updateHabit(data.id, {
+              name: data.name,
+              icon: data.icon,
+              streak: data.streak,
+            });
+          } else {
+            addHabit(data.name, data.icon);
+          }
+          setShowIndividualHabitModal(false);
+          setEditingHabitInModal(null);
+        }}
+        onDeleteHabit={deleteHabit}
       />
     </div>
   );

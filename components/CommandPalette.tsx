@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Settings,
   Keyboard,
+  Flame,
 } from "lucide-react";
 import { Task, DashboardEvent } from "@/types/dashboard";
 
@@ -25,6 +26,7 @@ type CommandPaletteProps = {
   onOpenFocusTimer: () => void;
   onOpenAddTask: () => void;
   onOpenAddEvent: () => void;
+  onOpenHabits?: () => void;
   onOpenPreferences?: () => void;
   onOpenShortcuts?: () => void;
   tasks: Task[];
@@ -38,6 +40,7 @@ export function CommandPalette({
   onOpenFocusTimer,
   onOpenAddTask,
   onOpenAddEvent,
+  onOpenHabits,
   onOpenPreferences,
   onOpenShortcuts,
   tasks,
@@ -159,6 +162,15 @@ export function CommandPalette({
               <Plus size={15} className="text-[#6088d1]" />
               <span>Schedule Calendar Event</span>
             </button>
+            {onOpenHabits && (
+              <button
+                onClick={() => handleAction(onOpenHabits)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
+              >
+                <Flame size={15} className="text-[#c2410c]" />
+                <span>Manage Daily Micro-Habits (H)</span>
+              </button>
+            )}
             {onOpenPreferences && (
               <button
                 onClick={() => handleAction(onOpenPreferences)}

@@ -22,6 +22,7 @@ const SHORTCUTS: ShortcutItem[] = [
   { key: "F", description: "Launch Deep Work Focus Timer", category: "Actions" },
   { key: "T", description: "Create New Priority Task", category: "Actions" },
   { key: "E", description: "Schedule Calendar Event", category: "Actions" },
+  { key: "H", description: "Open Micro-Habits Manager Modal", category: "Actions" },
   { key: "⌘ K", description: "Open Command Palette / Search", category: "General" },
   { key: "?", description: "Toggle this Keyboard Shortcuts sheet", category: "General" },
   { key: "Esc", description: "Close any open modal or popover", category: "General" },
