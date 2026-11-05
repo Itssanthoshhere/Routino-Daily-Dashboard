@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarDays, Clock, Video, Users, ExternalLink, X, Plus, MapPin } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
+import { appConfig } from "@/lib/config";
 
 type EventModalProps = {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
     const newEvent: DashboardEvent = {
       id: "evt-" + Date.now(),
       summary: summary.trim(),
-      description: description.trim() || "Manual event · Daily Dashboard",
+      description: description.trim() || `Manual event · ${appConfig.name}`,
       start: { dateTime: new Date().toISOString() },
       end: { dateTime: new Date(Date.now() + 3600000).toISOString() },
       tag,
