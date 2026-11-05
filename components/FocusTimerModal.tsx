@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, X, Sparkles, Check, Focus } from "lucide-react";
+import { Play, Pause, RotateCcw, Volume2, VolumeX, X, Sparkles, Check, Focus, CloudRain, Waves, Coffee } from "lucide-react";
 import { playChime, playTick } from "@/lib/sound";
+import { ambientSound, AmbientSoundType } from "@/lib/ambientSound";
 
 type FocusTimerModalProps = {
   isOpen: boolean;
@@ -22,12 +23,31 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [intention, setIntention] = useState("Roadmap planning & review");
+  const [ambientType, setAmbientType] = useState<AmbientSoundType>("off");
+  const [intention, setIntention] = useState("Deep work & intentional focus");
 
   useEffect(() => {
     setTimeLeft(selectedPreset * 60);
     setIsRunning(false);
+    ambientSound.stop();
   }, [selectedPreset]);
+
+  // Handle ambient sound playback based on running state
+  useEffect(() => {
+    if (isRunning && ambientType !== "off") {
+      ambientSound.start(ambientType);
+    } else {
+      ambientSound.stop();
+    }
+  }, [isRunning, ambientType]);
+
+  // Stop sound when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      ambientSound.stop();
+      setIsRunning(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -36,6 +56,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
         setTimeLeft((prev) => {
           if (prev <= 1) {
             setIsRunning(false);
+            ambientSound.stop();
             if (soundEnabled) playChime();
             onSessionComplete?.(selectedPreset);
             return 0;
@@ -59,6 +80,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
 
   const handleReset = () => {
     setIsRunning(false);
+    ambientSound.stop();
     setTimeLeft(selectedPreset * 60);
   };
 
@@ -67,6 +89,13 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
       playTick();
     }
     setIsRunning(!isRunning);
+  };
+
+  const handleSelectAmbient = (type: AmbientSoundType) => {
+    setAmbientType(type);
+    if (isRunning) {
+      ambientSound.start(type);
+    }
   };
 
   return (
@@ -147,7 +176,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
         </div>
 
         {/* Current Intention */}
-        <div className="mb-5 rounded-xl border border-line bg-white p-3">
+        <div className="mb-3 rounded-xl border border-line bg-white p-3">
           <label className="block text-[10px] font-semibold uppercase tracking-wider text-muted">
             Focus Intention
           </label>
@@ -158,6 +187,64 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
             placeholder="What are you focusing on?"
             className="mt-1 w-full bg-transparent text-[12px] font-medium text-ink outline-none placeholder:text-[#a0aaa1]"
           />
+        </div>
+
+        {/* Ambient Soundscapes */}
+        <div className="mb-5 rounded-xl border border-line bg-white p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
+              Ambient Soundscape
+            </span>
+            <span className="text-[10px] text-forest font-medium">
+              {ambientType === "off" ? "Off" : ambientType === "rain" ? "Gentle Rain" : ambientType === "waves" ? "Ocean Waves" : "Deep Noise"}
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleSelectAmbient("off")}
+              className={`rounded-lg py-1.5 px-2 text-[10px] font-medium transition ${
+                ambientType === "off"
+                  ? "bg-[#f1f3ed] text-ink font-semibold"
+                  : "text-muted hover:bg-[#fafbf8]"
+              }`}
+            >
+              None
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectAmbient("rain")}
+              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition ${
+                ambientType === "rain"
+                  ? "bg-[#edf3ff] text-[#4f76b8] font-semibold ring-1 ring-[#4f76b8]/30"
+                  : "text-muted hover:bg-[#fafbf8]"
+              }`}
+            >
+              <CloudRain size={12} /> Rain
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectAmbient("waves")}
+              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition ${
+                ambientType === "waves"
+                  ? "bg-[#e8f7f5] text-[#2d7d74] font-semibold ring-1 ring-[#2d7d74]/30"
+                  : "text-muted hover:bg-[#fafbf8]"
+              }`}
+            >
+              <Waves size={12} /> Waves
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectAmbient("brown")}
+              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition ${
+                ambientType === "brown"
+                  ? "bg-[#fbefe5] text-[#a17652] font-semibold ring-1 ring-[#a17652]/30"
+                  : "text-muted hover:bg-[#fafbf8]"
+              }`}
+            >
+              <Coffee size={12} /> Noise
+            </button>
+          </div>
         </div>
 
         {/* Controls */}

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, Circle, Clock3, ExternalLink, FileText, Focus, Github, Globe,
-  Inbox, Link2, Linkedin, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Sparkles,
+  Inbox, Link2, Linkedin, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Shuffle, Sparkles,
   Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
@@ -21,11 +21,13 @@ import { UserMenuPopover } from "@/components/UserMenuPopover";
 import { CommandPalette } from "@/components/CommandPalette";
 import { MobileSidebar } from "@/components/MobileSidebar";
 import { GoogleSetupModal } from "@/components/GoogleSetupModal";
+import { WeatherWidget } from "@/components/WeatherWidget";
 import { CalendarView } from "@/components/views/CalendarView";
 import { InboxView } from "@/components/views/InboxView";
 import { TasksView } from "@/components/views/TasksView";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
+import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
 
 /* ─── Sample / seed data ────────────────────────────────────────── */
 
@@ -180,6 +182,17 @@ export default function Home() {
   const [showGoogleSetup, setShowGoogleSetup] = useState(false);
   const [viewingEvent, setViewingEvent] = useState<DashboardEvent | null>(null);
   const [viewingMail, setViewingMail] = useState<DashboardMail | null>(null);
+  const [intentionIndex, setIntentionIndex] = useState(0);
+
+  useEffect(() => {
+    setIntentionIndex(getTodayIntentionIndex());
+  }, []);
+
+  const handleNextIntention = () => {
+    setIntentionIndex((prev) => (prev + 1) % DAILY_INTENTIONS.length);
+  };
+
+  const currentIntention = DAILY_INTENTIONS[intentionIndex] || DAILY_INTENTIONS[0];
 
   /* ── Derived ── */
   const done = tasks.filter(t => t.checked).length;
@@ -638,8 +651,11 @@ export default function Home() {
               {/* Page heading */}
               <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
                 <div>
-                  <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[.12em] text-[#89948b]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#85af83] animate-pulse" />Your {new Intl.DateTimeFormat("en", { weekday: "long" }).format(new Date())}
+                  <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-medium uppercase tracking-[.12em] text-[#89948b]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#85af83] animate-pulse" />Your {new Intl.DateTimeFormat("en", { weekday: "long" }).format(new Date())}
+                    </span>
+                    <WeatherWidget />
                   </div>
                   <h1 className="mt-2 text-[26px] font-semibold tracking-[-.045em] text-ink sm:text-[31px]">Make today count<span className="text-[#9aab82]">.</span></h1>
                   <p className="mt-1.5 text-[12px] text-muted">{today} <span className="mx-1.5">·</span> A little clarity goes a long way.</p>
@@ -657,10 +673,30 @@ export default function Home() {
               {/* ─── Summary cards ─── */}
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {/* Intention card */}
-                <div className="rounded-2xl bg-forest p-5 text-white shadow-card sm:col-span-2 xl:col-span-1 hover:shadow-lg transition-shadow">
-                  <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-white/65">A note for today</span><Sparkles size={15} className="text-accent" /></div>
-                  <p className="mt-5 max-w-[220px] text-[18px] font-medium leading-[1.4] tracking-[-.02em]">Start with what needs your <span className="text-accent">attention.</span></p>
-                  <div className="mt-5 flex items-center gap-2 text-[10px] text-white/55"><span className="h-px w-6 bg-white/30" />Your daily intention</div>
+                <div className="rounded-2xl bg-forest p-5 text-white shadow-card sm:col-span-2 xl:col-span-1 hover:shadow-lg transition-shadow flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-white/65">A note for today</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={handleNextIntention}
+                          className="rounded-lg p-1 text-white/50 hover:text-white hover:bg-white/10 transition"
+                          title="Shuffle daily reflection"
+                          aria-label="Shuffle daily reflection"
+                        >
+                          <Shuffle size={13} />
+                        </button>
+                        <Sparkles size={15} className="text-accent" />
+                      </div>
+                    </div>
+                    <p className="mt-4 text-[16px] font-medium leading-[1.4] tracking-[-.02em] text-white">
+                      &ldquo;{currentIntention.quote}&rdquo;
+                    </p>
+                  </div>
+                  <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-[10px] text-white/60">
+                    <span className="truncate max-w-[120px]">— {currentIntention.author}</span>
+                    <span className="text-accent font-semibold">{currentIntention.focusHint}</span>
+                  </div>
                 </div>
 
                 {/* Calendar summary */}
