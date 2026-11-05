@@ -1,6 +1,6 @@
 "use server";
 
-import { signIn } from "@/lib/auth";
+import { signIn, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
 export async function connectGoogle() {
@@ -10,4 +10,8 @@ export async function connectGoogle() {
     redirect("/?setup=google");
   }
   await signIn("google", { redirectTo: "/" });
+}
+
+export async function disconnectGoogle() {
+  await signOut({ redirectTo: "/" });
 }

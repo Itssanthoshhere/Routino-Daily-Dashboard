@@ -64,7 +64,7 @@ export function UserMenuPopover({
           </form>
         ) : (
           <a
-            href="/api/auth/signout"
+            href="/auth/signout"
             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[11px] font-medium text-[#c05746] hover:bg-[#faeeec] transition"
           >
             <LogOut size={14} /> Disconnect Google
