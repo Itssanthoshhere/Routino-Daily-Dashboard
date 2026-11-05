@@ -28,7 +28,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, account }) {
       if (account?.provider === "google") {
         token.googleAccessToken = account.access_token;
-        token.googleRefreshToken = account.refresh_token;
+        if (account.refresh_token) {
+          token.googleRefreshToken = account.refresh_token;
+        }
         token.googleExpiresAt = account.expires_at;
       }
       return token;

@@ -181,17 +181,42 @@ export default function Home() {
   /* ── LocalStorage Hydration ── */
   useEffect(() => {
     try {
-      const storedTasks = localStorage.getItem("routino_tasks") || localStorage.getItem("daymark_tasks");
-      if (storedTasks) setTasks(JSON.parse(storedTasks));
+      const storedTasks = localStorage.getItem("routino_tasks");
+      if (storedTasks !== null) {
+        setTasks(JSON.parse(storedTasks));
+      }
 
-      const storedLinks = localStorage.getItem("routino_links") || localStorage.getItem("daymark_links");
-      if (storedLinks) setQuickLinks(JSON.parse(storedLinks));
+      const storedLinks = localStorage.getItem("routino_links");
+      if (storedLinks !== null) {
+        setQuickLinks(JSON.parse(storedLinks));
+      }
 
-      const storedEvents = localStorage.getItem("routino_events") || localStorage.getItem("daymark_events");
-      if (storedEvents) setCustomEvents(JSON.parse(storedEvents));
+      const storedEvents = localStorage.getItem("routino_events");
+      if (storedEvents !== null) {
+        setCustomEvents(JSON.parse(storedEvents));
+      }
 
-      const storedFocus = localStorage.getItem("routino_focus") || localStorage.getItem("daymark_focus");
-      if (storedFocus) setFocusMinutes(parseInt(storedFocus, 10));
+      const storedFocus = localStorage.getItem("routino_focus");
+      if (storedFocus !== null) {
+        setFocusMinutes(parseInt(storedFocus, 10));
+      }
+
+      const storedNav = localStorage.getItem("routino_active_nav");
+      if (storedNav) {
+        setActiveNav(storedNav);
+      }
+
+      const storedStarred = localStorage.getItem("routino_starred_mail");
+      const storedRead = localStorage.getItem("routino_read_mail");
+      if (storedStarred || storedRead) {
+        const starredSet = new Set(JSON.parse(storedStarred || "[]"));
+        const readSet = new Set(JSON.parse(storedRead || "[]"));
+        setMailItems(prev => prev.map(m => ({
+          ...m,
+          starred: starredSet.has(m.id) || !!m.starred,
+          read: readSet.has(m.id) || !!m.read,
+        })));
+      }
 
       if (window.location.search.includes("setup=google")) {
         setShowGoogleSetup(true);
@@ -202,53 +227,6 @@ export default function Home() {
     setHydrated(true);
   }, []);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem("routino_tasks", JSON.stringify(tasks));
-    } catch {}
-  }, [tasks, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem("routino_links", JSON.stringify(quickLinks));
-    } catch {}
-  }, [quickLinks, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem("routino_events", JSON.stringify(customEvents));
-    } catch {}
-  }, [customEvents, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      localStorage.setItem("routino_focus", String(focusMinutes));
-    } catch {}
-  }, [focusMinutes, hydrated]);
-
-  /* ── Toast helper ── */
-  const toast = useCallback((message: string, type: "success" | "info" = "success") => {
-    const id = "toast-" + Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
-  }, []);
-
-  /* ── Keyboard shortcut: Cmd+K ── */
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setShowCommandPalette(prev => !prev);
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
   /* ── Fetch live data from Google OAuth ── */
   useEffect(() => {
     let active = true;
@@ -256,15 +234,19 @@ export default function Home() {
       const result = await r.json();
       if (active && result.connected) {
         setLiveData(result as DashboardData);
-        /* Replace sample mail with real unread messages */
+
+        const storedStarred = new Set(JSON.parse(localStorage.getItem("routino_starred_mail") || "[]"));
+        const storedRead = new Set(JSON.parse(localStorage.getItem("routino_read_mail") || "[]"));
+
+        /* Replace sample mail with real unread messages, preserving read/star overrides */
         if (result.unread && result.unread.length > 0) {
           setMailItems(result.unread.map((m: DashboardMail) => ({
             ...m,
             href: "https://mail.google.com/mail/u/0/#all/" + m.id,
-            read: false,
+            starred: storedStarred.has(m.id) || !!m.starred,
+            read: storedRead.has(m.id) || !!m.read,
           })));
         } else {
-          /* Connected but no unread — show empty instead of sample */
           setMailItems([]);
         }
 
@@ -292,11 +274,6 @@ export default function Home() {
           });
         }
         setNotifications(realNotifications);
-
-        /* If user hasn't saved custom tasks in storage, clear fictional sample tasks */
-        if (!localStorage.getItem("routino_tasks")) {
-          setTasks([]);
-        }
       }
     }).catch(() => undefined);
     return () => { active = false; };
@@ -348,43 +325,85 @@ export default function Home() {
   const rangeEnd = new Date();
   rangeEnd.setDate(rangeEnd.getDate() + 6);
 
+  /* ── Toast helper ── */
+  const toast = useCallback((message: string, type: "success" | "info" = "success") => {
+    const id = "toast-" + Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
+
+  /* ── Keyboard shortcut: Cmd+K ── */
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowCommandPalette(prev => !prev);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   /* ── Handlers ── */
   const toggleTask = (id: string) => {
-    setTasks(prev => prev.map(t => {
-      if (t.id !== id) return t;
-      const next = { ...t, checked: !t.checked };
-      if (next.checked) {
-        playTick();
-        toast(`"${t.title}" marked complete`);
-      }
+    setTasks(prev => {
+      const next = prev.map(t => {
+        if (t.id !== id) return t;
+        const updated = { ...t, checked: !t.checked };
+        if (updated.checked) {
+          playTick();
+          toast(`"${t.title}" marked complete`);
+        }
+        return updated;
+      });
+      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       return next;
-    }));
+    });
   };
 
   const deleteTask = (id: string) => {
     const task = tasks.find(t => t.id === id);
-    setTasks(prev => prev.filter(t => t.id !== id));
+    setTasks(prev => {
+      const next = prev.filter(t => t.id !== id);
+      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      return next;
+    });
     if (task) toast(`"${task.title}" removed`, "info");
   };
 
   const addTask = (data: Omit<Task, "id" | "checked" | "createdAt">) => {
     const newTask: Task = { ...data, id: "t-" + Date.now(), checked: false, createdAt: Date.now() };
-    setTasks(prev => [newTask, ...prev]);
+    setTasks(prev => {
+      const next = [newTask, ...prev];
+      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      return next;
+    });
     toast(`"${newTask.title}" added to priorities`);
   };
 
   const addEvent = (event: DashboardEvent) => {
-    setCustomEvents(prev => [...prev, event]);
+    setCustomEvents(prev => {
+      const next = [...prev, event];
+      try { localStorage.setItem("routino_events", JSON.stringify(next)); } catch {}
+      return next;
+    });
     toast(`"${event.summary}" scheduled`);
   };
 
   const addQuickLink = (link: QuickLink) => {
-    setQuickLinks(prev => [...prev, link]);
+    setQuickLinks(prev => {
+      const next = [...prev, link];
+      try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+      return next;
+    });
     toast(`"${link.title}" added to quick links`);
   };
 
   const handleNotificationClick = (item: NotificationItem) => {
-    if (item.navTarget) setActiveNav(item.navTarget);
+    if (item.navTarget) {
+      setActiveNav(item.navTarget);
+      try { localStorage.setItem("routino_active_nav", item.navTarget); } catch {}
+    }
     setNotifications(prev => prev.filter(n => n.id !== item.id));
     setShowNotifications(false);
   };
@@ -395,16 +414,38 @@ export default function Home() {
   };
 
   const toggleMailStar = (id: string) => {
-    setMailItems(prev => prev.map(m => m.id === id ? { ...m, starred: !m.starred } : m));
+    setMailItems(prev => {
+      const next = prev.map(m => m.id === id ? { ...m, starred: !m.starred } : m);
+      try {
+        const starredIds = next.filter(m => m.starred).map(m => m.id);
+        localStorage.setItem("routino_starred_mail", JSON.stringify(starredIds));
+      } catch {}
+      return next;
+    });
   };
 
   const toggleMailRead = (id: string) => {
-    setMailItems(prev => prev.map(m => m.id === id ? { ...m, read: !m.read } : m));
+    setMailItems(prev => {
+      const next = prev.map(m => m.id === id ? { ...m, read: !m.read } : m);
+      try {
+        const readIds = next.filter(m => m.read).map(m => m.id);
+        localStorage.setItem("routino_read_mail", JSON.stringify(readIds));
+      } catch {}
+      return next;
+    });
   };
 
+  const handleSelectNav = (tab: string) => {
+    setActiveNav(tab);
+    try { localStorage.setItem("routino_active_nav", tab); } catch {}
+  };
 
   const handleFocusComplete = (mins: number) => {
-    setFocusMinutes(prev => prev + mins);
+    setFocusMinutes(prev => {
+      const next = prev + mins;
+      try { localStorage.setItem("routino_focus", String(next)); } catch {}
+      return next;
+    });
     toast(`Focus session complete! ${mins} minutes logged.`);
   };
 
@@ -413,7 +454,7 @@ export default function Home() {
     <div className="min-h-screen">
       {/* ─── Sidebar (desktop) ─── */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col border-r border-line bg-[#fbfcf8] px-5 py-6 lg:flex">
-        <a href="#overview" onClick={() => setActiveNav("Overview")} className="mb-10 flex items-center gap-3 px-1">
+        <a href="#overview" onClick={() => handleSelectNav("Overview")} className="mb-10 flex items-center gap-3 px-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/favicon.svg" alt="Routino" className="h-9 w-9 rounded-[13px]" />
           <span className="text-[15px] font-bold tracking-tight">{appConfig.name.toLowerCase()}<span className="text-[#9eaaa1]">.</span></span>
@@ -421,7 +462,7 @@ export default function Home() {
         <p className="px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#a2aaa2]">Workspace</p>
         <nav className="mt-3 space-y-1">
           {nav.map(({ icon: Icon, label }) => (
-            <button key={label} onClick={() => setActiveNav(label)} className={"flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition " + (activeNav === label ? "bg-[#fdf2f2] font-semibold text-forest" : "text-[#77827b] hover:bg-[#f1f3ed]")}>
+            <button key={label} onClick={() => handleSelectNav(label)} className={"flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] transition " + (activeNav === label ? "bg-[#fdf2f2] font-semibold text-forest" : "text-[#77827b] hover:bg-[#f1f3ed]")}>
               <Icon size={16} />{label}
               {label === "Inbox" && <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{mailItems.filter(m => !m.read).length}</span>}
               {label === "Tasks" && <span className="ml-auto rounded-full bg-[#e8efe4] px-2 py-0.5 text-[10px] font-bold text-forest">{tasks.filter(t => !t.checked).length}</span>}
@@ -473,7 +514,7 @@ export default function Home() {
         isOpen={showMobileSidebar}
         onClose={() => setShowMobileSidebar(false)}
         activeNav={activeNav}
-        onSelectNav={setActiveNav}
+        onSelectNav={handleSelectNav}
         unreadCount={mailItems.filter(m => !m.read).length}
         isConnected={!!liveData?.connected}
       />
@@ -587,7 +628,7 @@ export default function Home() {
                   <p className="mt-1.5 text-[12px] text-muted">{today} <span className="mx-1.5">·</span> A little clarity goes a long way.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setActiveNav("Calendar")} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[11px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"><CalendarDays size={14} />Today<ChevronDown size={13} /></button>
+                  <button onClick={() => handleSelectNav("Calendar")} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[11px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"><CalendarDays size={14} />Today<ChevronDown size={13} /></button>
                   {!isConnected && (
                     <form action={connectGoogle}>
                       <button className="flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#8b1116]">Connect Google <ArrowUpRight size={14} /></button>
@@ -606,7 +647,7 @@ export default function Home() {
                 </div>
 
                 {/* Calendar summary */}
-                <button onClick={() => setActiveNav("Calendar")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-forest/20 transition-all group">
+                <button onClick={() => handleSelectNav("Calendar")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-forest/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">On your calendar</span><CalendarDays size={16} className="text-[#809184] group-hover:text-forest transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{isConnected ? todayEvents.length : displaySchedule.length}</span><span className="text-[11px] text-muted">events today</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]">
@@ -618,7 +659,7 @@ export default function Home() {
                 </button>
 
                 {/* Inbox summary */}
-                <button onClick={() => setActiveNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
+                <button onClick={() => handleSelectNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">Needs a response</span><Inbox size={16} className="text-[#bd8054] group-hover:text-[#a0622e] transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{mailItems.filter(m => !m.read).length}</span><span className="text-[11px] text-muted">unread emails</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? "Filtered to important inbox categories" : "Connect Google to load your inbox"}</div>
@@ -645,7 +686,7 @@ export default function Home() {
                         <button onClick={() => { setViewingEvent(null); setShowEventModal(true); }} className="rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition">
                           <Plus size={11} className="mr-0.5 inline" /> Add
                         </button>
-                        <button onClick={() => setActiveNav("Calendar")} className="text-[10px] font-semibold text-[#648170] hover:text-forest transition">Calendar view <ArrowRight size={12} className="ml-1 inline" /></button>
+                        <button onClick={() => handleSelectNav("Calendar")} className="text-[10px] font-semibold text-[#648170] hover:text-forest transition">Calendar view <ArrowRight size={12} className="ml-1 inline" /></button>
                       </div>
                     }
                   />
@@ -683,7 +724,7 @@ export default function Home() {
                   </div>
                   <div className="mt-5 flex items-center justify-between border-t border-line pt-4 text-[10px] text-muted">
                     <span>{isConnected ? todayEvents.length + " events today · From Google Calendar" : displaySchedule.length + " sample events · Connect Google for real data"}</span>
-                    <button onClick={() => setActiveNav("Calendar")} className="font-semibold text-[#648170] hover:text-forest">Full 7-day view <ArrowDownRight size={12} className="ml-1 inline" /></button>
+                    <button onClick={() => handleSelectNav("Calendar")} className="font-semibold text-[#648170] hover:text-forest">Full 7-day view <ArrowDownRight size={12} className="ml-1 inline" /></button>
                   </div>
                 </section>
 
@@ -750,7 +791,7 @@ export default function Home() {
                     <button onClick={() => setShowTaskModal(true)} className="flex-1 rounded-xl border border-dashed border-[#dfe5dc] py-2.5 text-[10px] font-semibold text-[#79887b] hover:bg-[#fafbf8] hover:border-forest/30 transition">
                       <Plus size={12} className="mr-1 inline" /> Add a personal task
                     </button>
-                    <button onClick={() => setActiveNav("Tasks")} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition">
+                    <button onClick={() => handleSelectNav("Tasks")} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition">
                       Manage all →
                     </button>
                   </div>
@@ -765,13 +806,13 @@ export default function Home() {
                     icon={CalendarDays}
                     title="The week ahead"
                     sub="Today + the next 6 days"
-                    right={<button onClick={() => setActiveNav("Calendar")} className="rounded-lg bg-[#f4f5f0] px-2.5 py-1.5 text-[10px] text-[#77837a] hover:bg-[#eef2ea] transition">{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date())} – {new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(rangeEnd)} <ChevronDown size={12} className="ml-1 inline" /></button>}
+                    right={<button onClick={() => handleSelectNav("Calendar")} className="rounded-lg bg-[#f4f5f0] px-2.5 py-1.5 text-[10px] text-[#77837a] hover:bg-[#eef2ea] transition">{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date())} – {new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(rangeEnd)} <ChevronDown size={12} className="ml-1 inline" /></button>}
                   />
                   <div id="week" className="grid grid-cols-7 gap-1.5">
                     {weekDays.map((day, index) => (
                       <div
                         key={day.day + day.date}
-                        onClick={() => setActiveNav("Calendar")}
+                        onClick={() => handleSelectNav("Calendar")}
                         className={"min-h-[112px] rounded-xl p-2 cursor-pointer transition-colors " + (index === 0 ? "bg-[#f4f7ef] ring-1 ring-forest/10" : "bg-[#fafbf8] hover:bg-[#f4f7ef]")}
                       >
                         <p className={"text-center text-[8px] font-bold tracking-wide " + (index === 0 ? "text-forest" : "text-[#9da79e]")}>{day.day}</p>
@@ -801,7 +842,7 @@ export default function Home() {
                     sub={isConnected ? "Unread messages from Gmail" : "Sample messages · connect to load your inbox"}
                     right={
                       <div className="flex items-center gap-1.5">
-                        <button onClick={() => setActiveNav("Inbox")} className="rounded-full bg-[#f7eee4] px-2.5 py-1 text-[9px] font-bold text-[#a2764b] hover:bg-[#ebdcc9] transition">
+                        <button onClick={() => handleSelectNav("Inbox")} className="rounded-full bg-[#f7eee4] px-2.5 py-1 text-[9px] font-bold text-[#a2764b] hover:bg-[#ebdcc9] transition">
                           {mailItems.filter(m => !m.read).length} UNREAD →
                         </button>
                       </div>
@@ -834,7 +875,7 @@ export default function Home() {
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-[#eff1ec] pt-3">
                     <p className="text-[9px] leading-relaxed text-[#9aa49b]">Only sender, subject, date, and short snippet are shown.</p>
-                    <button onClick={() => setActiveNav("Inbox")} className="text-[10px] font-semibold text-forest hover:underline">View all inbox →</button>
+                    <button onClick={() => handleSelectNav("Inbox")} className="text-[10px] font-semibold text-forest hover:underline">View all inbox →</button>
                   </div>
                 </section>
               </div>
@@ -955,7 +996,7 @@ export default function Home() {
       <CommandPalette
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
-        onNavigate={setActiveNav}
+        onNavigate={handleSelectNav}
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenAddTask={() => setShowTaskModal(true)}
         onOpenAddEvent={() => setShowEventModal(true)}

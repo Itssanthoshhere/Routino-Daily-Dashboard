@@ -5,14 +5,17 @@ async function getGoogleToken() {
   const jar = await cookies();
   const allCookies = jar.getAll();
   const cookie = allCookies.map(({ name, value }) => `${name}=${value}`).join("; ");
-  const sessionCookie = allCookies.find(({ name }) => /^(?:__Secure-)?authjs\.session-token$/.test(name));
-  if (!sessionCookie) throw new Error("Google account is not connected.");
+  const sessionCookie = allCookies.find(({ name }) =>
+    /^(?:__Secure-)?(?:authjs|next-auth)\.session-token$/.test(name)
+  );
+
   const token = await getToken({
     req: { headers: { cookie } } as never,
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-    cookieName: sessionCookie.name,
-    secureCookie: sessionCookie.name.startsWith("__Secure-"),
+    cookieName: sessionCookie?.name,
+    secureCookie: sessionCookie ? sessionCookie.name.startsWith("__Secure-") : undefined,
   });
+
   if (!token?.googleAccessToken) throw new Error("Google account is not connected.");
   const expiresAt = token.googleExpiresAt ?? 0;
   if (expiresAt * 1000 > Date.now() + 60_000) return token.googleAccessToken;
