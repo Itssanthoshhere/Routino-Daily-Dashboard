@@ -112,6 +112,21 @@ const hues = ["blue", "peach", "green"];
 
 /* ─── Helpers ────────────────────────────────────────────────── */
 
+function normalizeQuickLinks(links: QuickLink[]): QuickLink[] {
+  const usedIds = new Set<string>();
+
+  return links.map((link, index) => {
+    const baseId = link.id?.trim() || `quick-link-${index + 1}`;
+    let id = baseId;
+    let suffix = 2;
+    while (usedIds.has(id)) {
+      id = `${baseId}-${suffix++}`;
+    }
+    usedIds.add(id);
+    return id === link.id ? link : { ...link, id };
+  });
+}
+
 function formatTime(value?: string) {
   if (!value) return "All day";
   return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
@@ -214,17 +229,13 @@ export default function Home() {
 
       const storedLinks = localStorage.getItem("routino_links");
       if (storedLinks !== null) {
-        const parsed: QuickLink[] = JSON.parse(storedLinks);
+        const parsed = normalizeQuickLinks(JSON.parse(storedLinks) as QuickLink[]);
         // Ensure new default links (LinkedIn, GitHub, Portfolio) are added if missing
         const existingUrls = new Set(parsed.map(l => l.url.toLowerCase()));
         const missingDefaults = seedLinks.filter(s => s.available && !existingUrls.has(s.url.toLowerCase()));
-        if (missingDefaults.length > 0) {
-          const merged = [...parsed, ...missingDefaults];
-          setQuickLinks(merged);
-          try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
-        } else {
-          setQuickLinks(parsed);
-        }
+        const merged = normalizeQuickLinks([...parsed, ...missingDefaults]);
+        setQuickLinks(merged);
+        try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
       }
 
       const storedEvents = localStorage.getItem("routino_events");
@@ -454,8 +465,9 @@ export default function Home() {
             try { localStorage.setItem("routino_events", JSON.stringify(d.customEvents)); } catch {}
           }
           if (Array.isArray(d.quickLinks) && d.quickLinks.length > 0) {
-            setQuickLinks(d.quickLinks);
-            try { localStorage.setItem("routino_links", JSON.stringify(d.quickLinks)); } catch {}
+            const normalizedLinks = normalizeQuickLinks(d.quickLinks);
+            setQuickLinks(normalizedLinks);
+            try { localStorage.setItem("routino_links", JSON.stringify(normalizedLinks)); } catch {}
           }
           if (typeof d.focusMinutes === "number") {
             setFocusMinutes(d.focusMinutes);
@@ -535,7 +547,7 @@ export default function Home() {
 
   const addQuickLink = (link: QuickLink) => {
     setQuickLinks(prev => {
-      const next = [...prev, link];
+      const next = normalizeQuickLinks([...prev, link]);
       try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
       syncToDatabase({ quickLinks: next });
       return next;
@@ -636,8 +648,9 @@ export default function Home() {
       try { localStorage.setItem("routino_events", JSON.stringify(imported.customEvents)); } catch {}
     }
     if (imported.quickLinks) {
-      setQuickLinks(imported.quickLinks);
-      try { localStorage.setItem("routino_links", JSON.stringify(imported.quickLinks)); } catch {}
+      const normalizedLinks = normalizeQuickLinks(imported.quickLinks);
+      setQuickLinks(normalizedLinks);
+      try { localStorage.setItem("routino_links", JSON.stringify(normalizedLinks)); } catch {}
     }
     if (imported.focusMinutes) {
       setFocusMinutes(imported.focusMinutes);
@@ -1158,11 +1171,12 @@ export default function Home() {
                     right={<button onClick={() => setShowQuickLinkModal(true)} aria-label="Add link" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition"><Plus size={14} /></button>}
                   />
                   <div className="grid grid-cols-2 gap-2.5">
-                    {quickLinks.map(link => {
+                    {quickLinks.map((link, index) => {
                       const IconComponent = linkIcons[link.iconName] || Link2;
+                      const key = `${link.id}-${index}`;
                       if (!link.available) {
                         return (
-                          <div key={link.id} className="flex items-center gap-2.5 rounded-xl border border-dashed border-[#e5e9e2] p-3 opacity-70">
+                          <div key={key} className="flex items-center gap-2.5 rounded-xl border border-dashed border-[#e5e9e2] p-3 opacity-70">
                             <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#f1f2ee] text-[#969f96]"><IconComponent size={14} /></span>
                             <span>
                               <span className="block text-[10px] font-semibold">{link.title}</span>
@@ -1172,7 +1186,7 @@ export default function Home() {
                         );
                       }
                       return (
-                        <a key={link.id} href={link.url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 rounded-xl border border-[#edf0e9] p-3 hover:bg-[#fafbf8] hover:border-forest/20 transition group">
+                        <a key={key} href={link.url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 rounded-xl border border-[#edf0e9] p-3 hover:bg-[#fafbf8] hover:border-forest/20 transition group">
                           <span className={`grid h-7 w-7 place-items-center rounded-lg shadow-sm ${
                             link.iconName === "calendar" ? "bg-[#edf3ff] text-[#6088d1]" :
                             link.iconName === "mail" ? "bg-[#fbefeb] text-[#d16b5b]" :
