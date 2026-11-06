@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Pin,
   Plus,
@@ -38,6 +38,7 @@ import {
   Flag,
   ArrowUpDown,
   Filter,
+  Tag,
 } from "lucide-react";
 import { KeepNote, KeepNoteChecklistItem, KeepNotePriority } from "@/types/dashboard";
 import {
@@ -336,6 +337,7 @@ export function NotesView({
   onReorderNotes,
 }: NotesViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<"all" | KeepNotePriority>("all");
   const [sortBy, setSortBy] = useState<"custom" | "priority" | "newest">("custom");
 
@@ -1069,6 +1071,25 @@ export function NotesView({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [editingNote]);
 
+  // Extract all unique #tags from notes
+  const availableTags = useMemo(() => {
+    const tagCounts = new Map<string, number>();
+    for (const note of notes) {
+      let text = `${note.title} ${note.content}`;
+      if (note.isEncrypted && decryptedCache[note.id]) {
+        text += ` ${decryptedCache[note.id].text}`;
+      }
+      const matches = text.match(/#[a-zA-Z0-9_\-]+/g);
+      if (matches) {
+        const uniqueInNote = new Set(matches.map((t) => t.toLowerCase()));
+        uniqueInNote.forEach((tag) => {
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+        });
+      }
+    }
+    return Array.from(tagCounts.entries()).map(([tag, count]) => ({ tag, count }));
+  }, [notes, decryptedCache]);
+
   // Filter and sort notes
   let processedNotes = notes.filter((n) => {
     const q = searchQuery.toLowerCase();
@@ -1093,7 +1114,13 @@ export function NotesView({
     const matchesPriority =
       priorityFilter === "all" || (n.priority || "none") === priorityFilter;
 
-    return matchesSearch && matchesPriority;
+    const matchesTag = !selectedTag || (
+      n.title.toLowerCase().includes(selectedTag.toLowerCase()) ||
+      n.content.toLowerCase().includes(selectedTag.toLowerCase()) ||
+      (n.isEncrypted && Boolean(decryptedCache[n.id]?.text.toLowerCase().includes(selectedTag.toLowerCase())))
+    );
+
+    return matchesSearch && matchesPriority && matchesTag;
   });
 
   // Sorting
@@ -1354,6 +1381,47 @@ export function NotesView({
           </div>
         </div>
       </div>
+
+      {/* Tag Filter Pills */}
+      {availableTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 -mt-2">
+          <span className="text-[10px] font-semibold text-muted uppercase tracking-wider mr-1 flex items-center gap-1">
+            <Tag size={11} /> Tags:
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedTag(null)}
+            className={`rounded-lg px-2.5 py-1 text-[10.5px] font-semibold transition cursor-pointer ${
+              selectedTag === null
+                ? "bg-forest text-white shadow-2xs"
+                : "bg-white border border-line text-muted hover:text-ink hover:bg-[#fafbf8]"
+            }`}
+          >
+            All ({notes.length})
+          </button>
+          {availableTags.map(({ tag, count }) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+              className={`rounded-lg px-2.5 py-1 text-[10.5px] font-medium transition cursor-pointer flex items-center gap-1 ${
+                selectedTag === tag
+                  ? "bg-forest text-white shadow-2xs font-semibold"
+                  : "bg-white border border-line text-[#4a564e] hover:text-ink hover:border-forest/40"
+              }`}
+            >
+              <span>{tag}</span>
+              <span
+                className={`text-[9px] px-1 rounded-full ${
+                  selectedTag === tag ? "bg-white/20 text-white" : "bg-black/5 text-muted"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Google Keep-style Quick Note Composer */}
       <div className="mx-auto max-w-2xl">
