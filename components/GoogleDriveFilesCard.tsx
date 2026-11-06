@@ -29,6 +29,16 @@ function getDriveFileType(mimeType: string) {
   return googleTypes[mimeType] ?? mimeType.split("/").pop()?.replaceAll("-", " ") ?? "Drive file";
 }
 
+function formatDriveTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export function GoogleDriveFilesCard({ googleConnected }: { googleConnected: boolean }) {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -95,8 +105,13 @@ export function GoogleDriveFilesCard({ googleConnected }: { googleConnected: boo
               <FileText size={14} className="shrink-0 text-[#6088d1]" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[10px] font-semibold text-ink">{file.name}</span>
-                <span className="mt-0.5 block truncate text-[9px] text-muted">
-                  {getDriveFileType(file.mimeType)}{file.modifiedTime ? ` · ${new Date(file.modifiedTime).toLocaleDateString()}` : ""}
+                <span className="mt-0.5 block text-[9px] text-muted">
+                  <span>{getDriveFileType(file.mimeType)}</span>
+                  {file.modifiedTime && formatDriveTimestamp(file.modifiedTime) && (
+                    <time className="ml-1.5" dateTime={file.modifiedTime} title={new Date(file.modifiedTime).toISOString()}>
+                      · Modified {formatDriveTimestamp(file.modifiedTime)}
+                    </time>
+                  )}
                 </span>
               </span>
               <ExternalLink size={11} className="shrink-0 text-[#a6afa6]" />
