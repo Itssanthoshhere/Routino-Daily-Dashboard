@@ -237,15 +237,15 @@ export function CalendarView({
                   onClick={() => onSelectEvent(event)}
                   className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0 hover:bg-[#fbfcf9] transition p-2 rounded-xl cursor-pointer group"
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
                     <span
                       className="mt-1 h-3 w-3 rounded-full shrink-0 group-hover:scale-125 transition-transform"
                       style={{
                         backgroundColor: event.color || hues[idx % hues.length],
                       }}
                     />
-                    <div>
-                      <h4 className="text-[13px] font-semibold text-ink group-hover:text-forest transition">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-[13px] font-semibold text-ink group-hover:text-forest transition truncate">
                         {event.summary || "Untitled Event"}
                       </h4>
                       <p className="mt-0.5 text-[11px] text-muted line-clamp-1">

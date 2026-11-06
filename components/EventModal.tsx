@@ -82,11 +82,11 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
 
         {isViewing && eventToView ? (
           <div className="mt-5 space-y-4">
-            <div className="rounded-xl border border-line bg-white p-4">
+            <div className="rounded-xl border border-line bg-white p-4 overflow-hidden">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h4 className="text-[16px] font-semibold text-ink">{eventToView.summary || "Untitled Event"}</h4>
-                  <p className="mt-1 text-[12px] text-muted">{eventToView.description || "No description provided."}</p>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-[16px] font-semibold text-ink break-words">{eventToView.summary || "Untitled Event"}</h4>
+                  <p className="mt-1 text-[12px] text-muted break-words [overflow-wrap:anywhere] leading-relaxed">{eventToView.description || "No description provided."}</p>
                 </div>
                 {eventToView.tag && (
                   <span
