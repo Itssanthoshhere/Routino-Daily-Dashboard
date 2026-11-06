@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, activeNav } = body;
+    const { tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, notes, activeNav } = body;
 
     const workspaceData = {
       tasks: Array.isArray(tasks) ? tasks : [],
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
       focusMinutes: typeof focusMinutes === "number" ? focusMinutes : 90,
       soundEnabled: typeof soundEnabled === "boolean" ? soundEnabled : true,
       habits: Array.isArray(habits) ? habits : undefined,
+      notes: Array.isArray(notes) ? notes : undefined,
       activeNav: typeof activeNav === "string" ? activeNav : "Overview",
       updatedAt: new Date().toISOString(),
     };

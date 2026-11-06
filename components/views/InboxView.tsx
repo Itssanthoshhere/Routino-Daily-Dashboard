@@ -95,7 +95,7 @@ export function InboxView({
           />
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setSelectedFilter("all")}
             className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${

@@ -151,7 +151,17 @@ export function HabitTracker({
       </div>
 
       {/* Habit Cards Grid */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className={`grid gap-3 ${
+          habits.length === 0
+            ? "grid-cols-1"
+            : habits.length === 1
+            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+            : habits.length === 2
+            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4"
+            : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+        }`}
+      >
         {habits.map((habit) => {
           const isDoneToday = habit.completedDates.includes(todayStr);
           const IconComp = HABIT_ICON_MAP[habit.icon || "flame"] || Flame;
@@ -191,7 +201,7 @@ export function HabitTracker({
                     >
                       {habit.name}
                     </span>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition">
+                    <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
                       <button
                         type="button"
                         onClick={() => handleOpenEdit(habit)}
@@ -258,6 +268,25 @@ export function HabitTracker({
             </div>
           );
         })}
+
+        {/* Dashed "+ Add Habit" card when 1, 2, or 3 habits are present */}
+        {habits.length > 0 && habits.length < 4 && (
+          <button
+            type="button"
+            onClick={handleOpenCreate}
+            className="flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[#dfe5dc] p-3 text-center hover:border-forest/40 hover:bg-[#fafbf8] transition group min-h-[92px]"
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-lg bg-[#f1f3ed] text-[#5c6960] group-hover:bg-[#fdf2f2] group-hover:text-forest transition">
+              <Plus size={13} />
+            </span>
+            <span className="text-[11px] font-semibold text-[#5c6960] group-hover:text-forest transition">
+              Add habit
+            </span>
+            <span className="text-[9px] text-muted">
+              Keep building momentum
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Habit Create / Edit Modal */}

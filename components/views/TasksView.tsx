@@ -110,7 +110,7 @@ export function TasksView({
       </div>
 
       {/* Quick Add Bar */}
-      <form onSubmit={handleQuickAdd} className="flex gap-2 rounded-2xl border border-line bg-white p-2 shadow-sm">
+      <form onSubmit={handleQuickAdd} className="flex flex-col sm:flex-row gap-2 rounded-2xl border border-line bg-white p-2 shadow-sm">
         <input
           type="text"
           value={quickTitle}
@@ -118,22 +118,24 @@ export function TasksView({
           placeholder="Add a task quickly (e.g. 'Draft quarterly report')..."
           className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-ink outline-none placeholder:text-muted"
         />
-        <select
-          value={quickCategory}
-          onChange={(e) => setQuickCategory(e.target.value as "work" | "personal" | "meeting" | "urgent")}
-          className="rounded-xl border border-line bg-[#fbfcf8] px-2.5 py-1.5 text-[11px] text-ink outline-none"
-        >
-          <option value="work">Work</option>
-          <option value="personal">Personal</option>
-          <option value="meeting">Meeting</option>
-          <option value="urgent">Urgent</option>
-        </select>
-        <button
-          type="submit"
-          className="flex items-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition"
-        >
-          <Plus size={13} /> Add
-        </button>
+        <div className="flex items-center gap-2">
+          <select
+            value={quickCategory}
+            onChange={(e) => setQuickCategory(e.target.value as "work" | "personal" | "meeting" | "urgent")}
+            className="flex-1 sm:flex-initial rounded-xl border border-line bg-[#fbfcf8] px-2.5 py-1.5 text-[11px] text-ink outline-none"
+          >
+            <option value="work">Work</option>
+            <option value="personal">Personal</option>
+            <option value="meeting">Meeting</option>
+            <option value="urgent">Urgent</option>
+          </select>
+          <button
+            type="submit"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition"
+          >
+            <Plus size={13} /> Add
+          </button>
+        </div>
       </form>
 
       {/* Search and Filters */}
@@ -149,7 +151,7 @@ export function TasksView({
           />
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setSelectedFilter("all")}
             className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
@@ -282,7 +284,7 @@ export function TasksView({
 
                   {/* Expandable subtasks checklist */}
                   {hasSubtasks && isExpanded && (
-                    <div className="bg-[#fafbf7] border-t border-[#f0f2eb] px-12 py-2.5 space-y-1.5">
+                    <div className="bg-[#fafbf7] border-t border-[#f0f2eb] px-4 sm:px-12 py-2.5 space-y-1.5">
                       {task.subtasks!.map((st) => (
                         <div
                           key={st.id}

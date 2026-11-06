@@ -11,6 +11,7 @@ import {
   Mail,
   MoreHorizontal,
   Keyboard,
+  StickyNote,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 
@@ -31,6 +32,7 @@ const navItems = [
   { icon: CalendarDays, label: "Calendar" },
   { icon: Inbox, label: "Inbox" },
   { icon: ListTodo, label: "Tasks" },
+  { icon: StickyNote, label: "Notes" },
 ];
 
 export function MobileSidebar({
@@ -66,7 +68,7 @@ export function MobileSidebar({
       />
 
       {/* Drawer */}
-      <div className="relative flex w-[280px] max-w-[85vw] flex-col bg-[#fbfcf8] p-6 shadow-2xl animate-in slide-in-from-left duration-200">
+      <div className="relative flex w-[280px] max-w-[85vw] flex-col bg-[#fbfcf8] p-6 shadow-2xl animate-in slide-in-from-left duration-200 overflow-y-auto max-h-screen">
         <div className="flex items-center justify-between pb-6">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}

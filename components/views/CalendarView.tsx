@@ -107,48 +107,50 @@ export function CalendarView({
       </div>
 
       {/* Rolling 7-Day Picker */}
-      <div className="grid grid-cols-7 gap-2">
-        {days.map((day) => {
-          const isSelected = selectedDayOffset === day.offset;
-          return (
-            <button
-              key={day.offset}
-              onClick={() => setSelectedDayOffset(day.offset)}
-              className={`flex flex-col items-center rounded-2xl p-3 transition-all ${
-                isSelected
-                  ? "bg-forest text-white shadow-md scale-[1.02]"
-                  : "bg-white border border-line text-ink hover:bg-[#f4f7ef]"
-              }`}
-            >
-              <span
-                className={`text-[10px] font-bold uppercase tracking-wider ${
-                  isSelected ? "text-accent" : "text-muted"
+      <div className="overflow-x-auto pb-1 -mx-1 px-1 sm:overflow-visible">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2 min-w-[340px] sm:min-w-0">
+          {days.map((day) => {
+            const isSelected = selectedDayOffset === day.offset;
+            return (
+              <button
+                key={day.offset}
+                onClick={() => setSelectedDayOffset(day.offset)}
+                className={`flex flex-col items-center rounded-2xl p-2 sm:p-3 transition-all ${
+                  isSelected
+                    ? "bg-forest text-white shadow-md scale-[1.02]"
+                    : "bg-white border border-line text-ink hover:bg-[#f4f7ef]"
                 }`}
               >
-                {day.dayName}
-              </span>
-              <span className="mt-1 text-[18px] font-bold">{day.dateNum}</span>
-              <span
-                className={`text-[9px] mt-0.5 ${
-                  isSelected ? "text-white/70" : "text-[#9da79e]"
-                }`}
-              >
-                {day.month}
-              </span>
-              {day.isToday && (
                 <span
-                  className={`mt-1.5 h-1.5 w-1.5 rounded-full ${
-                    isSelected ? "bg-accent" : "bg-forest"
+                  className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${
+                    isSelected ? "text-accent" : "text-muted"
                   }`}
-                />
-              )}
-            </button>
-          );
-        })}
+                >
+                  {day.dayName}
+                </span>
+                <span className="mt-1 text-[16px] sm:text-[18px] font-bold">{day.dateNum}</span>
+                <span
+                  className={`text-[8px] sm:text-[9px] mt-0.5 ${
+                    isSelected ? "text-white/70" : "text-[#9da79e]"
+                  }`}
+                >
+                  {day.month}
+                </span>
+                {day.isToday && (
+                  <span
+                    className={`mt-1 sm:mt-1.5 h-1.5 w-1.5 rounded-full ${
+                      isSelected ? "bg-accent" : "bg-forest"
+                    }`}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Filter Chips */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
         <span className="text-[11px] font-semibold text-muted flex items-center gap-1 mr-1">
           <Filter size={12} /> Filter:
         </span>

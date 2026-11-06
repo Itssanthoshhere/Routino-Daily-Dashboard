@@ -11,6 +11,7 @@ class AmbientSoundEngine {
   private lfoNode: OscillatorNode | null = null;
   private lfoGain: GainNode | null = null;
   private volume: number = 0.35;
+  private stopTimeout: NodeJS.Timeout | null = null;
 
   private getContext(): AudioContext | null {
     if (typeof window === "undefined") return null;
@@ -41,7 +42,10 @@ class AmbientSoundEngine {
   public setVolume(vol: number) {
     this.volume = Math.max(0, Math.min(1, vol));
     if (this.gainNode && this.ctx) {
-      this.gainNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      try {
+        this.gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+        this.gainNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      } catch {}
     }
   }
 
@@ -54,7 +58,9 @@ class AmbientSoundEngine {
   }
 
   public start(type: AmbientSoundType) {
-    this.stop();
+    // Immediately terminate any currently playing sounds synchronously
+    this.stop(true);
+
     if (type === "off") {
       this.currentType = "off";
       return;
@@ -70,10 +76,11 @@ class AmbientSoundEngine {
     noiseSource.loop = true;
 
     // Master gain
-    this.gainNode = ctx.createGain();
-    this.gainNode.gain.setValueAtTime(0, ctx.currentTime);
-    this.gainNode.gain.linearRampToValueAtTime(this.volume, ctx.currentTime + 1.2);
-    this.gainNode.connect(ctx.destination);
+    const masterGain = ctx.createGain();
+    masterGain.gain.setValueAtTime(0.001, ctx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(this.volume, ctx.currentTime + 0.6);
+    masterGain.connect(ctx.destination);
+    this.gainNode = masterGain;
 
     if (type === "brown") {
       // Brown noise: Heavy low-pass filter around 350Hz creates a deep, cozy rumble
@@ -131,39 +138,55 @@ class AmbientSoundEngine {
     this.sourceNode = noiseSource;
   }
 
-  public stop() {
+  public stop(immediate: boolean = true) {
+    if (this.stopTimeout) {
+      clearTimeout(this.stopTimeout);
+      this.stopTimeout = null;
+    }
+
+    this.currentType = "off";
+
+    // Immediate synchronous teardown to guarantee audio stops instantly
     if (this.gainNode && this.ctx) {
       try {
-        this.gainNode.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+        this.gainNode.gain.cancelScheduledValues(this.ctx.currentTime);
+        this.gainNode.gain.setValueAtTime(0, this.ctx.currentTime);
       } catch {}
     }
 
-    setTimeout(() => {
-      if (this.sourceNode) {
-        try {
-          (this.sourceNode as AudioScheduledSourceNode).stop();
-        } catch {}
+    if (this.sourceNode) {
+      try {
+        (this.sourceNode as AudioScheduledSourceNode).stop();
+      } catch {}
+      try {
         this.sourceNode.disconnect();
-        this.sourceNode = null;
-      }
-      if (this.lfoNode) {
-        try {
-          this.lfoNode.stop();
-        } catch {}
-        this.lfoNode.disconnect();
-        this.lfoNode = null;
-      }
-      if (this.lfoGain) {
-        this.lfoGain.disconnect();
-        this.lfoGain = null;
-      }
-      if (this.gainNode) {
-        this.gainNode.disconnect();
-        this.gainNode = null;
-      }
-    }, 550);
+      } catch {}
+      this.sourceNode = null;
+    }
 
-    this.currentType = "off";
+    if (this.lfoNode) {
+      try {
+        this.lfoNode.stop();
+      } catch {}
+      try {
+        this.lfoNode.disconnect();
+      } catch {}
+      this.lfoNode = null;
+    }
+
+    if (this.lfoGain) {
+      try {
+        this.lfoGain.disconnect();
+      } catch {}
+      this.lfoGain = null;
+    }
+
+    if (this.gainNode) {
+      try {
+        this.gainNode.disconnect();
+      } catch {}
+      this.gainNode = null;
+    }
   }
 }
 

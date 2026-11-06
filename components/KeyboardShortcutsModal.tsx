@@ -19,6 +19,7 @@ const SHORTCUTS: ShortcutItem[] = [
   { key: "2", description: "Switch to Calendar tab", category: "Navigation" },
   { key: "3", description: "Switch to Inbox tab", category: "Navigation" },
   { key: "4", description: "Switch to Tasks Manager", category: "Navigation" },
+  { key: "5", description: "Switch to Notes & Scratchpad", category: "Navigation" },
   { key: "F", description: "Launch Deep Work Focus Timer", category: "Actions" },
   { key: "T", description: "Create New Priority Task", category: "Actions" },
   { key: "E", description: "Schedule Calendar Event", category: "Actions" },

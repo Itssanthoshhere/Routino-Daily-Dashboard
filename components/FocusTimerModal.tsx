@@ -1,7 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Play, Pause, RotateCcw, Volume2, VolumeX, X, Sparkles, Check, Focus, CloudRain, Waves, Coffee } from "lucide-react";
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  Volume2,
+  VolumeX,
+  X,
+  Sparkles,
+  Focus,
+  CloudRain,
+  Waves,
+  Coffee,
+  Plus,
+  Minus,
+} from "lucide-react";
 import { playChime, playTick } from "@/lib/sound";
 import { ambientSound, AmbientSoundType } from "@/lib/ambientSound";
 
@@ -25,14 +39,24 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [ambientType, setAmbientType] = useState<AmbientSoundType>("off");
   const [intention, setIntention] = useState("Deep work & intentional focus");
+  const [isCustomPreset, setIsCustomPreset] = useState(false);
+  const [customMinutesInput, setCustomMinutesInput] = useState("45");
 
+  // Always terminate ambient sound cleanly on unmount
+  useEffect(() => {
+    return () => {
+      ambientSound.stop();
+    };
+  }, []);
+
+  // When preset changes, update timer and stop previous sound
   useEffect(() => {
     setTimeLeft(selectedPreset * 60);
     setIsRunning(false);
     ambientSound.stop();
   }, [selectedPreset]);
 
-  // Handle ambient sound playback based on running state
+  // Handle ambient sound playback strictly linked to running state
   useEffect(() => {
     if (isRunning && ambientType !== "off") {
       ambientSound.start(ambientType);
@@ -41,7 +65,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
     }
   }, [isRunning, ambientType]);
 
-  // Stop sound when modal is closed
+  // Instantly kill sound whenever modal is closed
   useEffect(() => {
     if (!isOpen) {
       ambientSound.stop();
@@ -49,6 +73,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
     }
   }, [isOpen]);
 
+  // Countdown timer loop
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isRunning && timeLeft > 0) {
@@ -75,8 +100,14 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  const totalSeconds = selectedPreset * 60;
-  const progressPercent = ((totalSeconds - timeLeft) / totalSeconds) * 100;
+  const totalSeconds = Math.max(1, selectedPreset * 60);
+  const progressPercent = Math.min(100, Math.max(0, ((totalSeconds - timeLeft) / totalSeconds) * 100));
+
+  const handleClose = () => {
+    setIsRunning(false);
+    ambientSound.stop();
+    onClose();
+  };
 
   const handleReset = () => {
     setIsRunning(false);
@@ -88,22 +119,50 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
     if (soundEnabled && !isRunning) {
       playTick();
     }
-    setIsRunning(!isRunning);
+    const nextRunning = !isRunning;
+    setIsRunning(nextRunning);
+    if (!nextRunning) {
+      ambientSound.stop();
+    }
   };
 
   const handleSelectAmbient = (type: AmbientSoundType) => {
     setAmbientType(type);
-    if (isRunning) {
+    if (type === "off") {
+      ambientSound.stop();
+    } else if (isRunning) {
       ambientSound.start(type);
     }
   };
 
+  // Add minutes dynamically to current timer session (e.g. +5m, +10m)
+  const handleAddMinutes = (additionalMinutes: number) => {
+    if (soundEnabled) playTick();
+    const additionalSeconds = additionalMinutes * 60;
+    setTimeLeft((prev) => prev + additionalSeconds);
+    setSelectedPreset((prev) => prev + additionalMinutes);
+  };
+
+  // Set custom minutes directly
+  const handleApplyCustomMinutes = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseInt(customMinutesInput, 10);
+    if (!isNaN(parsed) && parsed > 0 && parsed <= 360) {
+      setIsRunning(false);
+      ambientSound.stop();
+      setSelectedPreset(parsed);
+      setTimeLeft(parsed * 60);
+      setIsCustomPreset(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+      <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-forest text-accent">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-forest text-accent shadow-sm">
               <Focus size={16} />
             </span>
             <div>
@@ -112,7 +171,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-lg p-1.5 text-muted hover:bg-[#edf0e9] hover:text-ink transition"
             aria-label="Close"
           >
@@ -121,26 +180,67 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
         </div>
 
         {/* Preset Selector */}
-        <div className="mt-5 grid grid-cols-4 gap-2">
+        <div className="mt-4 grid grid-cols-5 gap-1.5">
           {PRESETS.map((preset) => (
             <button
               key={preset.label}
-              onClick={() => setSelectedPreset(preset.minutes)}
-              className={`rounded-xl py-2 px-1 text-center text-[11px] font-medium transition ${
-                selectedPreset === preset.minutes
+              onClick={() => {
+                setIsCustomPreset(false);
+                setSelectedPreset(preset.minutes);
+              }}
+              className={`rounded-xl py-2 px-1 text-center text-[10px] font-medium transition ${
+                !isCustomPreset && selectedPreset === preset.minutes
                   ? "bg-forest font-semibold text-white shadow-sm"
                   : "bg-white border border-line text-[#5c6960] hover:bg-[#f1f3ed]"
               }`}
             >
-              {preset.label}
+              <span className="block truncate">{preset.label}</span>
               <span className="block text-[9px] opacity-75 mt-0.5">{preset.minutes}m</span>
             </button>
           ))}
+          <button
+            onClick={() => setIsCustomPreset(!isCustomPreset)}
+            className={`rounded-xl py-2 px-1 text-center text-[10px] font-medium transition ${
+              isCustomPreset
+                ? "bg-forest font-semibold text-white shadow-sm"
+                : "bg-white border border-line text-[#5c6960] hover:bg-[#f1f3ed]"
+            }`}
+          >
+            <span className="block truncate">Custom</span>
+            <span className="block text-[9px] opacity-75 mt-0.5">{selectedPreset}m</span>
+          </button>
         </div>
 
+        {/* Custom Duration Input Form */}
+        {isCustomPreset && (
+          <form
+            onSubmit={handleApplyCustomMinutes}
+            className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-white p-2.5 animate-in fade-in"
+          >
+            <span className="text-[11px] font-semibold text-ink whitespace-nowrap">
+              Duration (minutes):
+            </span>
+            <input
+              type="number"
+              min="1"
+              max="360"
+              autoFocus
+              value={customMinutesInput}
+              onChange={(e) => setCustomMinutesInput(e.target.value)}
+              className="w-16 rounded-lg border border-line bg-[#fbfcf9] px-2 py-1 text-center text-[12px] font-bold text-ink outline-none focus:border-forest"
+            />
+            <button
+              type="submit"
+              className="rounded-lg bg-forest px-3 py-1 text-[11px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition ml-auto"
+            >
+              Set Timer
+            </button>
+          </form>
+        )}
+
         {/* Circular Progress & Digital Display */}
-        <div className="my-7 flex flex-col items-center">
-          <div className="relative flex h-48 w-48 items-center justify-center">
+        <div className="my-5 flex flex-col items-center">
+          <div className="relative flex h-44 w-44 sm:h-48 sm:w-48 items-center justify-center">
             {/* SVG Progress Circle */}
             <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
               <circle
@@ -164,14 +264,53 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
               />
             </svg>
             <div className="absolute flex flex-col items-center">
-              <span className="font-mono text-[38px] font-bold tracking-tight text-ink">
+              <span className="font-mono text-[34px] sm:text-[38px] font-bold tracking-tight text-ink">
                 {formattedTime}
               </span>
-              <span className="mt-1 flex items-center gap-1 rounded-full bg-[#fdf2f2] px-2.5 py-0.5 text-[10px] font-semibold text-forest">
+              <span className="mt-1 flex items-center gap-1 rounded-full bg-[#fdf2f2] px-2.5 py-0.5 text-[9px] sm:text-[10px] font-semibold text-forest">
                 <Sparkles size={11} />
                 {isRunning ? "FOCUSING" : timeLeft === 0 ? "DONE" : "READY"}
               </span>
             </div>
+          </div>
+
+          {/* Quick Extend Minutes Buttons */}
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">
+              Add Time:
+            </span>
+            <button
+              type="button"
+              onClick={() => handleAddMinutes(1)}
+              className="rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition"
+              title="Add 1 minute"
+            >
+              +1m
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddMinutes(5)}
+              className="rounded-lg border border-line bg-white px-2.5 py-1 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition"
+              title="Add 5 minutes"
+            >
+              +5m
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddMinutes(10)}
+              className="rounded-lg border border-line bg-white px-2.5 py-1 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition"
+              title="Add 10 minutes"
+            >
+              +10m
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddMinutes(15)}
+              className="rounded-lg border border-line bg-white px-2.5 py-1 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition"
+              title="Add 15 minutes"
+            >
+              +15m
+            </button>
           </div>
         </div>
 
@@ -190,13 +329,19 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
         </div>
 
         {/* Ambient Soundscapes */}
-        <div className="mb-5 rounded-xl border border-line bg-white p-3">
+        <div className="mb-4 rounded-xl border border-line bg-white p-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">
               Ambient Soundscape
             </span>
             <span className="text-[10px] text-forest font-medium">
-              {ambientType === "off" ? "Off" : ambientType === "rain" ? "Gentle Rain" : ambientType === "waves" ? "Ocean Waves" : "Deep Noise"}
+              {ambientType === "off"
+                ? "Off"
+                : ambientType === "rain"
+                ? "Gentle Rain"
+                : ambientType === "waves"
+                ? "Ocean Waves"
+                : "Deep Noise"}
             </span>
           </div>
           <div className="grid grid-cols-4 gap-1.5">
@@ -262,7 +407,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
             <button
               onClick={handleReset}
               className="grid h-10 w-10 place-items-center rounded-xl border border-line bg-white text-muted hover:text-ink transition"
-              title="Reset"
+              title="Reset timer"
             >
               <RotateCcw size={16} />
             </button>

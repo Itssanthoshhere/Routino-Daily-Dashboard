@@ -79,22 +79,22 @@ export function HabitsManagerModal({
   const bestStreak = habits.reduce((max, h) => Math.max(max, h.streak), 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-2xl rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className="relative w-full max-w-2xl rounded-2xl border border-line bg-[#fbfcf8] p-4 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-line pb-4 shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#fdf2f2] text-forest shadow-sm">
-              <Flame size={20} />
+        <div className="flex items-center justify-between border-b border-line pb-3 sm:pb-4 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <span className="grid h-9 w-9 sm:h-10 sm:w-10 place-items-center rounded-xl bg-[#fdf2f2] text-forest shadow-sm">
+              <Flame size={18} />
             </span>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-[16px] font-semibold text-ink">Daily Micro-Habits</h3>
-                <span className="rounded-full bg-[#fdf2f2] px-2.5 py-0.5 text-[10px] font-bold text-forest">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-[15px] sm:text-[16px] font-semibold text-ink">Daily Micro-Habits</h3>
+                <span className="rounded-full bg-[#fdf2f2] px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-forest">
                   {completedTodayCount}/{habits.length} Done Today
                 </span>
               </div>
-              <p className="text-[11px] text-muted">
+              <p className="text-[10px] sm:text-[11px] text-muted">
                 Track consistency, edit streaks, and establish compound daily momentum
               </p>
             </div>
@@ -109,35 +109,35 @@ export function HabitsManagerModal({
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-3 gap-3 py-4 shrink-0">
-          <div className="rounded-xl border border-line bg-white p-3">
-            <span className="text-[10px] font-semibold text-muted uppercase">Today&apos;s Progress</span>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-xl font-bold text-ink">{completionRate}%</span>
-              <span className="text-[11px] text-muted">completion</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 py-3 sm:py-4 shrink-0">
+          <div className="rounded-xl border border-line bg-white p-2.5 sm:p-3">
+            <span className="text-[9px] sm:text-[10px] font-semibold text-muted uppercase">Today&apos;s Progress</span>
+            <div className="mt-0.5 sm:mt-1 flex items-baseline gap-2">
+              <span className="text-lg sm:text-xl font-bold text-ink">{completionRate}%</span>
+              <span className="text-[10px] sm:text-[11px] text-muted">completion</span>
             </div>
           </div>
-          <div className="rounded-xl border border-line bg-white p-3">
-            <span className="text-[10px] font-semibold text-muted uppercase">Best Active Streak</span>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-xl font-bold text-[#c2410c] flex items-center gap-1">
-                <Flame size={16} className="fill-orange-500" /> {bestStreak}
+          <div className="rounded-xl border border-line bg-white p-2.5 sm:p-3">
+            <span className="text-[9px] sm:text-[10px] font-semibold text-muted uppercase">Best Active Streak</span>
+            <div className="mt-0.5 sm:mt-1 flex items-baseline gap-2">
+              <span className="text-lg sm:text-xl font-bold text-[#c2410c] flex items-center gap-1">
+                <Flame size={15} className="fill-orange-500" /> {bestStreak}
               </span>
-              <span className="text-[11px] text-muted">days</span>
+              <span className="text-[10px] sm:text-[11px] text-muted">days</span>
             </div>
           </div>
-          <div className="rounded-xl border border-line bg-white p-3">
-            <span className="text-[10px] font-semibold text-muted uppercase">Total Habits</span>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-xl font-bold text-ink">{habits.length}</span>
-              <span className="text-[11px] text-muted">active</span>
+          <div className="rounded-xl border border-line bg-white p-2.5 sm:p-3">
+            <span className="text-[9px] sm:text-[10px] font-semibold text-muted uppercase">Total Habits</span>
+            <div className="mt-0.5 sm:mt-1 flex items-baseline gap-2">
+              <span className="text-lg sm:text-xl font-bold text-ink">{habits.length}</span>
+              <span className="text-[10px] sm:text-[11px] text-muted">active</span>
             </div>
           </div>
         </div>
 
         {/* Filter bar & Add button */}
-        <div className="flex items-center justify-between pb-3 shrink-0">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between pb-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => setFilter("all")}
               className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
@@ -172,7 +172,7 @@ export function HabitsManagerModal({
 
           <button
             onClick={onAddNewHabit}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-forest px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition self-start sm:self-auto"
           >
             <Plus size={13} /> Add Habit
           </button>

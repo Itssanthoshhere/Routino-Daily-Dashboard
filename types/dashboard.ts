@@ -64,6 +64,23 @@ export type QuickLink = {
   available: boolean;
 };
 
+export type KeepNoteChecklistItem = {
+  id: string;
+  text: string;
+  done: boolean;
+};
+
+export type KeepNote = {
+  id: string;
+  title: string;
+  content: string;
+  color?: "default" | "yellow" | "green" | "blue" | "peach" | "purple";
+  pinned?: boolean;
+  checklist?: KeepNoteChecklistItem[];
+  updatedAt: number;
+  createdAt?: number;
+};
+
 export type OutlookProfile = {
   email: string;
   name: string;
@@ -77,7 +94,7 @@ export type NotificationItem = {
   type: "calendar" | "task" | "mail" | "system";
   read: boolean;
   actionText?: string;
-  navTarget?: "Overview" | "Calendar" | "Inbox" | "Tasks";
+  navTarget?: "Overview" | "Calendar" | "Inbox" | "Tasks" | "Notes";
 };
 
 export type DashboardData = {

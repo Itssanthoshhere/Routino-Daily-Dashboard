@@ -6,11 +6,11 @@ import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, Github, Globe,
   Inbox, Keyboard, Link2, Linkedin, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Shuffle, Sparkles,
-  Target, Timer, TriangleAlert, Video, X,
+  StickyNote, Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
 
-import type { Task, DashboardEvent, DashboardMail, DashboardData, QuickLink, NotificationItem, Habit, SubTask } from "@/types/dashboard";
+import type { Task, DashboardEvent, DashboardMail, DashboardData, QuickLink, NotificationItem, Habit, SubTask, KeepNote } from "@/types/dashboard";
 import { ToastContainer, ToastMessage } from "@/components/Toast";
 import { FocusTimerModal } from "@/components/FocusTimerModal";
 import { TaskModal } from "@/components/TaskModal";
@@ -31,6 +31,7 @@ import { KeyboardShortcutsModal } from "@/components/KeyboardShortcutsModal";
 import { CalendarView } from "@/components/views/CalendarView";
 import { InboxView } from "@/components/views/InboxView";
 import { TasksView } from "@/components/views/TasksView";
+import { NotesView } from "@/components/views/NotesView";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
@@ -44,6 +45,7 @@ const nav = [
   { icon: CalendarDays, label: "Calendar" },
   { icon: Inbox, label: "Inbox" },
   { icon: ListTodo, label: "Tasks" },
+  { icon: StickyNote, label: "Notes" },
 ];
 
 const sampleSchedule: ScheduleItem[] = [
@@ -129,6 +131,41 @@ const seedNotifications: NotificationItem[] = [
   { id: "n-3", title: "Task 'Q4 proposal' is due today", time: "Yesterday", type: "task", read: false, navTarget: "Tasks" },
 ];
 
+const seedNotes: KeepNote[] = [
+  {
+    id: "note-1",
+    title: "Welcome to Routino Notes 💡",
+    content: "Capture thoughts, quick snippets, and daily scratchpad notes just like Google Keep.\n\n• Pin your most important notes to the top\n• Color-code notes for fast visual organization\n• Toggle checklist items or freeform thoughts",
+    color: "peach",
+    pinned: true,
+    updatedAt: Date.now(),
+    createdAt: Date.now() - 3600000,
+  },
+  {
+    id: "note-2",
+    title: "Daily Standup & Action Items",
+    content: "",
+    color: "blue",
+    pinned: false,
+    checklist: [
+      { id: "c-1", text: "Responsive layout optimization across all screens", done: true },
+      { id: "c-2", text: "Focus audio engine cleanup on pause/close", done: true },
+      { id: "c-3", text: "Interactive note scratchpad and reminders", done: true },
+    ],
+    updatedAt: Date.now() - 1800000,
+    createdAt: Date.now() - 7200000,
+  },
+  {
+    id: "note-3",
+    title: "Ideas & Architecture Notes",
+    content: "Next sprint:\n1. Azure Outlook Calendar deep synchronization.\n2. Ambient soundscapes (Rain, Cafe, White Noise).\n3. Offline PWA caching with IndexedDB.",
+    color: "green",
+    pinned: false,
+    updatedAt: Date.now() - 900000,
+    createdAt: Date.now() - 14400000,
+  },
+];
+
 const hueClasses: Record<string, string> = {
   blue: "bg-[#edf0ff] text-[#6d76b1]",
   peach: "bg-[#fbefe5] text-[#a17652]",
@@ -202,6 +239,7 @@ function SectionHeading({ icon: Icon, title, sub, right }: { icon: typeof Calend
 export default function Home() {
   /* ── Core state ── */
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
+  const [notes, setNotes] = useState<KeepNote[]>(seedNotes);
   const [activeNav, setActiveNav] = useState("Overview");
   const [notice, setNotice] = useState(true);
   const [liveData, setLiveData] = useState<DashboardData | null>(null);
@@ -313,6 +351,11 @@ export default function Home() {
       const storedHabits = localStorage.getItem("routino_habits");
       if (storedHabits !== null) {
         setHabits(JSON.parse(storedHabits));
+      }
+
+      const storedNotes = localStorage.getItem("routino_notes");
+      if (storedNotes !== null) {
+        setNotes(JSON.parse(storedNotes));
       }
 
       if (window.location.search.includes("setup=google")) {
@@ -580,6 +623,11 @@ export default function Home() {
         handleSelectNav("Tasks");
         return;
       }
+      if (e.key === "5") {
+        e.preventDefault();
+        handleSelectNav("Notes");
+        return;
+      }
 
       // F for focus timer
       if (e.key === "f" || e.key === "F") {
@@ -622,6 +670,7 @@ export default function Home() {
       focusMinutes?: number;
       soundEnabled?: boolean;
       habits?: Habit[];
+      notes?: KeepNote[];
       activeNav?: string;
     }) => {
       if (!liveData?.connected) return;
@@ -634,6 +683,7 @@ export default function Home() {
           focusMinutes: overrideData?.focusMinutes ?? focusMinutes,
           soundEnabled: overrideData?.soundEnabled ?? soundEnabled,
           habits: overrideData?.habits ?? habits,
+          notes: overrideData?.notes ?? notes,
           activeNav: overrideData?.activeNav ?? activeNav,
         };
 
@@ -656,7 +706,7 @@ export default function Home() {
         setIsSyncing(false);
       }
     },
-    [liveData?.connected, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, activeNav]
+    [liveData?.connected, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, notes, activeNav]
   );
 
   /* ── Load user workspace from Database on session connect ── */
@@ -699,6 +749,10 @@ export default function Home() {
           if (Array.isArray(d.habits) && d.habits.length > 0) {
             setHabits(d.habits);
             try { localStorage.setItem("routino_habits", JSON.stringify(d.habits)); } catch {}
+          }
+          if (Array.isArray(d.notes) && d.notes.length > 0) {
+            setNotes(d.notes);
+            try { localStorage.setItem("routino_notes", JSON.stringify(d.notes)); } catch {}
           }
           if (d.updatedAt) {
             setLastSyncedAt(d.updatedAt);
@@ -944,11 +998,47 @@ export default function Home() {
     toast("Completed tasks archived", "info");
   };
 
+  const addNote = (newNoteData: Omit<KeepNote, "id" | "createdAt" | "updatedAt">) => {
+    const newNote: KeepNote = {
+      ...newNoteData,
+      id: "note-" + Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    setNotes(prev => {
+      const next = [newNote, ...prev];
+      try { localStorage.setItem("routino_notes", JSON.stringify(next)); } catch {}
+      syncToDatabase({ notes: next });
+      return next;
+    });
+    toast("Note saved!");
+  };
+
+  const updateNote = (id: string, updates: Partial<KeepNote>) => {
+    setNotes(prev => {
+      const next = prev.map(n => n.id === id ? { ...n, ...updates, updatedAt: Date.now() } : n);
+      try { localStorage.setItem("routino_notes", JSON.stringify(next)); } catch {}
+      syncToDatabase({ notes: next });
+      return next;
+    });
+  };
+
+  const deleteNote = (id: string) => {
+    setNotes(prev => {
+      const next = prev.filter(n => n.id !== id);
+      try { localStorage.setItem("routino_notes", JSON.stringify(next)); } catch {}
+      syncToDatabase({ notes: next });
+      return next;
+    });
+    toast("Note removed", "info");
+  };
+
   const handleImportData = (imported: {
     tasks?: Task[];
     customEvents?: DashboardEvent[];
     quickLinks?: QuickLink[];
     habits?: Habit[];
+    notes?: KeepNote[];
     focusMinutes?: number;
   }) => {
     if (imported.tasks) {
@@ -968,6 +1058,10 @@ export default function Home() {
       setHabits(imported.habits);
       try { localStorage.setItem("routino_habits", JSON.stringify(imported.habits)); } catch {}
     }
+    if (imported.notes && Array.isArray(imported.notes)) {
+      setNotes(imported.notes);
+      try { localStorage.setItem("routino_notes", JSON.stringify(imported.notes)); } catch {}
+    }
     if (imported.focusMinutes) {
       setFocusMinutes(imported.focusMinutes);
       try { localStorage.setItem("routino_focus", String(imported.focusMinutes)); } catch {}
@@ -977,6 +1071,7 @@ export default function Home() {
       customEvents: imported.customEvents,
       quickLinks: imported.quickLinks,
       habits: imported.habits,
+      notes: imported.notes,
       focusMinutes: imported.focusMinutes,
     });
     toast("Workspace snapshot restored & synced!");
@@ -999,6 +1094,7 @@ export default function Home() {
               <Icon size={16} />{label}
               {label === "Inbox" && <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{mailItems.filter(m => !m.read).length}</span>}
               {label === "Tasks" && <span className="ml-auto rounded-full bg-[#e8efe4] px-2 py-0.5 text-[10px] font-bold text-forest">{tasks.filter(t => !t.checked).length}</span>}
+              {label === "Notes" && notes.length > 0 && <span className="ml-auto rounded-full bg-[#fdf2f2] px-2 py-0.5 text-[10px] font-bold text-forest">{notes.length}</span>}
             </button>
           ))}
           <button
@@ -1138,7 +1234,7 @@ export default function Home() {
         </header>
 
         {/* Content */}
-        <div className="mx-auto max-w-[1420px] px-5 pb-12 pt-8 sm:px-8 xl:px-10">
+        <div className="mx-auto max-w-[1440px] 2xl:max-w-[1680px] px-4 pb-12 pt-6 sm:px-6 md:px-8 xl:px-10">
           {/* Notice banner */}
           {notice && (
             <div className="mb-6 flex items-start gap-3 rounded-2xl border border-[#eadfc6] bg-[#fffaf0] px-4 py-3.5 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -1181,6 +1277,13 @@ export default function Home() {
               onOpenTaskModal={() => setShowTaskModal(true)}
               onToggleSubTask={toggleSubTask}
             />
+          ) : activeNav === "Notes" ? (
+            <NotesView
+              notes={notes}
+              onAddNote={addNote}
+              onUpdateNote={updateNote}
+              onDeleteNote={deleteNote}
+            />
           ) : (
             /* ─── OVERVIEW DASHBOARD VIEW ─── */
             <>
@@ -1207,9 +1310,9 @@ export default function Home() {
               </div>
 
               {/* ─── Summary cards ─── */}
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 {/* Intention card */}
-                <div className="rounded-2xl bg-forest p-5 text-white shadow-card sm:col-span-2 xl:col-span-1 hover:shadow-lg transition-shadow flex flex-col justify-between">
+                <div className="rounded-2xl bg-forest p-5 text-white shadow-card hover:shadow-lg transition-shadow flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-medium text-white/65">A note for today</span>
@@ -1230,7 +1333,7 @@ export default function Home() {
                     </p>
                   </div>
                   <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-[10px] text-white/60">
-                    <span className="truncate max-w-[120px]">— {currentIntention.author}</span>
+                    <span className="font-medium text-white/80">— {currentIntention.author}</span>
                     <span className="text-accent font-semibold">{currentIntention.focusHint}</span>
                   </div>
                 </div>
@@ -1274,7 +1377,7 @@ export default function Home() {
               </div>
 
               {/* ─── Schedule + Tasks row ─── */}
-              <div className="mt-4 grid gap-4 xl:grid-cols-[1.12fr_.88fr]">
+              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1.12fr_.88fr]">
                 {/* Today's schedule */}
                 <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
                   <SectionHeading
@@ -1445,33 +1548,35 @@ export default function Home() {
               </div>
 
               {/* ─── Week + Inbox row ─── */}
-              <div className="mt-4 grid gap-4 xl:grid-cols-[1.12fr_.88fr]">
+              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1.12fr_.88fr]">
                 {/* Week ahead */}
-                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
+                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6 overflow-hidden">
                   <SectionHeading
                     icon={CalendarDays}
                     title="The week ahead"
                     sub="Today + the next 6 days"
                     right={<button onClick={() => handleSelectNav("Calendar")} className="rounded-lg bg-[#f4f5f0] px-2.5 py-1.5 text-[10px] text-[#77837a] hover:bg-[#eef2ea] transition">{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date())} – {new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(rangeEnd)} <ChevronDown size={12} className="ml-1 inline" /></button>}
                   />
-                  <div id="week" className="grid grid-cols-7 gap-1.5">
-                    {weekDays.map((day, index) => (
-                      <div
-                        key={day.day + day.date}
-                        onClick={() => handleSelectNav("Calendar")}
-                        className={"min-h-[112px] rounded-xl p-2 cursor-pointer transition-colors " + (index === 0 ? "bg-[#f4f7ef] ring-1 ring-forest/10" : "bg-[#fafbf8] hover:bg-[#f4f7ef]")}
-                      >
-                        <p className={"text-center text-[8px] font-bold tracking-wide " + (index === 0 ? "text-forest" : "text-[#9da79e]")}>{day.day}</p>
-                        <p className={"mx-auto mt-1 grid h-6 w-6 place-items-center rounded-full text-[10px] " + (index === 0 ? "bg-forest font-semibold text-white" : "text-[#68766c]")}>{day.date}</p>
-                        <div className="mt-2 space-y-1">
-                          {day.items.map(item => (
-                            <div key={item.title} className={"truncate rounded px-1 py-1 text-[8px] font-medium leading-tight hover:opacity-80 transition " + hueClasses[item.hue]}>
-                              <span className="hidden 2xl:inline">{item.time} </span>{item.title}
-                            </div>
-                          ))}
+                  <div id="week" className="overflow-x-auto pb-1">
+                    <div className="grid grid-cols-7 gap-1.5 min-w-[340px] sm:min-w-0">
+                      {weekDays.map((day, index) => (
+                        <div
+                          key={day.day + day.date}
+                          onClick={() => handleSelectNav("Calendar")}
+                          className={"min-h-[112px] rounded-xl p-2 cursor-pointer transition-colors " + (index === 0 ? "bg-[#f4f7ef] ring-1 ring-forest/10" : "bg-[#fafbf8] hover:bg-[#f4f7ef]")}
+                        >
+                          <p className={"text-center text-[8px] font-bold tracking-wide " + (index === 0 ? "text-forest" : "text-[#9da79e]")}>{day.day}</p>
+                          <p className={"mx-auto mt-1 grid h-6 w-6 place-items-center rounded-full text-[10px] " + (index === 0 ? "bg-forest font-semibold text-white" : "text-[#68766c]")}>{day.date}</p>
+                          <div className="mt-2 space-y-1">
+                            {day.items.map(item => (
+                              <div key={item.title} className={"truncate rounded px-1 py-1 text-[8px] font-medium leading-tight hover:opacity-80 transition " + hueClasses[item.hue]}>
+                                <span className="hidden 2xl:inline">{item.time} </span>{item.title}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-[#9aa49b]">
                     <span><i className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#9aa7e5]" />Work</span>
@@ -1535,7 +1640,7 @@ export default function Home() {
               </div>
 
               {/* ─── Focus + Quick links row ─── */}
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2">
                 {/* Focus plan */}
                 <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
                   <SectionHeading
@@ -1575,7 +1680,7 @@ export default function Home() {
                     sub="Your frequently used places"
                     right={<button onClick={() => setShowQuickLinkModal(true)} aria-label="Add link" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition"><Plus size={14} /></button>}
                   />
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {quickLinks.map((link, index) => {
                       const IconComponent = linkIcons[link.iconName] || Link2;
                       const key = `${link.id}-${index}`;
@@ -1676,6 +1781,7 @@ export default function Home() {
         customEvents={customEvents}
         quickLinks={quickLinks}
         habits={habits}
+        notes={notes}
         onImportData={handleImportData}
         onClearCompletedTasks={handleClearCompletedTasks}
         soundEnabled={soundEnabled}

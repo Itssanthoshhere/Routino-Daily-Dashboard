@@ -19,7 +19,7 @@ import {
   Keyboard,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
-import { Task, DashboardEvent, QuickLink, Habit } from "@/types/dashboard";
+import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
 import { LinkedInConnectionCard } from "@/components/LinkedInConnectionCard";
 import { OutlookConnectionCard } from "@/components/OutlookConnectionCard";
 
@@ -32,11 +32,13 @@ type PreferencesModalProps = {
   customEvents: DashboardEvent[];
   quickLinks: QuickLink[];
   habits?: Habit[];
+  notes?: KeepNote[];
   onImportData: (data: {
     tasks?: Task[];
     customEvents?: DashboardEvent[];
     quickLinks?: QuickLink[];
     habits?: Habit[];
+    notes?: KeepNote[];
     focusMinutes?: number;
   }) => void;
   onClearCompletedTasks: () => void;
@@ -59,6 +61,7 @@ export function PreferencesModal({
   customEvents,
   quickLinks,
   habits,
+  notes,
   onImportData,
   onClearCompletedTasks,
   soundEnabled,
@@ -89,6 +92,7 @@ export function PreferencesModal({
         customEvents,
         quickLinks,
         habits,
+        notes,
       },
     };
 
@@ -119,6 +123,7 @@ export function PreferencesModal({
             customEvents: parsed.data.customEvents,
             quickLinks: parsed.data.quickLinks,
             habits: parsed.data.habits,
+            notes: parsed.data.notes,
             focusMinutes: parsed.data.focusMinutes,
           });
           onClose();
