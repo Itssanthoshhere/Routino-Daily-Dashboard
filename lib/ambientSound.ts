@@ -1,7 +1,7 @@
 // Web Audio API ambient sound generator for focus sessions
 // Generates continuous noisescapes without external audio files
 
-export type AmbientSoundType = "off" | "rain" | "brown" | "waves";
+export type AmbientSoundType = "off" | "rain" | "waves" | "forest" | "cafe" | "brown";
 
 class AmbientSoundEngine {
   private ctx: AudioContext | null = null;
@@ -132,6 +132,43 @@ class AmbientSoundEngine {
 
       noiseSource.connect(filter);
       filter.connect(this.gainNode);
+    } else if (type === "forest") {
+      // Forest Breeze: Gentle wind modulated by a slow LFO with rustling bandpass
+      const windFilter = ctx.createBiquadFilter();
+      windFilter.type = "bandpass";
+      windFilter.frequency.setValueAtTime(650, ctx.currentTime);
+      windFilter.Q.setValueAtTime(1.2, ctx.currentTime);
+
+      const lfo = ctx.createOscillator();
+      lfo.frequency.setValueAtTime(0.08, ctx.currentTime); // ~12 sec gentle wind gust cycle
+
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.setValueAtTime(250, ctx.currentTime);
+
+      lfo.connect(lfoGain);
+      lfoGain.connect(windFilter.frequency);
+      lfo.start();
+
+      this.lfoNode = lfo;
+      this.lfoGain = lfoGain;
+
+      noiseSource.connect(windFilter);
+      windFilter.connect(this.gainNode);
+    } else if (type === "cafe") {
+      // Café Murmur: Lowpass filtered chatter resonance with warm mid frequencies
+      const lowpass = ctx.createBiquadFilter();
+      lowpass.type = "lowpass";
+      lowpass.frequency.setValueAtTime(520, ctx.currentTime);
+      lowpass.Q.setValueAtTime(1.4, ctx.currentTime);
+
+      const peaking = ctx.createBiquadFilter();
+      peaking.type = "peaking";
+      peaking.frequency.setValueAtTime(850, ctx.currentTime);
+      peaking.gain.setValueAtTime(4, ctx.currentTime);
+
+      noiseSource.connect(lowpass);
+      lowpass.connect(peaking);
+      peaking.connect(this.gainNode);
     }
 
     noiseSource.start();

@@ -13,6 +13,7 @@ import {
   CloudRain,
   Waves,
   Coffee,
+  Trees,
   Plus,
   Minus,
 } from "lucide-react";
@@ -41,6 +42,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
   const [intention, setIntention] = useState("Deep work & intentional focus");
   const [isCustomPreset, setIsCustomPreset] = useState(false);
   const [customMinutesInput, setCustomMinutesInput] = useState("45");
+  const [volume, setVolume] = useState(0.4);
 
   // Always terminate ambient sound cleanly on unmount
   useEffect(() => {
@@ -339,16 +341,20 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
                 ? "Off"
                 : ambientType === "rain"
                 ? "Gentle Rain"
+                : ambientType === "forest"
+                ? "Forest Breeze"
                 : ambientType === "waves"
                 ? "Ocean Waves"
-                : "Deep Noise"}
+                : ambientType === "cafe"
+                ? "Cozy Café"
+                : "Deep Brown Noise"}
             </span>
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
             <button
               type="button"
               onClick={() => handleSelectAmbient("off")}
-              className={`rounded-lg py-1.5 px-2 text-[10px] font-medium transition ${
+              className={`rounded-lg py-1.5 px-2 text-[10px] font-medium transition cursor-pointer text-center ${
                 ambientType === "off"
                   ? "bg-[#f1f3ed] text-ink font-semibold"
                   : "text-muted hover:bg-[#fafbf8]"
@@ -359,7 +365,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
             <button
               type="button"
               onClick={() => handleSelectAmbient("rain")}
-              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition ${
+              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition cursor-pointer ${
                 ambientType === "rain"
                   ? "bg-[#edf3ff] text-[#4f76b8] font-semibold ring-1 ring-[#4f76b8]/30"
                   : "text-muted hover:bg-[#fafbf8]"
@@ -369,8 +375,19 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
             </button>
             <button
               type="button"
+              onClick={() => handleSelectAmbient("forest")}
+              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition cursor-pointer ${
+                ambientType === "forest"
+                  ? "bg-[#f0fdf4] text-[#16a34a] font-semibold ring-1 ring-[#16a34a]/30"
+                  : "text-muted hover:bg-[#fafbf8]"
+              }`}
+            >
+              <Trees size={12} /> Forest
+            </button>
+            <button
+              type="button"
               onClick={() => handleSelectAmbient("waves")}
-              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition ${
+              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition cursor-pointer ${
                 ambientType === "waves"
                   ? "bg-[#e8f7f5] text-[#2d7d74] font-semibold ring-1 ring-[#2d7d74]/30"
                   : "text-muted hover:bg-[#fafbf8]"
@@ -380,16 +397,48 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
             </button>
             <button
               type="button"
+              onClick={() => handleSelectAmbient("cafe")}
+              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition cursor-pointer ${
+                ambientType === "cafe"
+                  ? "bg-[#fdf2f8] text-[#be185d] font-semibold ring-1 ring-[#be185d]/30"
+                  : "text-muted hover:bg-[#fafbf8]"
+              }`}
+            >
+              <Coffee size={12} /> Café
+            </button>
+            <button
+              type="button"
               onClick={() => handleSelectAmbient("brown")}
-              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition ${
+              className={`flex items-center justify-center gap-1 rounded-lg py-1.5 px-2 text-[10px] font-medium transition cursor-pointer ${
                 ambientType === "brown"
                   ? "bg-[#fbefe5] text-[#a17652] font-semibold ring-1 ring-[#a17652]/30"
                   : "text-muted hover:bg-[#fafbf8]"
               }`}
             >
-              <Coffee size={12} /> Noise
+              <Sparkles size={12} /> Noise
             </button>
           </div>
+
+          {/* Volume Slider */}
+          {ambientType !== "off" && (
+            <div className="mt-2.5 flex items-center gap-2 border-t border-black/[0.04] pt-2 animate-in fade-in">
+              <span className="text-[10px] text-muted shrink-0">Volume</span>
+              <input
+                type="range"
+                min="0.05"
+                max="1"
+                step="0.05"
+                value={volume}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setVolume(val);
+                  ambientSound.setVolume(val);
+                }}
+                className="w-full accent-forest h-1 bg-black/10 rounded-lg cursor-pointer"
+              />
+              <span className="text-[10px] text-muted w-7 text-right shrink-0">{Math.round(volume * 100)}%</span>
+            </div>
+          )}
         </div>
 
         {/* Controls */}
