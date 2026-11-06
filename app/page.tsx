@@ -24,6 +24,7 @@ import { MobileSidebar } from "@/components/MobileSidebar";
 import { GoogleSetupModal } from "@/components/GoogleSetupModal";
 import { GoogleDriveFilesCard } from "@/components/GoogleDriveFilesCard";
 import { UpNextMeetingBanner } from "@/components/UpNextMeetingBanner";
+import { DayTimelineBar } from "@/components/DayTimelineBar";
 import { DailyRoutineModal } from "@/components/DailyRoutineModal";
 import { DailyDeskSheetModal } from "@/components/DailyDeskSheetModal";
 import { QuickCaptureModal } from "@/components/QuickCaptureModal";
@@ -1320,9 +1321,10 @@ export default function Home() {
           ) : (
             /* ─── OVERVIEW DASHBOARD VIEW ─── */
             <>
-              {/* Up next meeting quick-join banner */}
-              <div className="mb-5">
+              {/* Up next meeting quick-join banner & Today's Flow Timeline */}
+              <div className="mb-5 space-y-3">
                 <UpNextMeetingBanner events={allEvents} />
+                <DayTimelineBar events={allEvents} />
               </div>
 
               {/* Page heading */}
