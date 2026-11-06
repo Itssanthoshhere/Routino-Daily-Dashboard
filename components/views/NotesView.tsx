@@ -897,7 +897,7 @@ export function NotesView({
     }
   };
 
-  // Open note for editing
+  // Open note for viewing / editing (defaults to preview mode)
   const handleOpenEdit = (note: KeepNote) => {
     if (note.isEncrypted && !sessionPin) {
       setShowUnlockModal(true);
@@ -909,7 +909,6 @@ export function NotesView({
     setEditingNote(note);
     setEditIsEncrypted(Boolean(note.isEncrypted));
     setEditPriority(note.priority || "none");
-    setActiveTab("edit");
 
     if (note.isEncrypted && decryptedCache[note.id]) {
       setEditDecryptedContent(decryptedCache[note.id].text);
@@ -920,6 +919,15 @@ export function NotesView({
       setEditDecryptedChecklist(note.checklist || []);
       setEditImageUrl(note.imageUrl || null);
     }
+
+    // Default to Preview mode so user sees clean rendered view; switch to edit when needed
+    setActiveTab("preview");
+  };
+
+  // Save changes and switch back to preview mode
+  const handleSaveAndPreview = async () => {
+    await saveCurrentNoteChanges(false);
+    setActiveTab("preview");
   };
 
   // Ref to track latest editing values without stale closure delays
@@ -2344,14 +2352,31 @@ export function NotesView({
               </>
             ) : (
               /* Live Rendered Markdown & Rich Text Preview */
-              <div className="flex-1 rounded-2xl bg-white/70 p-5 border border-black/5 overflow-y-auto sidebar-scroll min-h-[300px]">
-                <h1 className="text-[18px] font-bold text-ink mb-3 pb-2 border-b border-black/5">
-                  {editingNote.title || "Untitled Note"}
-                </h1>
+              <div
+                onClick={() => setActiveTab("edit")}
+                className="flex-1 rounded-2xl bg-white/75 p-5 sm:p-6 border border-black/5 overflow-y-auto sidebar-scroll min-h-[300px] cursor-pointer hover:border-black/15 transition group relative"
+                title="Click anywhere to edit"
+              >
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-black/5">
+                  <h1 className="text-[19px] sm:text-[21px] font-bold text-ink">
+                    {editingNote.title || "Untitled Note"}
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTab("edit");
+                    }}
+                    className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[11px] font-semibold text-forest bg-forest/10 px-2.5 py-1 rounded-lg transition"
+                  >
+                    <Edit3 size={12} />
+                    <span>Click to edit</span>
+                  </button>
+                </div>
                 {editDecryptedContent ? (
                   <FormattedContent text={editDecryptedContent} isCompact={false} />
                 ) : (
-                  <p className="text-muted italic text-[12px]">No body text written yet.</p>
+                  <p className="text-muted italic text-[12px]">No body text written yet. Click to start typing...</p>
                 )}
               </div>
             )}
@@ -2403,23 +2428,44 @@ export function NotesView({
               ))}
             </div>
 
-            {/* Action Buttons with Auto-save notice */}
+            {/* Action Buttons */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => saveCurrentNoteChanges(true)}
-                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5 hover:text-ink transition"
+                className="rounded-xl px-3.5 py-1.5 text-[12px] font-medium text-muted hover:bg-black/5 hover:text-ink transition"
               >
                 Close
               </button>
-              <button
-                type="button"
-                onClick={() => saveCurrentNoteChanges(true)}
-                className="rounded-xl bg-forest px-5 py-2 text-[12px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition flex items-center gap-1.5"
-              >
-                {editIsEncrypted && <Lock size={13} />}
-                Done
-              </button>
+              {activeTab === "edit" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSaveAndPreview}
+                    className="rounded-xl border border-black/15 bg-white/80 px-4 py-1.5 text-[12px] font-semibold text-ink shadow-xs hover:bg-white transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Eye size={13} />
+                    Save & Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => saveCurrentNoteChanges(true)}
+                    className="rounded-xl bg-forest px-4.5 py-1.5 text-[12px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {editIsEncrypted && <Lock size={13} />}
+                    Done
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("edit")}
+                  className="rounded-xl bg-forest px-4.5 py-1.5 text-[12px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Edit3 size={13} />
+                  Edit Note
+                </button>
+              )}
             </div>
           </div>
         </div>
