@@ -12,7 +12,7 @@ export type Task = {
   meta: string;
   checked: boolean;
   priority: boolean;
-  category?: "work" | "personal" | "meeting" | "urgent";
+  category?: "work" | "personal" | "meeting" | "urgent" | "project" | "travel";
   dueDate?: string;
   createdAt: number;
   subtasks?: SubTask[];

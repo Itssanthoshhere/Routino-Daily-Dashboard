@@ -1,4 +1,4 @@
-import type { DashboardEvent } from "@/types/dashboard";
+import type { DashboardEvent, Task } from "@/types/dashboard";
 
 /**
  * Checks if a URL is a genuine video conferencing link (Google Meet, Zoom, Teams, Webex, Skype)
@@ -96,13 +96,13 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "TRAVEL", color: "#0284c7" };
   }
 
-  // 2. PROJECT / BUILD (project, website, building app, portfolio, dev, coding)
+  // 2. PROJECT / BUILD / PRODUCT (project, product, website, building app, portfolio, dev, coding)
   if (
-    /\b(project|website|building|portfolio|coding|code|dev|develop|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo)\b/i.test(
+    /\b(project|projects|product|products|website|building|portfolio|coding|code|dev|develop|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo)\b/i.test(
       summary
     ) ||
-    /\b([a-z0-9_-]+\s+app|app\s+dev|build|spendo)\b/i.test(summary) ||
-    (/\b(project|website|building|portfolio|coding|dev|dashboard|api)\b/i.test(cleanDesc) &&
+    /\b([a-z0-9_-]+\s+app|app\s+dev|build|spendo|ios\s+app|android\s+app|web\s+app)\b/i.test(summary) ||
+    (/\b(project|projects|product|products|website|building|portfolio|coding|dev|dashboard|api)\b/i.test(cleanDesc) &&
       !/\bcalendar\b/i.test(cleanDesc))
   ) {
     return { tag: "PROJECT", color: "#7c3aed" };
@@ -129,4 +129,56 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
   }
 
   return { tag: event.tag || "WORK", color: event.color || "#16a34a" };
+}
+
+/**
+ * Automatically infers a task's category from its title and explicit selection.
+ * Handles Project/Product work, Travel/Flights, Meetings, Urgent, Personal, and Work.
+ */
+export function inferTaskCategory(
+  title: string,
+  explicitCategory?: Task["category"]
+): NonNullable<Task["category"]> {
+  // If user explicitly picked project, travel, meeting, personal, urgent, keep it
+  if (explicitCategory && explicitCategory !== "work") {
+    return explicitCategory;
+  }
+
+  const clean = title.toLowerCase().trim();
+
+  // 1. TRAVEL (highest priority: flights, trains, hotel bookings, airport, trips)
+  if (
+    /\b(flight|train|hotel|airport|airline|boarding|terminal|travel|trip|stay|vacation|departure|arrival|transit|ticket)\b/i.test(
+      clean
+    ) ||
+    /\b(6e|ai|uk|sg|g8|ix|qp)\s*\d{2,4}\b/i.test(clean)
+  ) {
+    return "travel";
+  }
+
+  // 2. PROJECT / PRODUCT / BUILD
+  if (
+    /\b(project|projects|product|products|website|app|apps|building|build|portfolio|coding|code|dev|develop|developer|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo|spendo)\b/i.test(
+      clean
+    )
+  ) {
+    return "project";
+  }
+
+  // 3. MEETING
+  if (/\b(meeting|sync|standup|1:1|call|interview|demo|huddle|discussion)\b/i.test(clean)) {
+    return "meeting";
+  }
+
+  // 4. URGENT
+  if (/\b(urgent|asap|priority|crucial|critical|emergency|due today)\b/i.test(clean)) {
+    return "urgent";
+  }
+
+  // 5. PERSONAL
+  if (/\b(doctor|dentist|gym|workout|dinner|lunch|groceries|shopping|movie|family|salon)\b/i.test(clean)) {
+    return "personal";
+  }
+
+  return explicitCategory || "work";
 }

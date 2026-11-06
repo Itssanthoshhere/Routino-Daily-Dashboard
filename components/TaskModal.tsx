@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, AlertCircle, CheckSquare, Trash2 } from "lucide-react";
+import { Plus, X, AlertCircle, CheckSquare, Trash2, Plane, Sparkles } from "lucide-react";
 import { Task, SubTask } from "@/types/dashboard";
+import { inferTaskCategory } from "@/lib/meeting";
 
 type TaskModalProps = {
   isOpen: boolean;
@@ -14,7 +15,8 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
   const [title, setTitle] = useState("");
   const [meta, setMeta] = useState("");
   const [priority, setPriority] = useState(false);
-  const [category, setCategory] = useState<"work" | "personal" | "meeting" | "urgent">("work");
+  const [category, setCategory] = useState<"work" | "personal" | "meeting" | "urgent" | "project" | "travel">("work");
+  const [hasUserPickedCategory, setHasUserPickedCategory] = useState(false);
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [subtaskInput, setSubtaskInput] = useState("");
 
@@ -35,21 +37,36 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
     setSubtasks((prev) => prev.filter((s) => s.id !== id));
   };
 
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (!hasUserPickedCategory && newTitle.trim().length > 0) {
+      const detected = inferTaskCategory(newTitle);
+      if (detected !== "work") {
+        setCategory(detected);
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
+    const finalCategory = category;
+    const catLabel = finalCategory === "project" ? "Project" : finalCategory === "travel" ? "Travel" : finalCategory.charAt(0).toUpperCase() + finalCategory.slice(1);
+
     onAddTask({
       title: title.trim(),
-      meta: meta.trim() || `Today · ${category.charAt(0).toUpperCase() + category.slice(1)}`,
+      meta: meta.trim() || `Today · ${catLabel}`,
       priority,
-      category,
+      category: finalCategory,
       subtasks: subtasks.length > 0 ? subtasks : undefined,
     });
 
     setTitle("");
     setMeta("");
     setPriority(false);
+    setCategory("work");
+    setHasUserPickedCategory(false);
     setSubtasks([]);
     setSubtaskInput("");
     onClose();
@@ -85,8 +102,8 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
               required
               autoFocus
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Finalize Q4 proposal"
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder="e.g. Building Spendo App / Flight to Chennai"
               className="mt-1.5 w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[13px] text-ink outline-none focus:border-forest transition"
             />
           </div>
@@ -104,13 +121,30 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-semibold text-ink mb-1.5">Category</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-semibold text-ink">Category</label>
+                {category === "project" && (
+                  <span className="rounded bg-[#f5f3ff] px-1.5 py-0.2 text-[8.5px] font-bold text-[#7c3aed] border border-[#ddd6fe]">
+                    PROJECT
+                  </span>
+                )}
+                {category === "travel" && (
+                  <span className="inline-flex items-center gap-0.5 rounded bg-[#f0f9ff] px-1.5 py-0.2 text-[8.5px] font-bold text-[#0284c7] border border-[#bae6fd]">
+                    <Plane size={9} /> TRAVEL
+                  </span>
+                )}
+              </div>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as "work" | "personal" | "meeting" | "urgent")}
+                onChange={(e) => {
+                  setCategory(e.target.value as "work" | "personal" | "meeting" | "urgent" | "project" | "travel");
+                  setHasUserPickedCategory(true);
+                }}
                 className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-[12px] text-ink outline-none focus:border-forest"
               >
                 <option value="work">Work</option>
+                <option value="project">Project / Product</option>
+                <option value="travel">Travel / Flight</option>
                 <option value="personal">Personal</option>
                 <option value="meeting">Meeting Prep</option>
                 <option value="urgent">Urgent</option>

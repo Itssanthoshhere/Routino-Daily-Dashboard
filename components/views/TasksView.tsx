@@ -14,8 +14,10 @@ import {
   ChevronDown,
   ChevronUp,
   CheckSquare,
+  Plane,
 } from "lucide-react";
 import { Task } from "@/types/dashboard";
+import { inferTaskCategory } from "@/lib/meeting";
 
 type TasksViewProps = {
   tasks: Task[];
@@ -35,9 +37,10 @@ export function TasksView({
   onToggleSubTask,
 }: TasksViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "completed" | "priority">("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "completed" | "priority" | "project" | "travel">("all");
   const [quickTitle, setQuickTitle] = useState("");
-  const [quickCategory, setQuickCategory] = useState<"work" | "personal" | "meeting" | "urgent">("work");
+  const [quickCategory, setQuickCategory] = useState<"work" | "personal" | "meeting" | "urgent" | "project" | "travel">("work");
+  const [hasUserChangedCategory, setHasUserChangedCategory] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
   const toggleExpand = (id: string) => {
@@ -45,20 +48,37 @@ export function TasksView({
   };
 
   const doneCount = tasks.filter((t) => t.checked).length;
+  const projectTasksCount = tasks.filter((t) => t.category === "project").length;
+  const travelTasksCount = tasks.filter((t) => t.category === "travel").length;
   const progressPercent = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
+
+  const handleTitleChange = (val: string) => {
+    setQuickTitle(val);
+    if (!hasUserChangedCategory && val.trim().length > 0) {
+      const detected = inferTaskCategory(val);
+      if (detected !== "work") {
+        setQuickCategory(detected);
+      }
+    }
+  };
 
   const handleQuickAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickTitle.trim()) return;
 
+    const finalCat = quickCategory;
+    const catLabel = finalCat === "project" ? "Project" : finalCat === "travel" ? "Travel" : finalCat.charAt(0).toUpperCase() + finalCat.slice(1);
+
     onAddTask({
       title: quickTitle.trim(),
-      meta: `Today · ${quickCategory.charAt(0).toUpperCase() + quickCategory.slice(1)}`,
-      priority: quickCategory === "urgent",
-      category: quickCategory,
+      meta: `Today · ${catLabel}`,
+      priority: finalCat === "urgent",
+      category: finalCat,
     });
 
     setQuickTitle("");
+    setQuickCategory("work");
+    setHasUserChangedCategory(false);
   };
 
   const filteredTasks = tasks.filter((t) => {
@@ -69,6 +89,8 @@ export function TasksView({
     if (selectedFilter === "active") return !t.checked;
     if (selectedFilter === "completed") return t.checked;
     if (selectedFilter === "priority") return t.priority;
+    if (selectedFilter === "project") return t.category === "project";
+    if (selectedFilter === "travel") return t.category === "travel";
     return true;
   });
 
@@ -114,24 +136,29 @@ export function TasksView({
         <input
           type="text"
           value={quickTitle}
-          onChange={(e) => setQuickTitle(e.target.value)}
-          placeholder="Add a task quickly (e.g. 'Draft quarterly report')..."
+          onChange={(e) => handleTitleChange(e.target.value)}
+          placeholder="Add a task quickly (e.g. 'Building Spendo App' or 'Flight to Chennai')..."
           className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-ink outline-none placeholder:text-muted"
         />
         <div className="flex items-center gap-2">
           <select
             value={quickCategory}
-            onChange={(e) => setQuickCategory(e.target.value as "work" | "personal" | "meeting" | "urgent")}
+            onChange={(e) => {
+              setQuickCategory(e.target.value as "work" | "personal" | "meeting" | "urgent" | "project" | "travel");
+              setHasUserChangedCategory(true);
+            }}
             className="flex-1 sm:flex-initial rounded-xl border border-line bg-[#fbfcf8] px-2.5 py-1.5 text-[11px] text-ink outline-none"
           >
             <option value="work">Work</option>
+            <option value="project">Project / Product</option>
+            <option value="travel">Travel / Flight</option>
             <option value="personal">Personal</option>
             <option value="meeting">Meeting</option>
             <option value="urgent">Urgent</option>
           </select>
           <button
             type="submit"
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition cursor-pointer"
           >
             <Plus size={13} /> Add
           </button>
@@ -154,7 +181,7 @@ export function TasksView({
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setSelectedFilter("all")}
-            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
+            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
               selectedFilter === "all"
                 ? "bg-forest text-white"
                 : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
@@ -164,7 +191,7 @@ export function TasksView({
           </button>
           <button
             onClick={() => setSelectedFilter("active")}
-            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
+            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
               selectedFilter === "active"
                 ? "bg-forest text-white"
                 : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
@@ -172,25 +199,49 @@ export function TasksView({
           >
             Active ({tasks.length - doneCount})
           </button>
-          <button
-            onClick={() => setSelectedFilter("completed")}
-            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
-              selectedFilter === "completed"
-                ? "bg-forest text-white"
-                : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
-            }`}
-          >
-            Completed ({doneCount})
-          </button>
+          {projectTasksCount > 0 && (
+            <button
+              onClick={() => setSelectedFilter("project")}
+              className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+                selectedFilter === "project"
+                  ? "bg-[#7c3aed] text-white"
+                  : "bg-white border border-[#ddd6fe] text-[#7c3aed] hover:bg-[#f5f3ff]"
+              }`}
+            >
+              Projects ({projectTasksCount})
+            </button>
+          )}
+          {travelTasksCount > 0 && (
+            <button
+              onClick={() => setSelectedFilter("travel")}
+              className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+                selectedFilter === "travel"
+                  ? "bg-[#0284c7] text-white"
+                  : "bg-white border border-[#bae6fd] text-[#0284c7] hover:bg-[#f0f9ff]"
+              }`}
+            >
+              <Plane size={11} /> Travel ({travelTasksCount})
+            </button>
+          )}
           <button
             onClick={() => setSelectedFilter("priority")}
-            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
+            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
               selectedFilter === "priority"
                 ? "bg-forest text-white"
                 : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
             }`}
           >
             Priority
+          </button>
+          <button
+            onClick={() => setSelectedFilter("completed")}
+            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+              selectedFilter === "completed"
+                ? "bg-forest text-white"
+                : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
+            }`}
+          >
+            Completed ({doneCount})
           </button>
         </div>
       </div>
@@ -238,9 +289,13 @@ export function TasksView({
                           <span>{task.meta}</span>
                           {task.category && (
                             <span
-                              className={`rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${
+                              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${
                                 task.category === "urgent"
                                   ? "bg-[#fce8e6] text-[#c05746]"
+                                  : task.category === "project"
+                                  ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
+                                  : task.category === "travel"
+                                  ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
                                   : task.category === "meeting"
                                   ? "bg-[#edf0ff] text-[#6d76b1]"
                                   : task.category === "personal"
@@ -248,6 +303,7 @@ export function TasksView({
                                   : "bg-[#f1f2ee] text-[#808a81]"
                               }`}
                             >
+                              {task.category === "travel" && <Plane size={9} />}
                               {task.category}
                             </span>
                           )}

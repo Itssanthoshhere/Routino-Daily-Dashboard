@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Sun, Moon, CheckCircle2, Sparkles, Plus, ArrowRight, Flame } from "lucide-react";
 import type { Task, Habit } from "@/types/dashboard";
+import { inferTaskCategory } from "@/lib/meeting";
 
 type DailyRoutineModalProps = {
   isOpen: boolean;
@@ -47,13 +48,16 @@ export function DailyRoutineModal({
     e.preventDefault();
     const priorities = [priority1, priority2, priority3].filter((p) => p.trim().length > 0);
     priorities.forEach((text, i) => {
+      const inferred = inferTaskCategory(text.trim());
+      const category = (inferred === "project" || inferred === "travel") ? inferred : "urgent";
+      const catLabel = category === "project" ? "Project Focus" : category === "travel" ? "Travel Focus" : "Daily Focus";
       onAddTask({
         id: `routine-task-${Date.now()}-${i}`,
         title: text.trim(),
-        meta: "High Priority · Daily Focus",
+        meta: `High Priority · ${catLabel}`,
         checked: false,
         priority: true,
-        category: "urgent",
+        category,
         createdAt: Date.now(),
       });
     });

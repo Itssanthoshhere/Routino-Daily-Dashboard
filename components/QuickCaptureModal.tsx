@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Zap, CheckSquare, StickyNote, PenTool, Sparkles, Check } from "lucide-react";
+import { X, Zap, CheckSquare, StickyNote, PenTool, Sparkles, Check, Plane } from "lucide-react";
 import type { Task, KeepNote } from "@/types/dashboard";
+import { inferTaskCategory } from "@/lib/meeting";
 
 type CaptureType = "task" | "note" | "scratchpad";
 
@@ -24,6 +25,7 @@ export function QuickCaptureModal({
   const [type, setType] = useState<CaptureType>("task");
   const [text, setText] = useState("");
   const [isPriority, setIsPriority] = useState(false);
+  const [manualCategory, setManualCategory] = useState<Task["category"] | null>(null);
   const [noteColor, setNoteColor] = useState<KeepNote["color"]>("default");
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -33,6 +35,7 @@ export function QuickCaptureModal({
     if (isOpen) {
       setText("");
       setIsPriority(false);
+      setManualCategory(null);
       setSavedSuccess(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
@@ -40,18 +43,21 @@ export function QuickCaptureModal({
 
   if (!isOpen) return null;
 
+  const currentCategory: NonNullable<Task["category"]> = manualCategory || (text.trim() ? inferTaskCategory(text.trim()) : (isPriority ? "urgent" : "work"));
+
   const handleCapture = (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
 
     if (type === "task") {
+      const catLabel = currentCategory === "project" ? "Project" : currentCategory === "travel" ? "Travel" : currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1);
       onAddTask({
         id: "task-quick-" + Date.now(),
         title: text.trim(),
-        meta: isPriority ? "High Priority · Quick Capture" : "Captured via Quick Hotkey (Q)",
+        meta: isPriority ? `High Priority · ${catLabel}` : `Today · ${catLabel}`,
         checked: false,
         priority: isPriority,
-        category: isPriority ? "urgent" : "work",
+        category: currentCategory,
         createdAt: Date.now(),
       });
     } else if (type === "note") {
@@ -148,15 +154,40 @@ export function QuickCaptureModal({
           {/* Contextual Options */}
           <div className="flex items-center justify-between pt-1">
             {type === "task" ? (
-              <label className="flex items-center gap-2 cursor-pointer text-[11px] font-medium text-ink">
-                <input
-                  type="checkbox"
-                  checked={isPriority}
-                  onChange={(e) => setIsPriority(e.target.checked)}
-                  className="rounded border-line text-forest focus:ring-forest cursor-pointer"
-                />
-                <span>Mark as High Priority</span>
-              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-medium text-ink">
+                  <input
+                    type="checkbox"
+                    checked={isPriority}
+                    onChange={(e) => setIsPriority(e.target.checked)}
+                    className="rounded border-line text-forest focus:ring-forest cursor-pointer"
+                  />
+                  <span>High Priority</span>
+                </label>
+                <div className="flex items-center gap-1">
+                  {(["work", "project", "travel", "urgent"] as const).map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setManualCategory(cat)}
+                      className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase transition cursor-pointer ${
+                        currentCategory === cat
+                          ? cat === "project"
+                            ? "bg-[#7c3aed] text-white"
+                            : cat === "travel"
+                            ? "bg-[#0284c7] text-white"
+                            : cat === "urgent"
+                            ? "bg-[#c05746] text-white"
+                            : "bg-forest text-white"
+                          : "bg-black/5 text-muted hover:text-ink"
+                      }`}
+                    >
+                      {cat === "travel" && <Plane size={9} />}
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : type === "note" ? (
               <div className="flex items-center gap-1.5">
                 {(["default", "yellow", "green", "blue", "peach", "purple"] as const).map((c) => (

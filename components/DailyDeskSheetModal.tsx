@@ -205,9 +205,21 @@ export function DailyDeskSheetModal({
                           </span>
                           <div className="min-w-0 flex-1">
                             {task ? (
-                              <span className="font-semibold text-[11px] truncate block text-ink">
-                                {task.title}
-                              </span>
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="font-semibold text-[11px] truncate text-ink">
+                                  {task.title}
+                                </span>
+                                {task.category === "project" && (
+                                  <span className="rounded bg-[#f5f3ff] px-1 py-0.2 text-[7.5px] font-bold text-[#7c3aed] border border-[#ddd6fe] shrink-0 uppercase">
+                                    Project
+                                  </span>
+                                )}
+                                {task.category === "travel" && (
+                                  <span className="inline-flex items-center gap-0.5 rounded bg-[#f0f9ff] px-1 py-0.2 text-[7.5px] font-bold text-[#0284c7] border border-[#bae6fd] shrink-0 uppercase">
+                                    <Plane size={8} /> Travel
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <div className="border-b border-black/15 border-dashed h-3.5 w-full" />
                             )}
@@ -234,6 +246,16 @@ export function DailyDeskSheetModal({
                       <div key={t.id} className="flex items-center gap-2 text-[10.5px]">
                         <span className="h-3 w-3 rounded border border-black/40 shrink-0" />
                         <span className="truncate flex-1 font-medium text-ink">{t.title}</span>
+                        {t.category === "project" && (
+                          <span className="rounded bg-[#f5f3ff] px-1 py-0.2 text-[7px] font-bold text-[#7c3aed] border border-[#ddd6fe] shrink-0 uppercase">
+                            Project
+                          </span>
+                        )}
+                        {t.category === "travel" && (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-[#f0f9ff] px-1 py-0.2 text-[7px] font-bold text-[#0284c7] border border-[#bae6fd] shrink-0 uppercase">
+                            <Plane size={7} /> Travel
+                          </span>
+                        )}
                       </div>
                     ))}
 

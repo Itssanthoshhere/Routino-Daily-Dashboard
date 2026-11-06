@@ -42,7 +42,7 @@ import { NotesView } from "@/components/views/NotesView";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
-import { getMeetingUrl, inferEventCategory } from "@/lib/meeting";
+import { getMeetingUrl, inferEventCategory, inferTaskCategory } from "@/lib/meeting";
 
 /* ─── Sample / seed data ────────────────────────────────────────── */
 
@@ -111,7 +111,7 @@ const seedTasks: Task[] = [
     meta: "Before project review · 11:00 AM",
     checked: false,
     priority: true,
-    category: "work",
+    category: "project",
     createdAt: 1,
     subtasks: [
       { id: "st-1", title: "Outline key milestones", completed: true },
@@ -121,7 +121,7 @@ const seedTasks: Task[] = [
   },
   { id: "t-2", title: "Reply to Riya about the scope", meta: "Today · Email follow-up", checked: false, priority: false, category: "personal", createdAt: 2 },
   { id: "t-3", title: "Send invoice to finance", meta: "Due Friday · 2 days left", checked: false, priority: false, category: "urgent", createdAt: 3 },
-  { id: "t-4", title: "Block focus time for roadmap", meta: "Suggested · 90 min", checked: true, priority: false, category: "work", createdAt: 4 },
+  { id: "t-4", title: "Block focus time for roadmap", meta: "Suggested · 90 min", checked: true, priority: false, category: "project", createdAt: 4 },
 ];
 
 const seedHabits: Habit[] = [
@@ -327,7 +327,22 @@ export default function Home() {
     try {
       const storedTasks = localStorage.getItem("routino_tasks");
       if (storedTasks !== null) {
-        setTasks(JSON.parse(storedTasks));
+        const parsed = JSON.parse(storedTasks);
+        if (Array.isArray(parsed)) {
+          const migrated = parsed.map((t: Task) => {
+            if (!t.category || t.category === "work" || t.category === "personal") {
+              const detected = inferTaskCategory(t.title);
+              if (detected === "project" || detected === "travel") {
+                const updatedMeta = t.meta && (t.meta.includes("Personal") || t.meta.includes("Work"))
+                  ? t.meta.replace(/Personal|Work/g, detected === "project" ? "Project" : "Travel")
+                  : t.meta;
+                return { ...t, category: detected, meta: updatedMeta };
+              }
+            }
+            return t;
+          });
+          setTasks(migrated);
+        }
       }
 
       const storedLinks = localStorage.getItem("routino_links");
@@ -770,8 +785,20 @@ export default function Home() {
         if (res.exists && res.data) {
           const d = res.data;
           if (Array.isArray(d.tasks) && d.tasks.length > 0) {
-            setTasks(d.tasks);
-            try { localStorage.setItem("routino_tasks", JSON.stringify(d.tasks)); } catch {}
+            const migrated = d.tasks.map((t: Task) => {
+              if (!t.category || t.category === "work" || t.category === "personal") {
+                const detected = inferTaskCategory(t.title);
+                if (detected === "project" || detected === "travel") {
+                  const updatedMeta = t.meta && (t.meta.includes("Personal") || t.meta.includes("Work"))
+                    ? t.meta.replace(/Personal|Work/g, detected === "project" ? "Project" : "Travel")
+                    : t.meta;
+                  return { ...t, category: detected, meta: updatedMeta };
+                }
+              }
+              return t;
+            });
+            setTasks(migrated);
+            try { localStorage.setItem("routino_tasks", JSON.stringify(migrated)); } catch {}
           }
           if (Array.isArray(d.customEvents)) {
             setCustomEvents(d.customEvents);
@@ -934,7 +961,13 @@ export default function Home() {
   };
 
   const addTask = (data: Omit<Task, "id" | "checked" | "createdAt">) => {
-    const newTask: Task = { ...data, id: "t-" + Date.now(), checked: false, createdAt: Date.now() };
+    const finalCategory = inferTaskCategory(data.title, data.category);
+    let finalMeta = data.meta;
+    if (!finalMeta || finalMeta === "Today · Work" || finalMeta === "Today · Quick Capture") {
+      const catLabel = finalCategory === "project" ? "Project" : finalCategory === "travel" ? "Travel" : finalCategory.charAt(0).toUpperCase() + finalCategory.slice(1);
+      finalMeta = `Today · ${catLabel}`;
+    }
+    const newTask: Task = { ...data, category: finalCategory, meta: finalMeta, id: "t-" + Date.now(), checked: false, createdAt: Date.now() };
     setTasks(prev => {
       const next = [newTask, ...prev];
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
@@ -1594,12 +1627,17 @@ export default function Home() {
                                 <span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[#98a198]">
                                   {task.meta}
                                   {task.category && (
-                                    <span className={`rounded px-1 py-0.5 text-[8px] font-bold ${
+                                    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold ${
                                       task.category === "urgent" ? "bg-[#fce8e6] text-[#c05746]" :
+                                      task.category === "project" ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]" :
+                                      task.category === "travel" ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]" :
                                       task.category === "meeting" ? "bg-[#edf0ff] text-[#6d76b1]" :
                                       task.category === "personal" ? "bg-[#eaf3e9] text-[#648266]" :
                                       "bg-[#f1f2ee] text-[#808a81]"
-                                    }`}>{task.category.toUpperCase()}</span>
+                                    }`}>
+                                      {task.category === "travel" && <Plane size={8} />}
+                                      {task.category.toUpperCase()}
+                                    </span>
                                   )}
                                   {hasSubtasks && (
                                     <button
