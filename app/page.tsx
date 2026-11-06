@@ -23,6 +23,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { MobileSidebar } from "@/components/MobileSidebar";
 import { GoogleSetupModal } from "@/components/GoogleSetupModal";
 import { GoogleDriveFilesCard } from "@/components/GoogleDriveFilesCard";
+import { UpNextMeetingBanner } from "@/components/UpNextMeetingBanner";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
@@ -1305,6 +1306,11 @@ export default function Home() {
           ) : (
             /* ─── OVERVIEW DASHBOARD VIEW ─── */
             <>
+              {/* Up next meeting quick-join banner */}
+              <div className="mb-5">
+                <UpNextMeetingBanner events={allEvents} />
+              </div>
+
               {/* Page heading */}
               <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
                 <div>
