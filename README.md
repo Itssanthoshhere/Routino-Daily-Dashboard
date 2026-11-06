@@ -10,7 +10,7 @@
       <img src="https://img.shields.io/badge/Stack-Next.js_·_TypeScript_·_Tailwind-1f2937?style=for-the-badge" alt="Next.js, TypeScript, and Tailwind CSS" />
     </a>
     <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
-      <img src="https://img.shields.io/badge/Google_Access-Gmail_&_Calendar_Read--Only-6f8a61?style=for-the-badge&logo=google&logoColor=white" alt="Read-only Gmail and Google Calendar access" />
+      <img src="https://img.shields.io/badge/Google_Access-Gmail,_Calendar_&_Drive_Metadata-6f8a61?style=for-the-badge&logo=google&logoColor=white" alt="Read-only Gmail, Calendar, and Drive metadata access" />
     </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT License" />
@@ -29,7 +29,7 @@
   <br /><br />
 
   <p align="center">
-    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and the week ahead. Integrates with Google Calendar, Gmail, and Microsoft Outlook (Mail & Calendar via Graph API). Google Drive and Google Sites are not integrated.</em>
+    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and the week ahead. Integrates with Google Calendar, Gmail, read-only Google Drive file metadata, LinkedIn profile, and Microsoft Outlook (Mail & Calendar via Graph API). Google Sites is not integrated.</em>
   </p>
 
   <p align="center">
@@ -124,18 +124,21 @@ The app requests basic Google sign-in identity scopes and these read-only scopes
 
 - `https://www.googleapis.com/auth/calendar.readonly`
 - `https://www.googleapis.com/auth/gmail.readonly`
+- `https://www.googleapis.com/auth/drive.metadata.readonly`
 
-OAuth access and refresh tokens are kept in the encrypted, HTTP-only Auth.js JWT session cookie. Tokens are not exposed through the browser-visible session, placed in local storage, or committed to this repository. The authenticated `/api/dashboard` route calls Google from the server and returns only the event data and limited email metadata needed by the page. The app does not persist OAuth tokens or dashboard data in a database. Access-token refreshes happen server-side.
+Google OAuth access and refresh tokens are kept in the encrypted, HTTP-only Auth.js JWT session cookie. Tokens are not exposed through the browser-visible session, placed in local storage, or committed to this repository. Authenticated server routes call Google and return only the calendar events, limited email details, and Drive file metadata needed by the page. Drive file metadata is not persisted in Routino's database. Google access-token refreshes happen server-side.
 
-Google’s OAuth consent screen may display an unverified-app warning while the app is in testing. Add the intended account as a test user in Google Cloud Console. The account holder must sign in and approve the requested scopes before personal Calendar or Gmail data can appear.
+Google’s OAuth consent screen may display an unverified-app warning while the app is in testing. Add the intended account as a test user in Google Cloud Console. The account holder must sign in and approve the requested scopes before personal Calendar, Gmail, or Drive metadata can appear.
 
-**Not integrated:** Google Drive and Google Sites.
+Routino also requests `https://www.googleapis.com/auth/drive.metadata.readonly` to list up to eight recently modified Drive items. It receives only file names, MIME types, modification dates, and view links; it does not read or download file contents. Google classifies this as a restricted Drive scope, so production publishing may require Google OAuth verification. Google Drive API must be enabled and the account must approve the additional scope.
+
+**Not integrated:** Google Sites.
 
 ## 🧩 Google OAuth Setup
 
 1. Create or select a project in [Google Cloud Console](https://console.cloud.google.com/).
-2. Enable **Gmail API** and **Google Calendar API**.
-3. Configure the Google Auth Platform consent screen. For a personal Google account, choose **External**, complete the required app details, and add the account under **Test users** while the app is in testing.
+2. Enable **Gmail API**, **Google Calendar API**, and **Google Drive API**.
+3. Configure the Google Auth Platform consent screen. For a personal Google account, choose **External**, complete the required app details, add the account under **Test users** while the app is in testing, and declare the Calendar, Gmail, and Drive metadata scopes listed above. Drive metadata scope is restricted and may require Google verification for a public production app.
 4. Create an OAuth client ID with application type **Web application**.
 5. Add these exact **Authorized redirect URIs**:
 
@@ -302,7 +305,7 @@ vercel --prod
 ## 🧭 Current Integration Limits
 
 - Gmail and Google Calendar are read-only.
-- Google Drive and Google Sites are not integrated.
+- Drive listing is read-only and returns names, MIME types, modification dates, and view links; Routino does not fetch file contents. Google Sites is not integrated.
 - Tasks, scheduled custom events, and focus targets are stored in browser `localStorage` and automatically synchronized with the account database via `/api/user-data`.
 - Google OAuth testing mode may limit access to configured test users until any required Google review is completed.
 

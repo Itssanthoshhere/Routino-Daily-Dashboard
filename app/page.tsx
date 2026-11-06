@@ -22,6 +22,7 @@ import { UserMenuPopover } from "@/components/UserMenuPopover";
 import { CommandPalette } from "@/components/CommandPalette";
 import { MobileSidebar } from "@/components/MobileSidebar";
 import { GoogleSetupModal } from "@/components/GoogleSetupModal";
+import { GoogleDriveFilesCard } from "@/components/GoogleDriveFilesCard";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
@@ -121,7 +122,7 @@ const seedLinks: QuickLink[] = [
   { id: "ql-4", title: "LinkedIn", subtitle: "thesanthoshvs", url: appConfig.links.linkedin, iconName: "linkedin", available: true },
   { id: "ql-5", title: "GitHub", subtitle: "Itssanthoshhere", url: appConfig.links.github, iconName: "github", available: true },
   { id: "ql-6", title: "Portfolio", subtitle: "santhosh-vs-portfolio", url: appConfig.links.portfolio, iconName: "globe", available: true },
-  { id: "ql-7", title: "Google Drive", subtitle: "Not integrated", url: "#", iconName: "drive", available: false },
+  { id: "ql-7", title: "Google Drive", subtitle: "Recent files", url: "https://drive.google.com/drive/my-drive", iconName: "drive", available: true },
   { id: "ql-8", title: "Google Sites", subtitle: "Not integrated", url: "#", iconName: "sites", available: false },
 ];
 
@@ -1256,7 +1257,7 @@ export default function Home() {
               <span className="mt-0.5 text-[#b28948]"><TriangleAlert size={16} /></span>
               <div className="min-w-0 flex-1">
                 <p className="text-[12px] font-semibold text-[#715a31]">{liveData?.error ? "Google data needs attention" : (isConnected ? "Your accounts are connected" : "Connect your accounts to see your real day")}</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-[#927e58]">{liveData?.error ?? (isConnected ? "Calendar and Gmail data are live. Tasks are stored locally in this browser. Drive and Sites aren't integrated." : "You're viewing sample content. Gmail and Calendar will populate after secure Google sign-in. Drive and Sites aren't integrated.")}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-[#927e58]">{liveData?.error ?? (isConnected ? "Calendar, Gmail, and approved Drive file metadata are available. Tasks are stored locally in this browser." : "You're viewing sample content. Gmail, Calendar, and Drive metadata will populate after secure Google sign-in and consent.")}</p>
               </div>
               {!isConnected && (
                 <form action={connectGoogle} className="hidden shrink-0 sm:inline-flex">
@@ -1732,6 +1733,7 @@ export default function Home() {
                     })}
                   </div>
                 </section>
+                <GoogleDriveFilesCard googleConnected={Boolean(liveData?.connected)} />
               </div>
             </>
           )}
@@ -1739,7 +1741,7 @@ export default function Home() {
           {/* Footer */}
           <footer className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-line pt-5 text-[9px] text-[#9ca69d] sm:flex-row">
             <span>{appConfig.name.toLowerCase()} · {appConfig.tagline}</span>
-            <span className="flex items-center gap-2"><span>Private by design</span><span>·</span><span>Google Drive & Sites not integrated</span></span>
+            <span className="flex items-center gap-2"><span>Private by design</span><span>·</span><span>Google Sites not integrated</span></span>
           </footer>
         </div>
       </main>
