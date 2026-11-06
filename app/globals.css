@@ -85,3 +85,77 @@ button, a {
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background-color: #c7ceb4;
 }
+
+/* ─── Print Styles for Single-Page Daily Desk Sheet ─────────────── */
+@media print {
+  @page {
+    size: portrait;
+    margin: 8mm 10mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* When printing the Desk Sheet: hide the entire background app */
+  body.printing-desk-sheet aside,
+  body.printing-desk-sheet header,
+  body.printing-desk-sheet main,
+  body.printing-desk-sheet footer,
+  body.printing-desk-sheet nav,
+  body.printing-desk-sheet [role="dialog"]:not(#desk-sheet-print-modal) {
+    display: none !important;
+  }
+
+  /* The desk sheet modal itself becomes a static 1-page document */
+  #desk-sheet-print-modal {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  #desk-sheet-modal-dialog {
+    position: static !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #desk-sheet-paper {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .desk-sheet-no-print {
+    display: none !important;
+  }
+}
