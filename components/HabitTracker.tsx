@@ -17,10 +17,12 @@ import {
   Brain,
   CheckCircle2,
   SlidersHorizontal,
+  BarChart3,
 } from "lucide-react";
 import { Habit } from "@/types/dashboard";
 import { HabitModal } from "@/components/HabitModal";
 import { HabitsManagerModal } from "@/components/HabitsManagerModal";
+import { WeeklyInsightsPanel } from "./WeeklyInsightsPanel";
 
 export const HABIT_ICON_MAP: Record<string, React.ElementType> = {
   flame: Flame,
@@ -61,6 +63,7 @@ export function HabitTracker({
   const [showHabitModal, setShowHabitModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [showManagerModal, setShowManagerModal] = useState(false);
+  const [showWeeklyInsights, setShowWeeklyInsights] = useState(false);
 
   const todayStr = getLocalDateString();
 
@@ -131,6 +134,19 @@ export function HabitTracker({
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowWeeklyInsights(!showWeeklyInsights)}
+            title="Toggle weekly habit consistency insights"
+            className={`flex items-center gap-1.5 rounded-xl border border-line px-2.5 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+              showWeeklyInsights
+                ? "bg-forest text-white shadow-2xs"
+                : "bg-[#fbfcf9] text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink"
+            }`}
+          >
+            <BarChart3 size={13} />
+            <span className="hidden sm:inline">{showWeeklyInsights ? "Hide Insights" : "Weekly Insights"}</span>
+          </button>
           <button
             type="button"
             onClick={() => setShowManagerModal(true)}
@@ -288,6 +304,9 @@ export function HabitTracker({
           </button>
         )}
       </div>
+
+      {/* Collapsible 7-day Weekly Habit & Routine Insights */}
+      {showWeeklyInsights && <WeeklyInsightsPanel habits={habits} />}
 
       {/* Habit Create / Edit Modal */}
       <HabitModal
