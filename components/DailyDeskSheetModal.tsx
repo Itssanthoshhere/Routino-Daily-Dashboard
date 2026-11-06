@@ -11,6 +11,7 @@ import {
   Sparkles,
   Droplets,
   HeartHandshake,
+  Plane,
 } from "lucide-react";
 import type { Task, DashboardEvent, Habit } from "@/types/dashboard";
 import { appConfig } from "@/lib/config";
@@ -323,9 +324,17 @@ export function DailyDeskSheetModal({
                             <span className="font-bold text-muted text-[9.5px] w-14 shrink-0">
                               {timeStr}
                             </span>
-                            <span className="font-semibold text-ink truncate flex-1">
-                              {ev.summary || "Event"}
-                            </span>
+                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                              {ev.tag === "TRAVEL" && <Plane size={10} className="shrink-0 text-[#0284c7]" />}
+                              <span className="font-semibold text-ink truncate flex-1">
+                                {ev.summary || "Event"}
+                              </span>
+                              {ev.tag && (
+                                <span className="text-[8.5px] uppercase font-bold text-muted px-1 rounded bg-black/5 shrink-0 print:border print:border-black/20">
+                                  {ev.tag}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })

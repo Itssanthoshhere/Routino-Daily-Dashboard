@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Clock, Video, Calendar, ChevronDown, ChevronUp, MapPin, Moon } from "lucide-react";
+import { Clock, Video, Calendar, ChevronDown, ChevronUp, MapPin, Moon, Plane } from "lucide-react";
 import type { DashboardEvent } from "@/types/dashboard";
 import { getMeetingUrl } from "@/lib/meeting";
 
@@ -129,6 +129,8 @@ export function DayTimelineBar({
           isCurrent,
           isUpcoming,
           meetUrl,
+          tag: ev.tag,
+          color: ev.color,
           htmlLink: ev.htmlLink,
         };
       })
@@ -230,6 +232,10 @@ export function DayTimelineBar({
                     ? "bg-[#2563eb] ring-2 ring-[#2563eb]/40 animate-pulse"
                     : ev.isPast
                     ? "bg-[#cbd5e1]"
+                    : ev.tag === "TRAVEL"
+                    ? "bg-[#0284c7]"
+                    : ev.tag === "PROJECT"
+                    ? "bg-[#7c3aed]"
                     : ev.meetUrl
                     ? "bg-forest"
                     : "bg-[#d97706]"
@@ -264,6 +270,10 @@ export function DayTimelineBar({
                       >
                         <Video size={9} /> Join Meeting
                       </a>
+                    ) : ev.tag === "TRAVEL" ? (
+                      <span className="text-sky-300 flex items-center gap-0.5">
+                        <Plane size={9} /> Flight / Travel
+                      </span>
                     ) : ev.location ? (
                       <span className="text-amber-200 flex items-center gap-0.5">
                         <MapPin size={9} /> {ev.location}
@@ -344,6 +354,11 @@ export function DayTimelineBar({
                   <Video size={11} />
                   <span>Join Meeting</span>
                 </a>
+              ) : ev.tag === "TRAVEL" ? (
+                <span className="inline-flex items-center gap-1 rounded-lg bg-[#f0f9ff] border border-[#bae6fd] px-2 py-1 text-[10px] font-semibold text-[#0284c7] shrink-0">
+                  <Plane size={10} />
+                  <span>Travel</span>
+                </span>
               ) : ev.location ? (
                 <span className="inline-flex items-center gap-1 rounded-lg bg-[#fefce8] border border-[#fef08a] px-2 py-1 text-[10px] font-semibold text-[#854d0e] shrink-0">
                   <MapPin size={10} />
