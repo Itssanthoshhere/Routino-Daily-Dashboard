@@ -1081,86 +1081,93 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* ─── Sidebar (desktop) ─── */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col border-r border-line bg-[#fbfcf8] px-4 xl:px-5 py-4 xl:py-6 overflow-y-auto overscroll-contain sidebar-scroll pb-10 lg:flex">
-        <a href="#overview" onClick={() => handleSelectNav("Overview")} className="mb-4 xl:mb-7 flex items-center gap-3 px-1">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/favicon.svg" alt="Routino" className="h-8 w-8 xl:h-9 xl:w-9 rounded-[13px]" />
-          <span className="text-[15px] font-bold tracking-tight">{appConfig.name.toLowerCase()}<span className="text-[#9eaaa1]">.</span></span>
-        </a>
-        <p className="px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#a2aaa2]">Workspace</p>
-        <nav className="mt-2 xl:mt-3 space-y-0.5 xl:space-y-1">
-          {nav.map(({ icon: Icon, label }) => (
-            <button key={label} onClick={() => handleSelectNav(label)} className={"flex w-full items-center gap-3 rounded-xl px-3 py-2 xl:py-2.5 text-left text-[12px] xl:text-[13px] transition " + (activeNav === label ? "bg-[#fdf2f2] font-semibold text-forest" : "text-[#77827b] hover:bg-[#f1f3ed]")}>
-              <Icon size={16} />{label}
-              {label === "Inbox" && <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{mailItems.filter(m => !m.read).length}</span>}
-              {label === "Tasks" && <span className="ml-auto rounded-full bg-[#e8efe4] px-2 py-0.5 text-[10px] font-bold text-forest">{tasks.filter(t => !t.checked).length}</span>}
-              {label === "Notes" && notes.length > 0 && <span className="ml-auto rounded-full bg-[#fdf2f2] px-2 py-0.5 text-[10px] font-bold text-forest">{notes.length}</span>}
-            </button>
-          ))}
-          <button
-            onClick={() => setShowShortcuts(true)}
-            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[12px] text-[#77827b] hover:bg-[#f1f3ed] hover:text-ink transition"
-          >
-            <span className="flex items-center gap-3">
-              <Keyboard size={15} /> Shortcuts
-            </span>
-            <kbd className="rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted">?</kbd>
-          </button>
-        </nav>
-        <div className="mt-4 xl:mt-6">
-          <p className="px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#a2aaa2]">Connected apps</p>
-          <div className="mt-2 xl:mt-3 space-y-0.5 xl:space-y-1">
-            <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
-              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#4285f4] shadow-sm"><CalendarDays size={13} /></span>
-              Google Calendar
-              <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
-            </div>
-            <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
-              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#d86b5b] shadow-sm"><Mail size={13} /></span>
-              Gmail
-              <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
-            </div>
-            <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
-              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm"><CalendarDays size={13} /></span>
-              Outlook Calendar
-              <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (outlookData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
-            </div>
-            <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
-              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm"><Mail size={13} /></span>
-              Outlook Mail
-              <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (outlookData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 xl:mt-4 rounded-xl border border-dashed border-[#e2e6df] px-3 py-2 xl:py-2.5">
-          <p className="text-[10px] font-medium text-[#929c93]">Not connected</p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <span className="rounded-md bg-[#f1f2ee] px-2 py-0.5 text-[9px] text-[#808a81]">Drive</span>
-            <span className="rounded-md bg-[#f1f2ee] px-2 py-0.5 text-[9px] text-[#808a81]">Sites</span>
-          </div>
-        </div>
-        <div className="mt-4 xl:mt-auto shrink-0 rounded-2xl bg-forest p-3.5 xl:p-4 text-white shadow-sm">
-          <div className="mb-2 xl:mb-2.5 flex items-center gap-2 text-accent"><Sparkles size={14} /><span className="text-[11px] font-semibold">A calmer day</span></div>
-          <p className="text-[10px] xl:text-[11px] leading-relaxed text-white/70">{appConfig.tagline}</p>
-          <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-2.5">
-            {liveData?.user?.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={liveData.user.image} alt={liveData.user.name || "User"} className="h-6 w-6 rounded-full object-cover" />
-            ) : (
-              <div className="grid h-6 w-6 place-items-center rounded-full bg-[#f0c6ae] text-[10px] font-bold text-[#614d3f]">
-                {liveData?.user?.name ? liveData.user.name.charAt(0).toUpperCase() : appConfig.user.initial}
-              </div>
-            )}
-            <span className="text-[10px] xl:text-[11px] text-white/85 truncate">{liveData?.user?.name || appConfig.user.name}&apos;s workspace</span>
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col justify-between border-r border-line bg-[#fbfcf8] lg:flex">
+        {/* Scrollable upper navigation & apps area */}
+        <div className="flex-1 overflow-y-auto overscroll-contain sidebar-scroll px-4 xl:px-5 py-4 xl:py-6">
+          <a href="#overview" onClick={() => handleSelectNav("Overview")} className="mb-4 xl:mb-7 flex items-center gap-3 px-1">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/favicon.svg" alt="Routino" className="h-8 w-8 xl:h-9 xl:w-9 rounded-[13px]" />
+            <span className="text-[15px] font-bold tracking-tight">{appConfig.name.toLowerCase()}<span className="text-[#9eaaa1]">.</span></span>
+          </a>
+          <p className="px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#a2aaa2]">Workspace</p>
+          <nav className="mt-2 xl:mt-3 space-y-0.5 xl:space-y-1">
+            {nav.map(({ icon: Icon, label }) => (
+              <button key={label} onClick={() => handleSelectNav(label)} className={"flex w-full items-center gap-3 rounded-xl px-3 py-2 xl:py-2.5 text-left text-[12px] xl:text-[13px] transition " + (activeNav === label ? "bg-[#fdf2f2] font-semibold text-forest" : "text-[#77827b] hover:bg-[#f1f3ed]")}>
+                <Icon size={16} />{label}
+                {label === "Inbox" && <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{mailItems.filter(m => !m.read).length}</span>}
+                {label === "Tasks" && <span className="ml-auto rounded-full bg-[#e8efe4] px-2 py-0.5 text-[10px] font-bold text-forest">{tasks.filter(t => !t.checked).length}</span>}
+                {label === "Notes" && notes.length > 0 && <span className="ml-auto rounded-full bg-[#fdf2f2] px-2 py-0.5 text-[10px] font-bold text-forest">{notes.length}</span>}
+              </button>
+            ))}
             <button
-              type="button"
-              onClick={() => setShowPreferences(true)}
-              title="Workspace Preferences"
-              className="ml-auto shrink-0 rounded-lg p-1 text-white/70 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-              aria-label="Workspace Preferences"
+              onClick={() => setShowShortcuts(true)}
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[12px] text-[#77827b] hover:bg-[#f1f3ed] hover:text-ink transition"
             >
-              <MoreHorizontal size={14} />
+              <span className="flex items-center gap-3">
+                <Keyboard size={15} /> Shortcuts
+              </span>
+              <kbd className="rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[9px] font-mono font-bold text-muted">?</kbd>
             </button>
+          </nav>
+          <div className="mt-4 xl:mt-6">
+            <p className="px-2 text-[10px] font-semibold uppercase tracking-[.16em] text-[#a2aaa2]">Connected apps</p>
+            <div className="mt-2 xl:mt-3 space-y-0.5 xl:space-y-1">
+              <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
+                <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#4285f4] shadow-sm"><CalendarDays size={13} /></span>
+                Google Calendar
+                <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
+              </div>
+              <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
+                <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#d86b5b] shadow-sm"><Mail size={13} /></span>
+                Gmail
+                <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
+              </div>
+              <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
+                <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm"><CalendarDays size={13} /></span>
+                Outlook Calendar
+                <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (outlookData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
+              </div>
+              <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
+                <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm"><Mail size={13} /></span>
+                Outlook Mail
+                <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (outlookData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
+              </div>
+            </div>
+          </div>
+          <div className="mt-3.5 xl:mt-4 mb-4 rounded-xl border border-dashed border-[#e2e6df] px-3 py-2 xl:py-2.5">
+            <p className="text-[10px] font-medium text-[#929c93]">Not connected</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <span className="rounded-md bg-[#f1f2ee] px-2 py-0.5 text-[9px] text-[#808a81]">Drive</span>
+              <span className="rounded-md bg-[#f1f2ee] px-2 py-0.5 text-[9px] text-[#808a81]">Sites</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Sticky bottom "A calmer day" card area with clear separation gap */}
+        <div className="shrink-0 px-4 xl:px-5 pb-5 pt-3.5 border-t border-line/60 bg-[#fbfcf8]">
+          <div className="rounded-2xl bg-forest p-3.5 xl:p-4 text-white shadow-sm">
+            <div className="mb-2 xl:mb-2.5 flex items-center gap-2 text-accent"><Sparkles size={14} /><span className="text-[11px] font-semibold">A calmer day</span></div>
+            <p className="text-[10px] xl:text-[11px] leading-relaxed text-white/70">{appConfig.tagline}</p>
+            <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-2.5">
+              {liveData?.user?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={liveData.user.image} alt={liveData.user.name || "User"} className="h-6 w-6 rounded-full object-cover" />
+              ) : (
+                <div className="grid h-6 w-6 place-items-center rounded-full bg-[#f0c6ae] text-[10px] font-bold text-[#614d3f]">
+                  {liveData?.user?.name ? liveData.user.name.charAt(0).toUpperCase() : appConfig.user.initial}
+                </div>
+              )}
+              <span className="text-[10px] xl:text-[11px] text-white/85 truncate">{liveData?.user?.name || appConfig.user.name}&apos;s workspace</span>
+              <button
+                type="button"
+                onClick={() => setShowPreferences(true)}
+                title="Workspace Preferences"
+                className="ml-auto shrink-0 rounded-lg p-1 text-white/70 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                aria-label="Workspace Preferences"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            </div>
           </div>
         </div>
       </aside>

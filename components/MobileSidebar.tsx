@@ -182,7 +182,7 @@ export function MobileSidebar({
           </div>
         </div>
 
-        <div className="mt-auto rounded-2xl bg-forest p-4 text-white">
+        <div className="mt-6 rounded-2xl bg-forest p-4 text-white">
           <div className="mb-2 flex items-center justify-between text-accent">
             <div className="flex items-center gap-2">
               <Sparkles size={15} />
