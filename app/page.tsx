@@ -25,6 +25,7 @@ import { GoogleSetupModal } from "@/components/GoogleSetupModal";
 import { GoogleDriveFilesCard } from "@/components/GoogleDriveFilesCard";
 import { UpNextMeetingBanner } from "@/components/UpNextMeetingBanner";
 import { DailyRoutineModal } from "@/components/DailyRoutineModal";
+import { QuickScratchpadCard } from "@/components/QuickScratchpadCard";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
@@ -1749,7 +1750,22 @@ export default function Home() {
                     })}
                   </div>
                 </section>
+              </div>
+
+              {/* ─── Drive files + Quick Scratchpad row ─── */}
+              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2">
                 <GoogleDriveFilesCard googleConnected={Boolean(liveData?.connected)} />
+                <QuickScratchpadCard
+                  onSaveAsNote={(note) => {
+                    addNote(note);
+                    toast("Scratchpad saved to Notes!");
+                  }}
+                  onAddTask={(task) => {
+                    addTask(task);
+                    toast("Added as Task!");
+                  }}
+                  onNavigateToNotes={() => handleSelectNav("Notes")}
+                />
               </div>
             </>
           )}
