@@ -385,13 +385,17 @@ export function NotesView({
   const [isModalExpanded, setIsModalExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
+  // Auto-save State & Refs
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isFirstLoadOfNote = useRef(true);
+
   // File Input Refs
   const composeFileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const composeTextareaRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Formatting Insertion Helper
   // Formatting Insertion Helper with scroll & cursor preservation
   const applyFormatting = (
     textarea: HTMLTextAreaElement | null,
@@ -900,6 +904,8 @@ export function NotesView({
       return;
     }
 
+    isFirstLoadOfNote.current = true;
+    setAutoSaveStatus("idle");
     setEditingNote(note);
     setEditIsEncrypted(Boolean(note.isEncrypted));
     setEditPriority(note.priority || "none");
@@ -916,51 +922,130 @@ export function NotesView({
     }
   };
 
-  // Save changes from Edit Modal
-  const handleSaveEdit = async () => {
-    if (!editingNote) return;
+  // Ref to track latest editing values without stale closure delays
+  const latestEditStateRef = useRef({
+    note: editingNote,
+    content: editDecryptedContent,
+    checklist: editDecryptedChecklist,
+    imageUrl: editImageUrl,
+    priority: editPriority,
+    isEncrypted: editIsEncrypted,
+  });
 
-    let finalContent = editDecryptedContent.trim();
+  useEffect(() => {
+    latestEditStateRef.current = {
+      note: editingNote,
+      content: editDecryptedContent,
+      checklist: editDecryptedChecklist,
+      imageUrl: editImageUrl,
+      priority: editPriority,
+      isEncrypted: editIsEncrypted,
+    };
+  }, [
+    editingNote,
+    editDecryptedContent,
+    editDecryptedChecklist,
+    editImageUrl,
+    editPriority,
+    editIsEncrypted,
+  ]);
+
+  // Core save function (optionally closes modal)
+  const saveCurrentNoteChanges = async (closeModal = false) => {
+    const { note, content, checklist, imageUrl, priority, isEncrypted } =
+      latestEditStateRef.current;
+    if (!note) return;
+
+    let finalContent = content.trim();
     let finalChecklist: KeepNoteChecklistItem[] | undefined =
-      editDecryptedChecklist.length > 0 ? editDecryptedChecklist : undefined;
-    let finalImageUrl = editImageUrl || undefined;
+      checklist.length > 0 ? checklist : undefined;
+    let finalImageUrl = imageUrl || undefined;
 
-    if (editIsEncrypted) {
+    if (isEncrypted) {
       if (!sessionPin) {
-        setShowUnlockModal(true);
+        if (closeModal) setShowUnlockModal(true);
         return;
       }
-      const payloadString = JSON.stringify({
-        text: finalContent,
-        checklist: finalChecklist,
-        imageUrl: finalImageUrl,
-      });
-      finalContent = await encryptPayload(payloadString, sessionPin);
-      finalChecklist = undefined;
-      finalImageUrl = undefined;
+      try {
+        const payloadString = JSON.stringify({
+          text: finalContent,
+          checklist: finalChecklist,
+          imageUrl: finalImageUrl,
+        });
+        finalContent = await encryptPayload(payloadString, sessionPin);
+        finalChecklist = undefined;
+        finalImageUrl = undefined;
 
-      setDecryptedCache((prev) => ({
-        ...prev,
-        [editingNote.id]: {
-          text: editDecryptedContent.trim(),
-          checklist: editDecryptedChecklist,
-          imageUrl: editImageUrl || undefined,
-        },
-      }));
+        setDecryptedCache((prev) => ({
+          ...prev,
+          [note.id]: {
+            text: content.trim(),
+            checklist,
+            imageUrl: imageUrl || undefined,
+          },
+        }));
+      } catch (err) {
+        console.error("Auto-save encryption failed:", err);
+        return;
+      }
     }
 
-    onUpdateNote(editingNote.id, {
-      title: editingNote.title.trim(),
+    onUpdateNote(note.id, {
+      title: note.title.trim(),
       content: finalContent,
-      color: editingNote.color,
-      pinned: editingNote.pinned,
-      priority: editPriority !== "none" ? editPriority : undefined,
+      color: note.color,
+      pinned: note.pinned,
+      priority: priority !== "none" ? priority : undefined,
       imageUrl: finalImageUrl,
-      isEncrypted: editIsEncrypted,
+      isEncrypted,
       checklist: finalChecklist,
     });
 
-    setEditingNote(null);
+    setAutoSaveStatus("saved");
+
+    if (closeModal) {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      setEditingNote(null);
+    }
+  };
+
+  // Continuous auto-save while typing (debounced at 600ms)
+  useEffect(() => {
+    if (!editingNote) {
+      setAutoSaveStatus("idle");
+      return;
+    }
+
+    // Skip auto-saving on initial note open
+    if (isFirstLoadOfNote.current) {
+      isFirstLoadOfNote.current = false;
+      return;
+    }
+
+    setAutoSaveStatus("saving");
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveCurrentNoteChanges(false);
+    }, 600);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [
+    editDecryptedContent,
+    editingNote?.title,
+    editingNote?.color,
+    editingNote?.pinned,
+    editPriority,
+    editImageUrl,
+    editDecryptedChecklist,
+    editIsEncrypted,
+  ]);
+
+  // Save changes button handler
+  const handleSaveEdit = async () => {
+    await saveCurrentNoteChanges(true);
   };
 
   // Filter and sort notes
@@ -2052,13 +2137,17 @@ export function NotesView({
     );
   }
 
-  // Expanded Rich Modal Preview & Editor
+  // Expanded Rich Modal Preview & Editor with continuous auto-save
   function renderNoteCardModal() {
     if (!editingNote) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-3 sm:p-5 animate-in fade-in duration-150">
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-3 sm:p-5 animate-in fade-in duration-150"
+        onClick={() => saveCurrentNoteChanges(true)}
+      >
         <div
+          onClick={(e) => e.stopPropagation()}
           className={`relative w-full rounded-3xl border shadow-2xl flex flex-col transition-all duration-300 overflow-hidden ${
             isModalExpanded
               ? "max-w-[96vw] h-[94vh]"
@@ -2077,6 +2166,27 @@ export function NotesView({
               className="w-full bg-transparent text-[17px] sm:text-[19px] font-bold text-ink outline-none placeholder:text-muted/60 pr-4"
             />
             <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              {/* Auto-save Status Indicator */}
+              <div className="flex items-center mr-1">
+                {autoSaveStatus === "saving" && (
+                  <span className="flex items-center gap-1.5 text-amber-700 bg-amber-500/10 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-amber-500/20 animate-pulse">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-ping" />
+                    <span>Saving...</span>
+                  </span>
+                )}
+                {autoSaveStatus === "saved" && (
+                  <span className="flex items-center gap-1 text-[#1d5b27] bg-[#2e6930]/10 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[#2e6930]/20">
+                    <Check size={11} className="stroke-[2.5]" />
+                    <span>Saved</span>
+                  </span>
+                )}
+                {autoSaveStatus === "idle" && (
+                  <span className="text-muted/60 text-[11px] px-1 font-medium hidden sm:inline">
+                    Auto-saved
+                  </span>
+                )}
+              </div>
+
               {/* Priority Selector */}
               <select
                 value={editPriority}
@@ -2179,6 +2289,16 @@ export function NotesView({
                 title={isModalExpanded ? "Exit fullscreen" : "Expand preview"}
               >
                 {isModalExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+
+              {/* Close & Save X */}
+              <button
+                type="button"
+                onClick={() => saveCurrentNoteChanges(true)}
+                className="p-1.5 rounded-lg text-muted hover:bg-black/5 hover:text-ink transition"
+                title="Save and close (Esc)"
+              >
+                <X size={17} />
               </button>
             </div>
           </div>
@@ -2283,22 +2403,22 @@ export function NotesView({
               ))}
             </div>
 
-            {/* Cancel & Save Buttons */}
+            {/* Action Buttons with Auto-save notice */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setEditingNote(null)}
-                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5 transition"
+                onClick={() => saveCurrentNoteChanges(true)}
+                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5 hover:text-ink transition"
               >
-                Cancel
+                Close
               </button>
               <button
                 type="button"
-                onClick={handleSaveEdit}
+                onClick={() => saveCurrentNoteChanges(true)}
                 className="rounded-xl bg-forest px-5 py-2 text-[12px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition flex items-center gap-1.5"
               >
                 {editIsEncrypted && <Lock size={13} />}
-                Save Changes
+                Done
               </button>
             </div>
           </div>
