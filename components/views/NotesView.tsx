@@ -392,6 +392,7 @@ export function NotesView({
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Formatting Insertion Helper
+  // Formatting Insertion Helper with scroll & cursor preservation
   const applyFormatting = (
     textarea: HTMLTextAreaElement | null,
     format: "bold" | "italic" | "underline" | "strike" | "code" | "codeblock" | "h1" | "h2" | "bullet" | "number" | "quote",
@@ -400,75 +401,155 @@ export function NotesView({
   ) => {
     if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    // 1. Capture exact current scroll positions before any DOM / state change
+    const savedTextareaScrollTop = textarea.scrollTop;
+    const scrollContainer = textarea.closest(".overflow-y-auto") as HTMLElement | null;
+    const savedContainerScrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
+    const savedWindowScrollY = typeof window !== "undefined" ? window.scrollY : 0;
+
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? 0;
     const selected = currentValue.slice(start, end);
 
     let replacement = "";
-    let cursorOffset = 0;
+    let newStart = start;
+    let newEnd = start;
 
     switch (format) {
       case "bold":
-        replacement = `**${selected || "bold text"}**`;
-        cursorOffset = selected ? replacement.length : 2;
+        if (selected) {
+          replacement = `**${selected}**`;
+          newStart = start;
+          newEnd = start + replacement.length;
+        } else {
+          replacement = `****`;
+          newStart = start + 2;
+          newEnd = start + 2;
+        }
         break;
       case "italic":
-        replacement = `*${selected || "italic text"}*`;
-        cursorOffset = selected ? replacement.length : 1;
+        if (selected) {
+          replacement = `*${selected}*`;
+          newStart = start;
+          newEnd = start + replacement.length;
+        } else {
+          replacement = `**`;
+          newStart = start + 1;
+          newEnd = start + 1;
+        }
         break;
       case "underline":
-        replacement = `<u>${selected || "underlined text"}</u>`;
-        cursorOffset = selected ? replacement.length : 3;
+        if (selected) {
+          replacement = `<u>${selected}</u>`;
+          newStart = start;
+          newEnd = start + replacement.length;
+        } else {
+          replacement = `<u></u>`;
+          newStart = start + 3;
+          newEnd = start + 3;
+        }
         break;
       case "strike":
-        replacement = `~~${selected || "strikethrough"}~~`;
-        cursorOffset = selected ? replacement.length : 2;
+        if (selected) {
+          replacement = `~~${selected}~~`;
+          newStart = start;
+          newEnd = start + replacement.length;
+        } else {
+          replacement = `~~~~`;
+          newStart = start + 2;
+          newEnd = start + 2;
+        }
         break;
       case "code":
-        replacement = `\`${selected || "code"}\``;
-        cursorOffset = selected ? replacement.length : 1;
+        if (selected) {
+          replacement = `\`${selected}\``;
+          newStart = start;
+          newEnd = start + replacement.length;
+        } else {
+          replacement = `\`\``;
+          newStart = start + 1;
+          newEnd = start + 1;
+        }
         break;
       case "codeblock":
-        replacement = selected
-          ? `\`\`\`\n${selected}\n\`\`\``
-          : `\`\`\`bash\n# commands or code\n\`\`\``;
-        cursorOffset = replacement.length;
+        if (selected) {
+          replacement = `\`\`\`\n${selected}\n\`\`\``;
+          newStart = start;
+          newEnd = start + replacement.length;
+        } else {
+          replacement = `\`\`\`\n\n\`\`\``;
+          newStart = start + 4;
+          newEnd = start + 4;
+        }
         break;
       case "h1":
-        replacement = `# ${selected || "Heading 1"}`;
-        cursorOffset = replacement.length;
+        replacement = `# ${selected}`;
+        newStart = start + replacement.length;
+        newEnd = start + replacement.length;
         break;
       case "h2":
-        replacement = `## ${selected || "Heading 2"}`;
-        cursorOffset = replacement.length;
+        replacement = `## ${selected}`;
+        newStart = start + replacement.length;
+        newEnd = start + replacement.length;
         break;
       case "bullet":
-        replacement = selected
-          ? selected.split("\n").map((l) => `- ${l}`).join("\n")
-          : `- List item`;
-        cursorOffset = replacement.length;
+        if (selected) {
+          replacement = selected.split("\n").map((l) => `- ${l}`).join("\n");
+        } else {
+          replacement = `- `;
+        }
+        newStart = start + replacement.length;
+        newEnd = start + replacement.length;
         break;
       case "number":
-        replacement = selected
-          ? selected.split("\n").map((l, i) => `${i + 1}. ${l}`).join("\n")
-          : `1. List item`;
-        cursorOffset = replacement.length;
+        if (selected) {
+          replacement = selected.split("\n").map((l, i) => `${i + 1}. ${l}`).join("\n");
+        } else {
+          replacement = `1. `;
+        }
+        newStart = start + replacement.length;
+        newEnd = start + replacement.length;
         break;
       case "quote":
-        replacement = selected
-          ? selected.split("\n").map((l) => `> ${l}`).join("\n")
-          : `> Quote`;
-        cursorOffset = replacement.length;
+        if (selected) {
+          replacement = selected.split("\n").map((l) => `> ${l}`).join("\n");
+        } else {
+          replacement = `> `;
+        }
+        newStart = start + replacement.length;
+        newEnd = start + replacement.length;
         break;
     }
 
     const nextValue = currentValue.slice(0, start) + replacement + currentValue.slice(end);
     setValue(nextValue);
 
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + cursorOffset, start + cursorOffset);
-    }, 0);
+    // Multi-pass position & scroll locking helper
+    const lockPositions = () => {
+      if (!textarea) return;
+      try {
+        textarea.focus({ preventScroll: true });
+        textarea.setSelectionRange(newStart, newEnd);
+        textarea.scrollTop = savedTextareaScrollTop;
+      } catch {}
+      if (scrollContainer) {
+        scrollContainer.scrollTop = savedContainerScrollTop;
+      }
+      if (typeof window !== "undefined" && window.scrollY !== savedWindowScrollY) {
+        window.scrollTo({ top: savedWindowScrollY, behavior: "instant" });
+      }
+    };
+
+    // 1. Immediate lock
+    lockPositions();
+
+    // 2. Next animation frame
+    requestAnimationFrame(() => {
+      lockPositions();
+      // 3. Post-render timeouts to catch any browser layout reflows
+      setTimeout(lockPositions, 10);
+      setTimeout(lockPositions, 40);
+    });
   };
 
   // Keyboard shortcut handler for rich formatting
@@ -926,7 +1007,7 @@ export function NotesView({
   const pinnedNotes = processedNotes.filter((n) => n.pinned);
   const otherNotes = processedNotes.filter((n) => !n.pinned);
 
-  // Render Rich Text Toolbar
+  // Render Rich Text Toolbar with focus preservation
   const renderFormattingToolbar = (
     textareaRef: React.RefObject<HTMLTextAreaElement | null>,
     currentValue: string,
@@ -935,30 +1016,34 @@ export function NotesView({
     <div className="flex flex-wrap items-center gap-1 rounded-xl bg-black/[0.04] p-1 border border-black/5">
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "bold", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
-        title="Bold (Ctrl+B)"
+        title="Bold (Ctrl+B / Cmd+B)"
       >
         <Bold size={13} />
       </button>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "italic", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
-        title="Italic (Ctrl+I)"
+        title="Italic (Ctrl+I / Cmd+I)"
       >
         <Italic size={13} />
       </button>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "underline", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
-        title="Underline (Ctrl+U)"
+        title="Underline (Ctrl+U / Cmd+U)"
       >
         <UnderlineIcon size={13} />
       </button>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "strike", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
         title="Strikethrough"
@@ -970,6 +1055,7 @@ export function NotesView({
 
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "code", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
         title="Inline Code"
@@ -978,6 +1064,7 @@ export function NotesView({
       </button>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "codeblock", currentValue, setValue)}
         className="rounded px-1.5 py-1 text-[11px] font-mono text-[#404c43] hover:bg-black/10 transition"
         title="Code Block"
@@ -989,6 +1076,7 @@ export function NotesView({
 
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "h1", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
         title="Heading 1"
@@ -997,6 +1085,7 @@ export function NotesView({
       </button>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "h2", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
         title="Heading 2"
@@ -1005,6 +1094,7 @@ export function NotesView({
       </button>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "bullet", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
         title="Bullet List"
@@ -1013,6 +1103,7 @@ export function NotesView({
       </button>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "number", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
         title="Numbered List"
@@ -1021,6 +1112,7 @@ export function NotesView({
       </button>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => applyFormatting(textareaRef.current, "quote", currentValue, setValue)}
         className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
         title="Quote Block"
@@ -2115,8 +2207,8 @@ export function NotesView({
 
             {activeTab === "edit" ? (
               <>
-                {/* Rich formatting toolbar */}
-                <div className="mb-3 shrink-0">
+                {/* Rich formatting toolbar - sticky at top with matching note bg so it is always accessible and prevents scroll jumping */}
+                <div className={`sticky -top-4 z-20 mb-3 shrink-0 pt-2 pb-1.5 ${NOTE_COLORS[editingNote.color || "default"].bg}`}>
                   {renderFormattingToolbar(editTextareaRef, editDecryptedContent, setEditDecryptedContent)}
                 </div>
 
