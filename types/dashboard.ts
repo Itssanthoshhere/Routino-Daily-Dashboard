@@ -60,7 +60,7 @@ export type QuickLink = {
   title: string;
   subtitle: string;
   url: string;
-  iconName: "calendar" | "mail" | "drive" | "sites" | "link" | "file" | "linkedin" | "github" | "portfolio" | "globe" | "outlook";
+  iconName: "calendar" | "mail" | "drive" | "sites" | "link" | "file" | "github" | "portfolio" | "globe" | "outlook";
   available: boolean;
 };
 

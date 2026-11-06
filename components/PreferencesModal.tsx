@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
-import { LinkedInConnectionCard } from "@/components/LinkedInConnectionCard";
 import { OutlookConnectionCard } from "@/components/OutlookConnectionCard";
 
 type PreferencesModalProps = {
@@ -367,8 +366,6 @@ export function PreferencesModal({
                 googleConnected={Boolean(userEmail)}
                 onConnectionChange={onOutlookChange}
               />
-
-              <LinkedInConnectionCard googleConnected={Boolean(userEmail)} />
 
               {/* Manual Backup Download */}
               <div className="rounded-2xl border border-line bg-white p-4">

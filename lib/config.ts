@@ -11,7 +11,6 @@ export const appConfig = {
   links: {
     calendar: process.env.NEXT_PUBLIC_CALENDAR_URL || "https://calendar.google.com",
     mail: process.env.NEXT_PUBLIC_MAIL_URL || "https://mail.google.com",
-    linkedin: process.env.NEXT_PUBLIC_LINKEDIN_URL || "https://www.linkedin.com/in/thesanthoshvs/",
     github: process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com/Itssanthoshhere",
     portfolio: process.env.NEXT_PUBLIC_PORTFOLIO_URL || "https://santhosh-vs-portfolio.vercel.app/",
   },

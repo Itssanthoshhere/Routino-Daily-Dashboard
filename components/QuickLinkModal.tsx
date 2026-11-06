@@ -27,9 +27,7 @@ export function QuickLinkModal({ isOpen, onClose, onAddLink }: QuickLinkModalPro
     }
 
     const lower = formattedUrl.toLowerCase();
-    const detectedIcon = lower.includes("linkedin.com")
-      ? "linkedin"
-      : lower.includes("github.com")
+    const detectedIcon = lower.includes("github.com")
       ? "github"
       : lower.includes("outlook") || lower.includes("microsoft") || lower.includes("live.com") || lower.includes("office.com")
       ? "outlook"

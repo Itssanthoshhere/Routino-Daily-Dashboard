@@ -29,7 +29,7 @@
   <br /><br />
 
   <p align="center">
-    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and the week ahead. Integrates with Google Calendar, Gmail, read-only Google Drive file metadata, LinkedIn profile, and Microsoft Outlook (Mail & Calendar via Graph API). Google Sites is not integrated.</em>
+    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and the week ahead. Integrates with Google Calendar, Gmail, read-only Google Drive file metadata, and Microsoft Outlook (Mail & Calendar via Graph API). Google Sites is not integrated.</em>
   </p>
 
   <p align="center">
@@ -57,7 +57,7 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 | **Priorities & follow-ups** | Checkable tasks, custom categories, and completion progress | Local storage & server-side database sync |
 | **Notes & Scratchpad** | Google Keep-style notes, checklists, compressed images, priorities, drag-and-drop, and zero-knowledge AES-256 encryption | Web Crypto API, Local storage & database sync |
 | **Focus plan & deadlines** | Focus timer with ambient soundscapes (rain, waves, brown noise) | Synthesized Web Audio API & user state |
-| **Quick links** | Shortcuts to Calendar, Gmail, LinkedIn, GitHub, and Portfolio | User configurable with custom modal & persistent links |
+| **Quick links** | Shortcuts to Calendar, Gmail, GitHub, and Portfolio | User configurable with custom modal & persistent links |
 | **Preferences & Settings** | Routine defaults, focus durations, audio feedback, JSON export/import | Dedicated Preferences modal and DB sync |
 
 ## ✨ Features & Capabilities
@@ -149,23 +149,6 @@ Routino also requests `https://www.googleapis.com/auth/drive.metadata.readonly` 
 
 6. Set the client ID, client secret, Auth.js secret, and base URL as environment variables. Never commit actual credentials.
 
-## 🔗 Optional LinkedIn Profile Connection
-
-Routino can connect a LinkedIn account to the currently signed-in Google workspace using LinkedIn OpenID Connect. The optional connection requests only `openid`, `profile`, and `email`; it stores the returned name, email, and profile photo in the workspace database. OAuth access tokens are used only on the server for the profile lookup and are not persisted. LinkedIn messages, feed activity, and posting are not integrated.
-
-1. Create an app in the [LinkedIn Developer Portal](https://www.linkedin.com/developers/apps) and enable **Sign In with LinkedIn using OpenID Connect**.
-2. Add the redirect URI for each environment you intend to use:
-
-   ```text
-   http://localhost:3000/api/linkedin/callback
-   https://routino-daily-dashboard.vercel.app/api/linkedin/callback
-   ```
-
-3. Set `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and the exact matching `LINKEDIN_REDIRECT_URI` in local `.env.development.local` and the corresponding Vercel environment. Keep the client secret server-side and out of Git.
-4. Sign into Routino with Google, open **Preferences → Database & Sync**, and choose **Connect LinkedIn**.
-
-Removing the profile in Routino deletes the saved profile data. To revoke LinkedIn authorization too, remove Routino from the account’s permitted services in LinkedIn settings.
-
 ## 📬 Optional Microsoft Outlook Integration (Mail & Calendar)
 
 Routino supports connecting personal and work/school Microsoft accounts via the Microsoft Graph API. When connected:
@@ -208,9 +191,6 @@ cp .env.example .env.local
 | `AZURE_AD_CLIENT_SECRET` | Optional Microsoft / Azure AD OAuth client secret |
 | `AZURE_AD_TENANT_ID` | Optional tenant ID (`common` by default for personal + work) |
 | `OUTLOOK_REDIRECT_URI` | Exact OAuth callback URL registered in Azure |
-| `LINKEDIN_CLIENT_ID` | Optional LinkedIn OAuth app client ID |
-| `LINKEDIN_CLIENT_SECRET` | Optional LinkedIn OAuth app client secret |
-| `LINKEDIN_REDIRECT_URI` | Exact OAuth callback URL registered in the LinkedIn app |
 
 Generate a strong local secret with:
 
@@ -331,7 +311,6 @@ This project is licensed under the [MIT License](LICENSE) - see the LICENSE file
 
 - **Santhosh VS**
 - **GitHub:** [@Itssanthoshhere](https://github.com/Itssanthoshhere)
-- **LinkedIn:** [thesanthoshvs](https://www.linkedin.com/in/thesanthoshvs/)
 - **Portfolio:** [santhosh-vs-portfolio.vercel.app](https://santhosh-vs-portfolio.vercel.app/)
 
 ---
