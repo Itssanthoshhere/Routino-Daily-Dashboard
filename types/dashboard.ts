@@ -77,6 +77,7 @@ export type KeepNote = {
   color?: "default" | "yellow" | "green" | "blue" | "peach" | "purple";
   pinned?: boolean;
   checklist?: KeepNoteChecklistItem[];
+  isEncrypted?: boolean;
   updatedAt: number;
   createdAt?: number;
 };
