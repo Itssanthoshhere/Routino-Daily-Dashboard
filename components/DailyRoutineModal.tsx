@@ -208,20 +208,20 @@ export function DailyRoutineModal({
               </div>
             )}
 
-            <div className="pt-2 flex justify-end gap-2">
+            <div className="pt-3 border-t border-black/[0.04] flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5"
+                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5 hover:text-ink transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!priority1.trim() && !priority2.trim() && !priority3.trim()}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-4.5 py-2 text-[12px] font-bold text-white shadow-xs hover:bg-[#8b1116] transition disabled:opacity-40 cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-[12px] font-bold text-white shadow-xs hover:bg-[#8b1116] transition disabled:opacity-40 whitespace-nowrap cursor-pointer shrink-0"
               >
-                <Sparkles size={13} />
+                <Sparkles size={14} className="shrink-0" />
                 <span>{morningSaved ? "Priorities Set!" : "Commit Priorities"}</span>
               </button>
             </div>
@@ -289,19 +289,19 @@ export function DailyRoutineModal({
               />
             </div>
 
-            <div className="pt-2 flex justify-end gap-2">
+            <div className="pt-3 border-t border-black/[0.04] flex items-center justify-end gap-2.5">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5"
+                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5 hover:text-ink transition cursor-pointer"
               >
                 Close
               </button>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-4.5 py-2 text-[12px] font-bold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-forest px-5 py-2.5 text-[12px] font-bold text-white shadow-xs hover:bg-[#8b1116] transition whitespace-nowrap cursor-pointer shrink-0"
               >
-                <CheckCircle2 size={13} />
+                <CheckCircle2 size={14} className="shrink-0" />
                 <span>{eveningSaved ? "Saved to Notes!" : "Complete Wind-Down"}</span>
               </button>
             </div>

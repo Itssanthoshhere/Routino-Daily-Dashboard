@@ -932,6 +932,57 @@ export function NotesView({
     setActiveTab("preview");
   };
 
+  // Permanently remove lock from a note
+  const handleRemoveLock = async (note: KeepNote) => {
+    if (!sessionPin) {
+      setShowUnlockModal(true);
+      return;
+    }
+
+    if (
+      !window.confirm(
+        "Remove lock from this note? It will become a regular note and won't require a PIN to view."
+      )
+    ) {
+      return;
+    }
+
+    let plainText = note.content;
+    let plainChecklist = note.checklist;
+    let plainImageUrl = note.imageUrl;
+
+    if (decryptedCache[note.id]) {
+      plainText = decryptedCache[note.id].text;
+      plainChecklist = decryptedCache[note.id].checklist;
+      plainImageUrl = decryptedCache[note.id].imageUrl;
+    } else {
+      try {
+        const decryptedJson = await decryptPayload(note.content, sessionPin);
+        const parsed = JSON.parse(decryptedJson);
+        plainText = parsed.text || "";
+        plainChecklist = parsed.checklist;
+        plainImageUrl = parsed.imageUrl;
+      } catch (e) {
+        console.error("Could not decrypt to remove lock:", e);
+        return;
+      }
+    }
+
+    onUpdateNote(note.id, {
+      content: plainText,
+      checklist: plainChecklist,
+      imageUrl: plainImageUrl,
+      isEncrypted: false,
+    });
+
+    if (editingNote?.id === note.id) {
+      setEditIsEncrypted(false);
+      setEditDecryptedContent(plainText);
+      setEditDecryptedChecklist(plainChecklist || []);
+      setEditImageUrl(plainImageUrl || null);
+    }
+  };
+
   // Ref to track latest editing values without stale closure delays
   const latestEditStateRef = useRef({
     note: editingNote,
@@ -2061,17 +2112,24 @@ export function NotesView({
 
               {/* Protection Pill */}
               {isNoteEncrypted && (
-                <span
-                  className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold ${
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    if (isDecrypted) {
+                      e.stopPropagation();
+                      handleRemoveLock(note);
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold transition ${
                     isDecrypted
-                      ? "bg-[#dcfce7] text-[#15803d]"
+                      ? "bg-[#dcfce7] text-[#15803d] hover:bg-[#fee2e2] hover:text-[#b91c1c] cursor-pointer"
                       : "bg-[#fed7aa] text-[#9a3412]"
                   }`}
-                  title={isDecrypted ? "Protected Note (Unlocked)" : "Locked Note (PIN required)"}
+                  title={isDecrypted ? "Click to remove lock" : "Locked Note (PIN required)"}
                 >
                   {isDecrypted ? <Unlock size={10} /> : <Lock size={10} />}
                   <span>{isDecrypted ? "Unlocked" : "Locked"}</span>
-                </span>
+                </button>
               )}
 
               {/* Title */}
@@ -2208,6 +2266,20 @@ export function NotesView({
             >
               {copiedId === note.id ? <Check size={13} className="text-forest" /> : <Copy size={13} />}
             </button>
+
+            {isNoteEncrypted && isDecrypted && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveLock(note);
+                }}
+                className="p-1 rounded text-[#be123c] hover:bg-[#ffe4e6] transition"
+                title="Remove lock from this note"
+              >
+                <Unlock size={13} />
+              </button>
+            )}
           </div>
 
           <button
@@ -2327,11 +2399,21 @@ export function NotesView({
                 <ImageIcon size={16} />
               </button>
 
-              {/* Encryption Toggle */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (!editIsEncrypted) {
+              {/* Encryption Toggle / Remove Lock */}
+              {editIsEncrypted ? (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveLock(editingNote)}
+                  className="rounded-lg px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer bg-[#fff1f2] text-[#be123c] border border-[#fecdd3] hover:bg-[#ffe4e6]"
+                  title="Remove PIN lock from this note"
+                >
+                  <Unlock size={12} />
+                  <span>Remove Lock</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
                     if (!vaultVerifier) {
                       setShowSetupPinModal(true);
                       return;
@@ -2341,20 +2423,14 @@ export function NotesView({
                       return;
                     }
                     setEditIsEncrypted(true);
-                  } else {
-                    setEditIsEncrypted(false);
-                  }
-                }}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-                  editIsEncrypted
-                    ? "bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]"
-                    : "text-muted hover:bg-black/5 hover:text-ink"
-                }`}
-                title={editIsEncrypted ? "Protected by Master PIN" : "Lock note with Master PIN"}
-              >
-                {editIsEncrypted ? <Lock size={12} className="text-[#059669]" /> : <Unlock size={12} />}
-                <span className="hidden sm:inline">{editIsEncrypted ? "Protected" : "Lock Note"}</span>
-              </button>
+                  }}
+                  className="rounded-lg px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer text-muted hover:bg-black/5 hover:text-ink"
+                  title="Lock note with Master PIN"
+                >
+                  <Lock size={12} />
+                  <span className="hidden sm:inline">Lock Note</span>
+                </button>
+              )}
 
               {/* Pin note */}
               <button
