@@ -29,11 +29,11 @@
   <br /><br />
 
   <p align="center">
-    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and the week ahead. Integrates with Google Calendar, Gmail, read-only Google Drive file metadata, and Microsoft Outlook (Mail & Calendar via Graph API).</em>
+    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and physical desk planner. Integrates seamlessly with Google Calendar, Gmail, read-only Google Drive metadata, and Microsoft Outlook (Mail & Calendar via Graph API).</em>
   </p>
 
   <p align="center">
-    <code>nextjs</code> · <code>react</code> · <code>typescript</code> · <code>tailwindcss</code> · <code>dashboard</code> · <code>productivity</code> · <code>daily-planner</code> · <code>google-calendar</code> · <code>gmail-api</code> · <code>outlook</code> · <code>microsoft-graph</code> · <code>google-keep</code> · <code>zero-knowledge</code> · <code>aes-256-gcm</code> · <code>focus-timer</code> · <code>habit-tracker</code> · <code>open-source</code>
+    <code>nextjs</code> · <code>react</code> · <code>typescript</code> · <code>tailwindcss</code> · <code>dashboard</code> · <code>productivity</code> · <code>daily-planner</code> · <code>desk-sheet</code> · <code>google-calendar</code> · <code>gmail-api</code> · <code>outlook</code> · <code>microsoft-graph</code> · <code>google-keep</code> · <code>zero-knowledge</code> · <code>aes-256-gcm</code> · <code>focus-timer</code> · <code>habit-tracker</code> · <code>open-source</code>
   </p>
 
 </div>
@@ -42,81 +42,87 @@
 
 ## 📌 Executive Summary
 
-**Routino** brings the parts of a busy day into one calm view: upcoming meetings, unread messages, tasks, zero-knowledge encrypted notes, focus time, deadlines, and frequently used links. The responsive interface is built with Next.js, TypeScript, and Tailwind CSS, and is deployed on Vercel.
+**Routino** brings every dimension of a focused day into one calm view: upcoming meetings, unread messages, high-priority tasks, zero-knowledge encrypted notes, deep work focus blocks, micro-habits, and the week ahead. Routino also bridges digital planning with physical focus through its **Daily Desk Sheet**—a single-page printable companion engineered for your actual desk.
 
-Google sign-in uses Auth.js. When the account holder signs in and approves access, the app reads Calendar events and limited Gmail message details. Until then, the page shows clearly identified sample content. The app never writes to Gmail or Calendar.
+Google sign-in uses Auth.js. When the account holder signs in and approves access, the app reads Calendar events and limited Gmail message details. Microsoft Outlook Mail & Calendar can also be connected via Microsoft Graph. Until connected, the page displays clearly identified sample content. The app never writes to or modifies external email or calendars.
+
+---
 
 ## 📊 Dashboard Sections & Data Sources
 
 | Section | What it shows | Data source |
 | :--- | :--- | :--- |
-| **Daily summary** | Date, today’s event count, unread email count, and focus-time card | Google / Outlook Calendar and Gmail / Outlook Mail after sign-in |
-| **Today’s schedule** | Upcoming events with start and end times | Google Calendar, Outlook Calendar, or labeled preview events |
-| **The week ahead** | A rolling seven-day calendar view | Google Calendar, Outlook Calendar, or labeled preview events |
-| **Worth a look** | Sender, subject, date, and short snippet for unread messages | Gmail, Outlook Mail, or labeled preview messages |
-| **Priorities & follow-ups** | Checkable tasks, custom categories, and completion progress | Local storage & server-side database sync |
-| **Notes & Scratchpad** | Google Keep-style notes, checklists, compressed images, priorities, drag-and-drop, and zero-knowledge AES-256 encryption | Web Crypto API, Local storage & database sync |
-| **Focus plan & deadlines** | Focus timer with ambient soundscapes (rain, waves, brown noise) | Synthesized Web Audio API & user state |
-| **Quick links** | Shortcuts to Calendar, Gmail, GitHub, and Portfolio | User configurable with custom modal & persistent links |
-| **Preferences & Settings** | Routine defaults, focus durations, audio feedback, JSON export/import | Dedicated Preferences modal and DB sync |
+| **Today's Flow Timeline** | Live daytime progress bar, upcoming meeting markers, and dynamic evening expansion | Google Calendar, Outlook Calendar, or local events |
+| **Daily Summary** | Date, daily intention quote, weather forecast, calendar count, unread email count, and focus card | Google / Outlook Calendar, Gmail, Open-Meteo, and live state |
+| **Daily Desk Sheet** | Single-page printable companion with Top 3 Non-Negotiables, schedule, hydration, and notes | Local storage, Calendar, and printer-optimized CSS |
+| **Today’s Schedule** | Upcoming events with smart "Join Meeting" detection, Travel & Project badges, and time ranges | Google Calendar, Outlook Calendar, or labeled preview events |
+| **The Week Ahead** | A rolling seven-day calendar view with category filters and event creation | Google Calendar, Outlook Calendar, or custom events |
+| **Worth a Look** | Sender, subject, date, and short snippet for unread messages | Gmail, Outlook Mail, or labeled preview messages |
+| **Priorities & Tasks** | Checkable tasks, sub-task checklists, auto-categorization (`Project`, `Travel`, `Work`, `Urgent`), and filters | Local storage & server-side database sync |
+| **Notes & Scratchpad** | Google Keep-style notes, checklists, compressed images, priorities, drag-and-drop, and zero-knowledge AES-256 vault | Web Crypto API, Local storage & database sync |
+| **Focus Plan & Timer** | Focus timer with ambient soundscapes (Rain, Waves, Brown Noise, Forest, Café) and volume control | Synthesized Web Audio API |
+| **Daily Micro-Habits** | Streak tracking, completion history, local date calculation, and hydration tracker | Local storage & database sync |
+| **Quick Links** | Shortcuts to Calendar, Gmail, Outlook, GitHub, Portfolio, and Drive | User-configurable with custom modal & persistent links |
+| **Preferences & Settings** | Routine defaults, focus durations, audio feedback, JSON export/import, and Outlook connection | Dedicated Preferences modal and DB sync |
+
+---
 
 ## ✨ Features & Capabilities
 
-1. **Responsive daily overview**
-   - Layouts adapt for mobile, tablet, and desktop.
-   - Clear summary cards surface calendar and inbox counts.
-   - A seven-day view starts with the current day and updates its dates automatically.
-   - Daily rotating intention quotes with interactive shuffle button.
-   - Live location-aware weather widget powered by Open-Meteo.
+### 1. 🖨️ Printable Daily Desk Sheet Companion
+- **Single-page desk planner**: Designed strictly to fit on one physical sheet of paper with zero overflowing pages (`Cmd+P` shortcut or top header button).
+- **Physical desk companion layout**: Displays Top 3 Non-Negotiables, additional tasks, today's schedule, daily micro-habits with an interactive 8-glass hydration tracker, and handwriting scratchpad lines.
+- **Print isolation engine**: Automatically suppresses background web elements during print jobs to ensure a clean stationery output.
 
-2. **Google Calendar connection**
-   - Uses Google OAuth with the `calendar.readonly` scope.
-   - Requests up to 25 events between now and seven days from now.
-   - Shows event titles, time, and optional short descriptions.
+### 2. ⚡ Universal Quick-Capture (`Q` Hotkey)
+- **Instant capture modal**: Triggered anywhere across the dashboard by pressing `Q`.
+- **Tri-destination capture**: Quickly dump thoughts into a **Task**, **Note**, or **Scratchpad**.
+- **Real-time category detection**: Automatically detects and tags tasks as `PROJECT`, `TRAVEL`, `WORK`, or `URGENT` with one-click category chips.
 
-3. **Gmail unread messages**
-   - Uses Google OAuth with the `gmail.readonly` scope.
-   - Requests up to eight unread messages, excluding social and promotional categories.
-   - Displays sender, subject, date, and snippet; full message bodies are not loaded.
-   - Interactive star and read-status tracking.
+### 3. ⏱️ Today's Flow Visual Timeline
+- **Live daytime visual progress bar**: Spans 8:00 AM to 8:00 PM with dynamic extension to midnight for late-night flights or events.
+- **Clamped current-time marker**: Pulsing orange indicator showing real-time progress through the day.
+- **Interactive event markers**: Color-coded meeting and travel blocks with remaining time count-downs (`Day starts at...` / `In 45m`).
 
-4. **Tasks & Multi-Device Database Persistence**
-   - Check off priorities, create custom tasks, and schedule custom events.
-   - Persisted instantly to browser `localStorage` and automatically synchronized with the account database via `/api/user-data`.
-   - Supports durable Neon Postgres, Upstash Redis, Vercel KV, or local development file storage for cross-device synchronization.
+### 4. 🏷️ First-Class Project & Travel Categorization
+- **Universal categorization**: Tasks and calendar events share unified, intelligent categories:
+  - 🟣 **`PROJECT`** (`#7c3aed`): Dedicated for build sessions, websites, apps, products, portfolio, coding, and dev sprints.
+  - ✈️ **`TRAVEL`** (`#0284c7`): Dedicated for flights (e.g. `6E 2336`), trains, hotel bookings, airport transits, and trips.
+- **Smart keyword inference**: Automatically recognizes project and travel tasks without manual tagging while safely filtering out Google Calendar email boilerplate.
+- **Dedicated filter pills**: Filter tasks and calendar events specifically by Projects or Travel.
 
-5. **Google Keep-Style Notes & Scratchpad**
-   - Quick composer and expanded modal editor with live rendered Markdown preview.
-   - Rich text formatting toolbar: **Bold**, *Italic*, <u>Underline</u>, ~~Strikethrough~~, `Inline Code`, Code Blocks, Headings (H1/H2), Bullet Lists, Numbered Lists, and Quotes.
-   - Smart scroll & cursor lock prevents viewport jumping when applying text styles.
-   - Continuous real-time debounced auto-saving while typing (600ms) with live status badge (`Saving...` / `✓ Saved` / `Auto-saved`).
-   - Default preview-first mode: opens rendered markdown with 1-click toggle to edit mode.
-   - HTML5 drag-and-drop note reordering with visual drop indicators.
-   - Priority badges: High (🔴), Medium (🟡), Low (🟢), and Normal with dedicated header filter and sort controls.
-   - Image attachments with client-side canvas compression (max 1200px, 80% JPEG) to keep storage lightweight.
-   - Interactive checklists, color coding (Lemon, Mint, Sky, Peach, Lavender, Default), and note pinning.
+### 5. 📹 Context-Aware Meeting & Video Detection
+- **Smart video conference detection**: Accurately recognizes genuine Google Meet, Zoom, Microsoft Teams, and Webex links.
+- **Direct action button**: Displays a prominent "Join Meeting" button only when a real video link exists; cleanly shows in-person or location details for flights and offline appointments.
 
-6. **Zero-Knowledge Client-Side AES-256-GCM Vault**
-   - Master PIN vault using native browser Web Crypto API (`window.crypto.subtle`).
-   - Uses PBKDF2 (100,000 iterations, SHA-256) for key derivation and AES-256-GCM for authenticated encryption.
-   - True zero-knowledge architecture: no raw PIN or plaintext note content is ever transmitted to the server or database.
-   - Seals note text, checklists, and attached images together inside an authenticated ciphertext payload (`aes256:salt:iv:ciphertext`).
-   - Master PIN verification hash stored locally; 1-click vault locking, unlocking, and PIN change workflows.
+### 6. 📝 Google Keep-Style Notes & Zero-Knowledge Vault
+- **Live Markdown preview**: Rich text toolbar for bold, italic, code blocks, lists, quotes, and headings.
+- **Zero-knowledge client-side encryption**: Master PIN vault using PBKDF2 (100,000 iterations, SHA-256) and AES-256-GCM. Unencrypted note data is never sent to the server.
+- **Drag-and-drop reordering**: HTML5 draggable cards with visual insertion indicators.
+- **Lightweight image attachments**: Client-side canvas compression (max 1200px, 80% JPEG).
 
-7. **Focus Timer & Ambient Soundscapes**
-   - Customizable focus blocks (25m, 45m, 60m, 90m).
-   - Built-in Web Audio synthesis: gentle rain, ocean waves, calming brown noise, and focus white noise.
-   - Zero external audio files required.
+### 7. 🎧 Deep Work Focus Timer & Ambient Audio
+- **Customizable focus blocks**: 25m, 45m, 60m, and 90m presets.
+- **Built-in ambient soundscapes**: Gentle Rain, Ocean Waves, Calming Brown Noise, White Noise, Forest, and Café ambiance.
+- **Volume control & synthesized audio**: Pure Web Audio API synthesis—zero external audio files or network streams needed.
 
-8. **Comprehensive Preferences Modal**
-   - Open via user avatar menu, sidebar bottom card (`···`), or Command Palette (`Cmd+K`).
-   - General & Routine tab: focus duration target, audio feedback toggle, clear completed tasks.
-   - Database & Sync tab: live account cloud sync status, manual sync trigger, JSON workspace backup & restore.
-   - About tab: architecture and privacy information.
+### 8. ⌨️ Comprehensive Keyboard Shortcuts (`?` Hotkey)
+- `1` - Switch to Overview tab
+- `2` - Switch to Calendar tab
+- `3` - Switch to Inbox tab
+- `4` - Switch to Tasks Manager
+- `5` - Switch to Notes & Scratchpad
+- `Q` - Universal Quick Capture modal
+- `F` - Launch Deep Work Focus Timer
+- `T` - Add New Priority Task
+- `E` - Schedule Calendar Event
+- `H` - Open Micro-Habits Manager
+- `Cmd + P` - Open & Print Daily Desk Sheet
+- `Cmd + K` - Command Palette / Global Search
+- `?` - Toggle Keyboard Shortcuts Sheet
+- `Esc` - Close any active modal or popover
 
-9. **Preview mode**
-   - Shows sample data before Google is connected.
-   - Labels preview information so it is not mistaken for real account data.
+---
 
 ## 🔐 Google Access & Security
 
@@ -126,17 +132,15 @@ The app requests basic Google sign-in identity scopes and these read-only scopes
 - `https://www.googleapis.com/auth/gmail.readonly`
 - `https://www.googleapis.com/auth/drive.metadata.readonly`
 
-Google OAuth access and refresh tokens are kept in the encrypted, HTTP-only Auth.js JWT session cookie. Tokens are not exposed through the browser-visible session, placed in local storage, or committed to this repository. Authenticated server routes call Google and return only the calendar events, limited email details, and Drive file metadata needed by the page. Drive file metadata is not persisted in Routino's database. Google access-token refreshes happen server-side.
+Google OAuth access and refresh tokens are stored exclusively in the encrypted, HTTP-only Auth.js JWT session cookie. Tokens are never exposed to client-side scripts, placed in local storage, or committed to this repository. Authenticated server routes call Google and return only the calendar events, limited email snippets, and Drive file metadata needed by the page. Drive file metadata is not persisted in Routino's database. Google access-token refreshes happen server-side automatically.
 
-Google’s OAuth consent screen may display an unverified-app warning while the app is in testing. Add the intended account as a test user in Google Cloud Console. The account holder must sign in and approve the requested scopes before personal Calendar, Gmail, or Drive metadata can appear.
-
-Routino also requests `https://www.googleapis.com/auth/drive.metadata.readonly` to list up to eight recently modified Drive items. It receives only file names, MIME types, modification dates, and view links; it does not read or download file contents. Google classifies this as a restricted Drive scope, so production publishing may require Google OAuth verification. Google Drive API must be enabled and the account must approve the additional scope.
+---
 
 ## 🧩 Google OAuth Setup
 
 1. Create or select a project in [Google Cloud Console](https://console.cloud.google.com/).
 2. Enable **Gmail API**, **Google Calendar API**, and **Google Drive API**.
-3. Configure the Google Auth Platform consent screen. For a personal Google account, choose **External**, complete the required app details, add the account under **Test users** while the app is in testing, and declare the Calendar, Gmail, and Drive metadata scopes listed above. Drive metadata scope is restricted and may require Google verification for a public production app.
+3. Configure the Google Auth Platform consent screen. For a personal Google account, choose **External**, complete the required app details, add the account under **Test users** while the app is in testing, and declare the Calendar, Gmail, and Drive metadata scopes listed above.
 4. Create an OAuth client ID with application type **Web application**.
 5. Add these exact **Authorized redirect URIs**:
 
@@ -145,9 +149,11 @@ Routino also requests `https://www.googleapis.com/auth/drive.metadata.readonly` 
    https://routino-daily-dashboard.vercel.app/api/auth/callback/google
    ```
 
-6. Set the client ID, client secret, Auth.js secret, and base URL as environment variables. Never commit actual credentials.
+6. Set the client ID, client secret, Auth.js secret, and base URL as environment variables.
 
-## 📬 Optional Microsoft Outlook Integration (Mail & Calendar)
+---
+
+## 📬 Microsoft Outlook Integration (Mail & Calendar)
 
 Routino supports connecting personal and work/school Microsoft accounts via the Microsoft Graph API. When connected:
 - Upcoming calendar meetings appear in **Daily Schedule** and **Calendar** views with the blue `OUTLOOK` badge.
@@ -156,20 +162,18 @@ Routino supports connecting personal and work/school Microsoft accounts via the 
 
 ### Setup Instructions
 1. Register an app in the [Azure Portal / Microsoft Entra ID](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade).
-2. Choose supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (or your organization only).
+2. Choose supported account types: **Accounts in any organizational directory and personal Microsoft accounts**.
 3. Under **Authentication**, add a **Web** platform with the redirect URI:
    ```text
    http://localhost:3000/api/outlook/callback
    https://routino-daily-dashboard.vercel.app/api/outlook/callback
    ```
 4. Under **Certificates & secrets**, generate a new client secret.
-5. In **API permissions**, grant delegated permissions:
-   - `User.Read`
-   - `Mail.Read`
-   - `Calendars.Read`
-   - `offline_access`
-6. Set `AZURE_AD_CLIENT_ID` and `AZURE_AD_CLIENT_SECRET` in your `.env.local` or Vercel environment.
+5. In **API permissions**, grant delegated permissions: `User.Read`, `Mail.Read`, `Calendars.Read`, `offline_access`.
+6. Set `AZURE_AD_CLIENT_ID` and `AZURE_AD_CLIENT_SECRET` in `.env.local` or Vercel environment.
 7. Open **Preferences → Database & Sync** and click **Connect Outlook**.
+
+---
 
 ## ⚙️ Environment Variables
 
@@ -196,9 +200,7 @@ Generate a strong local secret with:
 openssl rand -base64 32
 ```
 
-For production, configure the values in the Vercel project’s **Production** environment and set `NEXTAUTH_URL` to the production URL. Add Preview or Development values only for environments where Google sign-in is needed. Redeploy after environment changes.
-
-> Keep `.env.local`, OAuth credentials, and session secrets private. `.gitignore` excludes `.env*` files except `.env.example`.
+---
 
 ## 🛠️ Repository Structure
 
@@ -208,91 +210,90 @@ Routino-Daily-Dashboard/
 │   ├── actions.ts                 # Auth.js Google sign-in server action
 │   ├── api/
 │   │   ├── auth/[...nextauth]/    # Auth.js route handlers
-│   │   └── dashboard/             # Authenticated Calendar and Gmail data route
-│   ├── auth/
-│   │   └── signout/               # Custom Routino sign-out confirmation page
+│   │   ├── dashboard/             # Authenticated Calendar and Gmail data route
+│   │   ├── drive/files/           # Read-only Drive recent files route
+│   │   ├── outlook/               # Microsoft Graph OAuth connect, callback & data routes
+│   │   └── user-data/             # Multi-device cloud sync endpoint
+│   ├── auth/signout/              # Custom Routino sign-out confirmation page
 │   ├── page.tsx                   # Responsive dashboard interface
-│   └── globals.css                # Global styles and Tailwind layers
-├── components/                    # Interactive UI modules, modals, and tabs
-│   ├── views/NotesView.tsx        # Google Keep-style notes, markdown editor & live preview
-│   └── MobileSidebar.tsx          # Responsive mobile navigation sidebar
+│   └── globals.css                # Global styles, Tailwind layers & print media rules
+├── components/                    # Interactive UI modules, modals, and views
+│   ├── DailyDeskSheetModal.tsx    # Single-page printable daily desk planner
+│   ├── QuickCaptureModal.tsx      # Universal quick-capture modal (Q shortcut)
+│   ├── DayTimelineBar.tsx         # Today's Flow daytime progress bar & event blocks
+│   ├── KeyboardShortcutsModal.tsx # Full keyboard shortcuts cheat sheet (? shortcut)
+│   ├── FocusTimerModal.tsx        # Deep work timer with ambient audio soundscapes
+│   ├── TaskModal.tsx              # Task creation modal with sub-steps and category chips
+│   ├── EventModal.tsx             # Calendar event detail modal with smart join links
+│   ├── DailyRoutineModal.tsx      # Morning non-negotiables & evening reflections
+│   ├── HabitTracker.tsx           # Daily micro-habits tracker & streaks
+│   ├── PreferencesModal.tsx       # Cloud sync, Outlook connection, and export/import
+│   └── views/                     # Full-page dedicated tab views
+│       ├── CalendarView.tsx       # 7-day calendar view with Project & Travel filters
+│       ├── TasksView.tsx          # Task management with category filters and sub-steps
+│       ├── InboxView.tsx          # Gmail and Outlook unread email manager
+│       └── NotesView.tsx          # Keep-style markdown notes & AES-256 vault
 ├── lib/
 │   ├── auth.ts                    # Google provider and session callbacks
 │   ├── config.ts                  # Centralized typed configuration
 │   ├── crypto.ts                  # Zero-knowledge PBKDF2 + AES-256-GCM client-side encryption
 │   ├── database.ts                # Neon Postgres, Upstash Redis & KV persistence adapter
 │   ├── google.ts                  # Server-side token refresh and Google requests
-│   └── sound.ts                   # Web Audio synthesizers for timer feedback
+│   ├── meeting.ts                 # Video URL extraction, category & task inference
+│   └── sound.ts                   # Web Audio synthesizers for ambient noise & timers
 ├── types/
 │   ├── dashboard.ts               # Core domain types (Notes, Tasks, Events, Mail)
 │   └── next-auth.d.ts             # Auth.js token type declarations
 ├── .env.example                   # Environment variable template
-├── .gitignore
 ├── package.json
 └── README.md
 ```
 
+---
+
 ## 🚀 Running Locally
 
-Requirements: Node.js and npm compatible with the versions used by this project. Google credentials are needed for sign-in; without them, the dashboard remains in preview mode.
-
-1. Clone the repository and enter its folder:
-
+1. Clone the repository:
    ```bash
    git clone https://github.com/Itssanthoshhere/Routino-Daily-Dashboard.git
    cd Routino-Daily-Dashboard
    ```
 
-2. Install dependencies and create your local environment file:
-
+2. Install dependencies:
    ```bash
    npm install
    cp .env.example .env.local
    ```
 
-3. Fill `.env.local` with your Google OAuth values and a generated secret, then start the development server:
-
+3. Fill `.env.local` with your credentials and run the development server:
    ```bash
    npm run dev
    ```
 
 4. Open [http://localhost:3000](http://localhost:3000).
 
-To create and run a production build locally:
-
+To create a production build locally:
 ```bash
 npm run build
 npm start
 ```
 
+---
+
 ## 🌐 Deployment
 
-The GitHub repository is connected to Vercel for production deployment from `main`.
+The repository is continuously deployed on **Vercel** from `main`.
 
 - **Production URL:** [routino-daily-dashboard.vercel.app](https://routino-daily-dashboard.vercel.app)
 - **Framework:** Next.js
 - **Build command:** `npm run build`
-- **Environment:** Set Google OAuth values and `NEXTAUTH_URL` in the Vercel project settings; do not add secrets to GitHub.
-
-For a manual deployment with the Vercel CLI:
-
-```bash
-vercel --prod
-```
-
-## 🧭 Current Integration Limits
-
-- Gmail and Google Calendar are read-only.
-- Drive listing is read-only and returns names, MIME types, modification dates, and view links; Routino does not fetch file contents.
-- Tasks, scheduled custom events, and focus targets are stored in browser `localStorage` and automatically synchronized with the account database via `/api/user-data`.
-- Google OAuth testing mode may limit access to configured test users until any required Google review is completed.
 
 ---
 
 ## 🤝 Contributing
 
 Contributions, issues, and feature requests are welcome!
-- Check out [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up the project locally and submit improvements.
+- Check out [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up the project locally.
 - Please review our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## 🛡️ Security
