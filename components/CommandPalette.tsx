@@ -28,6 +28,7 @@ type CommandPaletteProps = {
   onOpenAddTask: () => void;
   onOpenAddEvent: () => void;
   onOpenHabits?: () => void;
+  onOpenDailyRoutine?: () => void;
   onOpenPreferences?: () => void;
   onOpenShortcuts?: () => void;
   tasks: Task[];
@@ -42,6 +43,7 @@ export function CommandPalette({
   onOpenAddTask,
   onOpenAddEvent,
   onOpenHabits,
+  onOpenDailyRoutine,
   onOpenPreferences,
   onOpenShortcuts,
   tasks,
@@ -170,6 +172,15 @@ export function CommandPalette({
               <Plus size={15} className="text-[#6088d1]" />
               <span>Schedule Calendar Event</span>
             </button>
+            {onOpenDailyRoutine && (
+              <button
+                onClick={() => handleAction(onOpenDailyRoutine)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition cursor-pointer"
+              >
+                <Sparkles size={15} className="text-forest" />
+                <span>Daily Routine: Morning Plan / Evening Wrap-up</span>
+              </button>
+            )}
             {onOpenHabits && (
               <button
                 onClick={() => handleAction(onOpenHabits)}

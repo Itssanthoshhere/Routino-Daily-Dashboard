@@ -24,6 +24,7 @@ import { MobileSidebar } from "@/components/MobileSidebar";
 import { GoogleSetupModal } from "@/components/GoogleSetupModal";
 import { GoogleDriveFilesCard } from "@/components/GoogleDriveFilesCard";
 import { UpNextMeetingBanner } from "@/components/UpNextMeetingBanner";
+import { DailyRoutineModal } from "@/components/DailyRoutineModal";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
@@ -288,6 +289,7 @@ export default function Home() {
   const [editingHabitInModal, setEditingHabitInModal] = useState<Habit | null>(null);
   const [showIndividualHabitModal, setShowIndividualHabitModal] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showRoutineModal, setShowRoutineModal] = useState(false);
   const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -1324,6 +1326,14 @@ export default function Home() {
                   <p className="mt-1.5 text-[12px] text-muted">{today} <span className="mx-1.5">·</span> A little clarity goes a long way.</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowRoutineModal(true)}
+                    title="Open Daily Routine (Morning Plan / Evening Wrap-up)"
+                    className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[11px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition shadow-2xs cursor-pointer"
+                  >
+                    <Sparkles size={13} className="text-forest" />
+                    <span>Daily Routine</span>
+                  </button>
                   <button onClick={() => handleSelectNav("Calendar")} className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[11px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"><CalendarDays size={14} />Today<ChevronDown size={13} /></button>
                   {!isConnected && (
                     <form action={connectGoogle}>
@@ -1753,6 +1763,22 @@ export default function Home() {
       </main>
 
       {/* ─── Modals & overlays ─── */}
+      <DailyRoutineModal
+        isOpen={showRoutineModal}
+        onClose={() => setShowRoutineModal(false)}
+        tasks={tasks}
+        habits={habits}
+        onToggleHabit={toggleHabit}
+        onAddTask={addTask}
+        onSaveReflectionNote={(content) => {
+          addNote({
+            title: "Evening Reflection",
+            content,
+            color: "peach",
+          });
+          toast("Reflection saved to your Notes!");
+        }}
+      />
       <FocusTimerModal
         isOpen={showFocusTimer}
         onClose={() => setShowFocusTimer(false)}
@@ -1789,6 +1815,7 @@ export default function Home() {
         onOpenAddTask={() => setShowTaskModal(true)}
         onOpenAddEvent={() => setShowEventModal(true)}
         onOpenHabits={() => setShowHabitsModal(true)}
+        onOpenDailyRoutine={() => setShowRoutineModal(true)}
         onOpenPreferences={() => setShowPreferences(true)}
         onOpenShortcuts={() => setShowShortcuts(true)}
         tasks={tasks}
