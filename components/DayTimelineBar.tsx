@@ -1,20 +1,20 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Clock, Video, Calendar, ChevronDown, ChevronUp, MapPin } from "lucide-react";
+import { Clock, Video, Calendar, ChevronDown, ChevronUp, MapPin, Moon } from "lucide-react";
 import type { DashboardEvent } from "@/types/dashboard";
 import { getMeetingUrl } from "@/lib/meeting";
 
 interface DayTimelineBarProps {
   events: DashboardEvent[];
-  startHour?: number; // e.g. 8 for 8:00 AM
-  endHour?: number;   // e.g. 20 for 8:00 PM
+  startHour?: number;
+  endHour?: number;
 }
 
 export function DayTimelineBar({
   events,
-  startHour = 8,
-  endHour = 20,
+  startHour: propStartHour,
+  endHour: propEndHour,
 }: DayTimelineBarProps) {
   const [now, setNow] = useState<Date>(new Date());
   const [isExpanded, setIsExpanded] = useState(false);
@@ -26,9 +26,52 @@ export function DayTimelineBar({
     return () => clearInterval(timer);
   }, []);
 
-  const totalDayMinutes = (endHour - startHour) * 60;
+  // Filter raw today events
+  const todayDateStr = useMemo(() => {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, [now]);
 
-  // Calculate current progress
+  // Find all events for today
+  const rawTodayEvents = useMemo(() => {
+    return events.filter((ev) => {
+      const startStr = ev.start?.dateTime || ev.start?.date;
+      if (!startStr) return false;
+      return startStr.startsWith(todayDateStr);
+    });
+  }, [events, todayDateStr]);
+
+  // Dynamically determine start and end hours
+  const { startHour, endHour } = useMemo(() => {
+    let s = propStartHour ?? 8;
+    let e = propEndHour ?? 20;
+
+    const currentH = now.getHours();
+
+    // Check if there are events before 8 AM or after 8 PM (20:00)
+    for (const ev of rawTodayEvents) {
+      const startStr = ev.start?.dateTime || ev.start?.date;
+      if (!startStr) continue;
+      const d = new Date(startStr);
+      const h = d.getHours();
+      if (h < s) s = Math.max(6, h);
+      if (h >= e || h === 23 || h === 22 || h === 21) e = 24;
+    }
+
+    // If current time is late evening/night, extend timeline to midnight (24:00)
+    if (currentH >= 20 || currentH < 6) {
+      e = 24;
+    }
+    if (currentH < s && currentH >= 6) {
+      s = 6;
+    }
+
+    return { startHour: s, endHour: e };
+  }, [propStartHour, propEndHour, now, rawTodayEvents]);
+
+  const totalDayMinutes = (endHour - startHour) * 60;
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const startMinutes = startHour * 60;
   const endMinutes = endHour * 60;
@@ -46,16 +89,9 @@ export function DayTimelineBar({
   const hoursLeft = Math.floor(minutesRemaining / 60);
   const minsLeft = minutesRemaining % 60;
 
-  // Filter and map today's events that overlap the display window
+  // Map today's events with strictly clamped positions
   const dayEvents = useMemo(() => {
-    const todayStr = now.toISOString().split("T")[0];
-
-    return events
-      .filter((ev) => {
-        const startStr = ev.start?.dateTime || ev.start?.date;
-        if (!startStr) return false;
-        return startStr.startsWith(todayStr);
-      })
+    return rawTodayEvents
       .map((ev) => {
         const startStr = ev.start?.dateTime || ev.start?.date || "";
         const endStr = ev.end?.dateTime || ev.end?.date || "";
@@ -65,15 +101,13 @@ export function DayTimelineBar({
         const eventStartMin = startDate.getHours() * 60 + startDate.getMinutes();
         const eventEndMin = endDate.getHours() * 60 + endDate.getMinutes();
 
-        // Calculate position percentage along the bar
-        const leftPercent = Math.min(
-          100,
-          Math.max(0, ((eventStartMin - startMinutes) / totalDayMinutes) * 100)
-        );
-        const widthPercent = Math.min(
-          100 - leftPercent,
-          Math.max(1.5, ((eventEndMin - eventStartMin) / totalDayMinutes) * 100)
-        );
+        // Raw percentage calculations
+        const rawLeft = ((eventStartMin - startMinutes) / totalDayMinutes) * 100;
+        const rawWidth = Math.max(2, ((eventEndMin - eventStartMin) / totalDayMinutes) * 100);
+
+        // GUARANTEED CLAMP: marker can NEVER exceed 100% or be less than 0%
+        const clampedWidth = Math.min(100, Math.max(2, rawWidth));
+        const clampedLeft = Math.max(0, Math.min(100 - clampedWidth, rawLeft));
 
         const isPast = eventEndMin < currentMinutes;
         const isCurrent = currentMinutes >= eventStartMin && currentMinutes < eventEndMin;
@@ -89,8 +123,8 @@ export function DayTimelineBar({
           startDate,
           endDate,
           timeLabel,
-          leftPercent,
-          widthPercent,
+          leftPercent: clampedLeft,
+          widthPercent: clampedWidth,
           isPast,
           isCurrent,
           isUpcoming,
@@ -99,32 +133,52 @@ export function DayTimelineBar({
         };
       })
       .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
-  }, [events, now, startMinutes, totalDayMinutes, currentMinutes]);
+  }, [rawTodayEvents, startMinutes, totalDayMinutes, currentMinutes]);
 
   // Format status string
   let statusText = "";
-  if (isBeforeWorkday) {
+  const currentH = now.getHours();
+
+  if (currentH < 6) {
+    statusText = `Late night / quiet hours · Rest & recharge 🌙`;
+  } else if (isBeforeWorkday) {
     const minUntil = startMinutes - currentMinutes;
     const h = Math.floor(minUntil / 60);
     const m = minUntil % 60;
     statusText = `Day starts at ${startHour}:00 AM (in ${h > 0 ? `${h}h ` : ""}${m}m)`;
   } else if (isAfterWorkday) {
-    statusText = `Workday complete · Rest & recharge 🌙`;
+    statusText = `Day complete · Good night 🌙`;
   } else {
-    statusText = `${Math.round(progressPercent)}% elapsed · ${hoursLeft > 0 ? `${hoursLeft}h ` : ""}${minsLeft}m left until ${endHour > 12 ? endHour - 12 : endHour}:00 PM`;
+    statusText = `${Math.round(progressPercent)}% elapsed · ${hoursLeft > 0 ? `${hoursLeft}h ` : ""}${minsLeft}m left until ${
+      endHour === 24 ? "Midnight" : `${endHour > 12 ? endHour - 12 : endHour}:00 PM`
+    }`;
   }
 
+  // Format axis markers
+  const axisMid1 = Math.round(startHour + (endHour - startHour) * 0.33);
+  const axisMid2 = Math.round(startHour + (endHour - startHour) * 0.66);
+
+  const formatHourLabel = (h: number) => {
+    if (h === 0 || h === 24) return "12:00 AM";
+    if (h === 12) return "12:00 PM";
+    return h > 12 ? `${h - 12}:00 PM` : `${h}:00 AM`;
+  };
+
   return (
-    <div className="relative rounded-2xl border border-line bg-white p-3.5 sm:p-4 shadow-card transition-all">
+    <div className="relative rounded-2xl border border-line bg-white p-3.5 sm:p-4 shadow-card transition-all overflow-hidden">
       {/* Top Header Row */}
       <div className="flex items-center justify-between gap-2 text-[11px]">
-        <div className="flex items-center gap-2">
-          <span className="grid h-5 w-5 place-items-center rounded-md bg-[#f0fdf4] text-[#16a34a]">
-            <Clock size={12} />
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className={`grid h-5 w-5 place-items-center rounded-md shrink-0 ${
+              currentH < 6 ? "bg-[#f5f3ff] text-[#7c3aed]" : "bg-[#f0fdf4] text-[#16a34a]"
+            }`}
+          >
+            {currentH < 6 ? <Moon size={12} /> : <Clock size={12} />}
           </span>
-          <span className="font-semibold text-ink">Today&apos;s Flow</span>
-          <span className="hidden sm:inline-block text-muted/50">·</span>
-          <span className="text-muted font-medium">{statusText}</span>
+          <span className="font-semibold text-ink shrink-0">Today&apos;s Flow</span>
+          <span className="hidden sm:inline-block text-muted/50 shrink-0">·</span>
+          <span className="text-muted font-medium truncate">{statusText}</span>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -145,9 +199,9 @@ export function DayTimelineBar({
         </div>
       </div>
 
-      {/* Visual Timeline Bar */}
-      <div className="relative mt-2.5 mb-1 pt-1">
-        {/* Track */}
+      {/* Visual Timeline Bar Track Container */}
+      <div className="relative mt-2.5 mb-1 pt-1 w-full">
+        {/* Track Base */}
         <div className="relative h-2 w-full rounded-full bg-[#f1f3ed] overflow-hidden">
           {/* Progress fill */}
           <div
@@ -156,71 +210,79 @@ export function DayTimelineBar({
           />
         </div>
 
-        {/* Meeting Segments overlay on top of the track */}
-        {dayEvents.map((ev) => (
-          <div
-            key={ev.id}
-            onMouseEnter={() => setActiveTooltipId(ev.id)}
-            onMouseLeave={() => setActiveTooltipId(null)}
-            className="absolute top-1 h-2 cursor-pointer transition-all"
-            style={{
-              left: `${ev.leftPercent}%`,
-              width: `${Math.max(ev.widthPercent, 1.5)}%`,
-            }}
-          >
+        {/* Meeting Segments overlay on top of the track (bounded within track margins) */}
+        <div className="absolute inset-x-0 top-1 h-2 pointer-events-none">
+          {dayEvents.map((ev) => (
             <div
-              className={`h-full rounded-full transition-transform hover:scale-y-150 ${
-                ev.isCurrent
-                  ? "bg-[#2563eb] ring-2 ring-[#2563eb]/40 animate-pulse"
-                  : ev.isPast
-                  ? "bg-[#cbd5e1]"
-                  : ev.meetUrl
-                  ? "bg-forest"
-                  : "bg-[#d97706]"
-              }`}
-            />
-
-            {/* Hover Tooltip */}
-            {activeTooltipId === ev.id && (
+              key={ev.id}
+              onMouseEnter={() => setActiveTooltipId(ev.id)}
+              onMouseLeave={() => setActiveTooltipId(null)}
+              className="absolute top-0 h-2 cursor-pointer transition-all pointer-events-auto"
+              style={{
+                left: `${ev.leftPercent}%`,
+                width: `${ev.widthPercent}%`,
+                maxWidth: `${100 - ev.leftPercent}%`,
+              }}
+            >
               <div
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 whitespace-nowrap rounded-lg bg-[#1f2421] px-2.5 py-1.5 text-[10px] text-white shadow-xl pointer-events-auto"
-                style={{ transform: "translateX(-50%)" }}
-              >
-                <div className="font-semibold">{ev.summary}</div>
-                <div className="text-white/70 text-[9px] flex items-center gap-1.5 mt-0.5">
-                  <span>{ev.timeLabel}</span>
-                  {ev.isCurrent && (
-                    <span className="rounded bg-[#2563eb] px-1 py-0.2 text-[8px] font-bold text-white uppercase">
-                      Now
-                    </span>
-                  )}
-                  {ev.meetUrl ? (
-                    <a
-                      href={ev.meetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-0.5 text-[#93c5fd] hover:underline"
-                    >
-                      <Video size={9} /> Join Meeting
-                    </a>
-                  ) : ev.location ? (
-                    <span className="text-amber-200 flex items-center gap-0.5">
-                      <MapPin size={9} /> {ev.location}
-                    </span>
-                  ) : (
-                    <span className="text-white/50">In-person</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+                className={`h-full rounded-full transition-transform hover:scale-y-150 ${
+                  ev.isCurrent
+                    ? "bg-[#2563eb] ring-2 ring-[#2563eb]/40 animate-pulse"
+                    : ev.isPast
+                    ? "bg-[#cbd5e1]"
+                    : ev.meetUrl
+                    ? "bg-forest"
+                    : "bg-[#d97706]"
+                }`}
+              />
 
-        {/* Now Indicator Pin (if within the workday bounds) */}
+              {/* Hover Tooltip - Smart horizontal alignment so it never overflows card boundary */}
+              {activeTooltipId === ev.id && (
+                <div
+                  className={`absolute bottom-4 z-30 whitespace-nowrap rounded-lg bg-[#1f2421] px-2.5 py-1.5 text-[10px] text-white shadow-xl pointer-events-auto ${
+                    ev.leftPercent > 70
+                      ? "right-0"
+                      : ev.leftPercent < 25
+                      ? "left-0"
+                      : "left-1/2 -translate-x-1/2"
+                  }`}
+                >
+                  <div className="font-semibold">{ev.summary}</div>
+                  <div className="text-white/70 text-[9px] flex items-center gap-1.5 mt-0.5">
+                    <span>{ev.timeLabel}</span>
+                    {ev.isCurrent && (
+                      <span className="rounded bg-[#2563eb] px-1 py-0.2 text-[8px] font-bold text-white uppercase">
+                        Now
+                      </span>
+                    )}
+                    {ev.meetUrl ? (
+                      <a
+                        href={ev.meetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 text-[#93c5fd] hover:underline"
+                      >
+                        <Video size={9} /> Join Meeting
+                      </a>
+                    ) : ev.location ? (
+                      <span className="text-amber-200 flex items-center gap-0.5">
+                        <MapPin size={9} /> {ev.location}
+                      </span>
+                    ) : (
+                      <span className="text-white/50">In-person</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Now Indicator Pin (clamped inside the bar) */}
         {!isBeforeWorkday && !isAfterWorkday && (
           <div
             className="absolute -top-0.5 z-20 -translate-x-1/2 pointer-events-none"
-            style={{ left: `${progressPercent}%` }}
+            style={{ left: `${Math.min(99, Math.max(1, progressPercent))}%` }}
           >
             <div className="h-3 w-1.5 rounded-full bg-forest ring-2 ring-white shadow-xs animate-pulse" />
           </div>
@@ -229,10 +291,10 @@ export function DayTimelineBar({
 
       {/* Axis Hour Labels */}
       <div className="flex items-center justify-between text-[9px] text-muted/60 font-medium px-0.5 mt-1">
-        <span>{startHour}:00 AM</span>
-        <span>12:00 PM</span>
-        <span>4:00 PM</span>
-        <span>{endHour > 12 ? endHour - 12 : endHour}:00 PM</span>
+        <span>{formatHourLabel(startHour)}</span>
+        <span>{formatHourLabel(axisMid1)}</span>
+        <span>{formatHourLabel(axisMid2)}</span>
+        <span>{formatHourLabel(endHour)}</span>
       </div>
 
       {/* Expanded Agenda View */}
