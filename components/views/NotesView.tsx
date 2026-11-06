@@ -2433,7 +2433,7 @@ export function NotesView({
               <button
                 type="button"
                 onClick={() => saveCurrentNoteChanges(true)}
-                className="rounded-xl px-3.5 py-1.5 text-[12px] font-medium text-muted hover:bg-black/5 hover:text-ink transition"
+                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5 hover:text-ink transition"
               >
                 Close
               </button>
@@ -2442,28 +2442,28 @@ export function NotesView({
                   <button
                     type="button"
                     onClick={handleSaveAndPreview}
-                    className="rounded-xl border border-black/15 bg-white/80 px-4 py-1.5 text-[12px] font-semibold text-ink shadow-xs hover:bg-white transition flex items-center gap-1.5 cursor-pointer"
+                    className="rounded-xl border border-black/15 bg-white/80 px-4 py-2 text-[12px] font-semibold text-ink shadow-xs hover:bg-white transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     <Eye size={13} />
-                    Save & Preview
+                    <span>Save & Preview</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => saveCurrentNoteChanges(true)}
-                    className="rounded-xl bg-forest px-4.5 py-1.5 text-[12px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition flex items-center gap-1.5 cursor-pointer"
+                    className="rounded-xl bg-forest px-5 py-2 text-[12px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                   >
                     {editIsEncrypted && <Lock size={13} />}
-                    Done
+                    <span>Done</span>
                   </button>
                 </>
               ) : (
                 <button
                   type="button"
                   onClick={() => setActiveTab("edit")}
-                  className="rounded-xl bg-forest px-4.5 py-1.5 text-[12px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition flex items-center gap-1.5 cursor-pointer"
+                  className="rounded-xl bg-forest px-5 py-2 text-[12px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition flex items-center gap-2 cursor-pointer whitespace-nowrap"
                 >
                   <Edit3 size={13} />
-                  Edit Note
+                  <span>Edit Note</span>
                 </button>
               )}
             </div>
