@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
-  ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, Github, Globe,
+  ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
   Inbox, Keyboard, Link2, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Shuffle, Sparkles,
   StickyNote, Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
@@ -122,7 +122,6 @@ const seedLinks: QuickLink[] = [
   { id: "ql-5", title: "GitHub", subtitle: "Itssanthoshhere", url: appConfig.links.github, iconName: "github", available: true },
   { id: "ql-6", title: "Portfolio", subtitle: "santhosh-vs-portfolio", url: appConfig.links.portfolio, iconName: "globe", available: true },
   { id: "ql-7", title: "Google Drive", subtitle: "Recent files", url: appConfig.links.drive, iconName: "drive", available: true },
-  { id: "ql-8", title: "Google Sites", subtitle: "Not integrated", url: "#", iconName: "sites", available: false },
 ];
 
 const seedNotifications: NotificationItem[] = [
@@ -183,7 +182,9 @@ function normalizeQuickLinks(links: QuickLink[]): QuickLink[] {
   return links.filter((link) =>
     String(link.iconName).toLowerCase() !== "linkedin" &&
     !link.url?.toLowerCase().includes("linkedin.com") &&
-    link.title?.trim().toLowerCase() !== "linkedin"
+    link.title?.trim().toLowerCase() !== "linkedin" &&
+    String(link.iconName).toLowerCase() !== "sites" &&
+    link.title?.trim().toLowerCase() !== "google sites"
   ).map((link, index) => {
     const baseId = link.id?.trim() || `quick-link-${index + 1}`;
     let id = baseId;
@@ -1134,6 +1135,11 @@ export default function Home() {
                 <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
               </div>
               <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
+                <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#6088d1] shadow-sm"><FolderOpen size={13} /></span>
+                Google Drive
+                <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (liveData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
+              </div>
+              <div className="flex items-center gap-2.5 rounded-xl px-3 py-1.5 xl:py-2 text-[11px] xl:text-[12px] text-[#58645c]">
                 <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#0078d4] shadow-sm"><CalendarDays size={13} /></span>
                 Outlook Calendar
                 <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (outlookData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
@@ -1143,13 +1149,6 @@ export default function Home() {
                 Outlook Mail
                 <span className={"ml-auto h-1.5 w-1.5 rounded-full " + (outlookData?.connected ? "bg-[#78a36d]" : "bg-[#efbd60]")} />
               </div>
-            </div>
-          </div>
-          <div className="mt-3.5 xl:mt-4 mb-4 rounded-xl border border-dashed border-[#e2e6df] px-3 py-2 xl:py-2.5">
-            <p className="text-[10px] font-medium text-[#929c93]">Not connected</p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              <span className="rounded-md bg-[#f1f2ee] px-2 py-0.5 text-[9px] text-[#808a81]">Drive</span>
-              <span className="rounded-md bg-[#f1f2ee] px-2 py-0.5 text-[9px] text-[#808a81]">Sites</span>
             </div>
           </div>
         </div>
@@ -1742,7 +1741,7 @@ export default function Home() {
           {/* Footer */}
           <footer className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-line pt-5 text-[9px] text-[#9ca69d] sm:flex-row">
             <span>{appConfig.name.toLowerCase()} · {appConfig.tagline}</span>
-            <span className="flex items-center gap-2"><span>Private by design</span><span>·</span><span>Google Sites not integrated</span></span>
+            <span className="flex items-center gap-2"><span>Private by design</span><span>·</span><span>Zero-Knowledge Notes</span></span>
           </footer>
         </div>
       </main>

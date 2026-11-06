@@ -29,7 +29,7 @@
   <br /><br />
 
   <p align="center">
-    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and the week ahead. Integrates with Google Calendar, Gmail, read-only Google Drive file metadata, and Microsoft Outlook (Mail & Calendar via Graph API). Google Sites is not integrated.</em>
+    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and the week ahead. Integrates with Google Calendar, Gmail, read-only Google Drive file metadata, and Microsoft Outlook (Mail & Calendar via Graph API).</em>
   </p>
 
   <p align="center">
@@ -131,8 +131,6 @@ Google OAuth access and refresh tokens are kept in the encrypted, HTTP-only Auth
 Google’s OAuth consent screen may display an unverified-app warning while the app is in testing. Add the intended account as a test user in Google Cloud Console. The account holder must sign in and approve the requested scopes before personal Calendar, Gmail, or Drive metadata can appear.
 
 Routino also requests `https://www.googleapis.com/auth/drive.metadata.readonly` to list up to eight recently modified Drive items. It receives only file names, MIME types, modification dates, and view links; it does not read or download file contents. Google classifies this as a restricted Drive scope, so production publishing may require Google OAuth verification. Google Drive API must be enabled and the account must approve the additional scope.
-
-**Not integrated:** Google Sites.
 
 ## 🧩 Google OAuth Setup
 
@@ -285,7 +283,7 @@ vercel --prod
 ## 🧭 Current Integration Limits
 
 - Gmail and Google Calendar are read-only.
-- Drive listing is read-only and returns names, MIME types, modification dates, and view links; Routino does not fetch file contents. Google Sites is not integrated.
+- Drive listing is read-only and returns names, MIME types, modification dates, and view links; Routino does not fetch file contents.
 - Tasks, scheduled custom events, and focus targets are stored in browser `localStorage` and automatically synchronized with the account database via `/api/user-data`.
 - Google OAuth testing mode may limit access to configured test users until any required Google review is completed.
 

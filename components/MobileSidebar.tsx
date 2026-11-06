@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   Keyboard,
   StickyNote,
+  FolderOpen,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 
@@ -151,6 +152,17 @@ export function MobileSidebar({
                 <Mail size={14} />
               </span>
               Gmail
+              <span
+                className={`ml-auto h-1.5 w-1.5 rounded-full ${
+                  isConnected ? "bg-forest" : "bg-[#efbd60]"
+                }`}
+              />
+            </div>
+            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-[12px] text-[#58645c]">
+              <span className="grid h-6 w-6 place-items-center rounded-lg bg-white text-[#6088d1] shadow-sm">
+                <FolderOpen size={14} />
+              </span>
+              Google Drive
               <span
                 className={`ml-auto h-1.5 w-1.5 rounded-full ${
                   isConnected ? "bg-forest" : "bg-[#efbd60]"
