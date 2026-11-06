@@ -12,6 +12,7 @@ import {
   Filter,
   Sparkles,
   MapPin,
+  Plane,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
@@ -156,7 +157,7 @@ export function CalendarView({
         <span className="text-[11px] font-semibold text-muted flex items-center gap-1 mr-1">
           <Filter size={12} /> Filter:
         </span>
-        {["ALL", "PROJECT", "WORK", "MEETING", "PERSONAL", "OUTLOOK"].map((tag) => (
+        {["ALL", "PROJECT", "TRAVEL", "WORK", "MEETING", "PERSONAL", "OUTLOOK"].map((tag) => (
           <button
             key={tag}
             onClick={() => setSelectedTag(tag)}
@@ -258,8 +259,10 @@ export function CalendarView({
                         </span>
                         {event.tag && (
                           <span
-                            className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
-                              event.tag === "PROJECT"
+                            className={`rounded px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1 ${
+                              event.tag === "TRAVEL"
+                                ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
+                                : event.tag === "PROJECT"
                                 ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
                                 : event.tag === "MEETING"
                                 ? "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
@@ -270,6 +273,7 @@ export function CalendarView({
                                 : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
                             }`}
                           >
+                            {event.tag === "TRAVEL" && <Plane size={10} />}
                             {event.tag}
                           </span>
                         )}

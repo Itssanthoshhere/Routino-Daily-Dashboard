@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
-  Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plus, Printer, Search, Shuffle, Sparkles,
+  Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
   StickyNote, Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
@@ -1498,8 +1498,10 @@ export default function Home() {
                               <span className="hidden text-[10px] text-[#a0aaa1] sm:inline">{item.time}–{item.end}</span>
                               {item.tag && (
                                 <span
-                                  className={`rounded-md px-2 py-0.5 text-[9px] font-bold tracking-wide ${
-                                    item.tag === "PROJECT"
+                                  className={`rounded-md px-2 py-0.5 text-[9px] font-bold tracking-wide flex items-center gap-1 ${
+                                    item.tag === "TRAVEL"
+                                      ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
+                                      : item.tag === "PROJECT"
                                       ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
                                       : item.tag === "MEETING"
                                       ? "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
@@ -1510,6 +1512,7 @@ export default function Home() {
                                       : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
                                   }`}
                                 >
+                                  {item.tag === "TRAVEL" && <Plane size={9} />}
                                   {item.tag}
                                 </span>
                               )}

@@ -44,23 +44,27 @@ export function getMeetingUrl(event: DashboardEvent): string | null {
  * Automatically infers an event's category/tag and theme color from its title,
  * description, and properties.
  * Identifies:
- * - "PROJECT": hands-on build sessions (keywords: project, website, app, building, portfolio, dev, code, design)
+ * - "TRAVEL": flights, trains, hotel bookings, airport, trips
+ * - "PROJECT": hands-on build sessions (project, website, building app, portfolio, dev, code)
  * - "MEETING": video calls, syncs, reviews, 1:1s
- * - "PERSONAL": travel, flights, doctor, workout, personal life
+ * - "PERSONAL": doctor, dentist, gym, dinner, personal life
  * - "OUTLOOK": synced via Microsoft Outlook
  * - "WORK": default professional work
  */
 export function inferEventCategory(event: DashboardEvent): { tag: string; color: string } {
   if (event.tag && event.tag !== "WORK") {
+    const t = event.tag.toUpperCase();
     return {
-      tag: event.tag.toUpperCase(),
+      tag: t,
       color:
         event.color ||
-        (event.tag === "PROJECT"
+        (t === "TRAVEL"
+          ? "#0284c7"
+          : t === "PROJECT"
           ? "#7c3aed"
-          : event.tag === "MEETING"
+          : t === "MEETING"
           ? "#2563eb"
-          : event.tag === "PERSONAL"
+          : t === "PERSONAL"
           ? "#d97706"
           : "#16a34a"),
     };
@@ -70,31 +74,55 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "OUTLOOK", color: "#0078d4" };
   }
 
-  const text = `${event.summary || ""} ${event.description || ""}`.toLowerCase();
+  const summary = (event.summary || "").toLowerCase();
 
-  // Project / Building keywords
+  // Strip Google Calendar boilerplate from description
+  const cleanDesc = (event.description || "")
+    .replace(/use the official Google Calendar app/gi, "")
+    .replace(/automatically created events/gi, "")
+    .replace(/https?:\/\/[^\s]+/gi, "")
+    .toLowerCase();
+
+  const titleAndDesc = `${summary} ${cleanDesc}`;
+
+  // 1. TRAVEL (highest priority: flights, trains, hotels, transit, airport, flight numbers)
   if (
-    /\b(project|website|app|building|portfolio|coding|code|dev|develop|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo)\b/i.test(
-      text
-    )
+    /\b(flight|train|hotel|airport|airline|boarding|terminal|travel|trip|stay|vacation|departure|arrival|transit|indigo|air india|vistara|spicejet|emirates|qatar|delta|united|lufthansa)\b/i.test(
+      summary
+    ) ||
+    /\b(6e|ai|uk|sg|g8|ix|qp)\s*\d{2,4}\b/i.test(summary) ||
+    /\b(flight|airport|terminal|hotel booking|boarding pass)\b/i.test(cleanDesc)
+  ) {
+    return { tag: "TRAVEL", color: "#0284c7" };
+  }
+
+  // 2. PROJECT / BUILD (project, website, building app, portfolio, dev, coding)
+  if (
+    /\b(project|website|building|portfolio|coding|code|dev|develop|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo)\b/i.test(
+      summary
+    ) ||
+    /\b([a-z0-9_-]+\s+app|app\s+dev|build|spendo)\b/i.test(summary) ||
+    (/\b(project|website|building|portfolio|coding|dev|dashboard|api)\b/i.test(cleanDesc) &&
+      !/\bcalendar\b/i.test(cleanDesc))
   ) {
     return { tag: "PROJECT", color: "#7c3aed" };
   }
 
-  // Meeting / Video call keywords
+  // 3. MEETING (syncs, standups, 1:1, interviews, calls, video conferences)
   if (
-    /\b(sync|standup|1:1|one-on-one|interview|review|sync-up|check-in|catch-up|huddle|debrief|meeting|demo)\b/i.test(
-      text
+    /\b(sync|standup|1:1|one-on-one|interview|review|sync-up|check-in|catch-up|huddle|debrief|meeting|demo|call)\b/i.test(
+      summary
     ) ||
-    !!event.meetLink
+    !!event.meetLink ||
+    (event.attendees && event.attendees.length > 1)
   ) {
     return { tag: "MEETING", color: "#2563eb" };
   }
 
-  // Personal / Life keywords
+  // 4. PERSONAL (doctor, dentist, gym, dinner, birthday, personal life)
   if (
-    /\b(flight|hotel|dentist|doctor|gym|workout|personal|dinner|lunch|trip|vacation|birthday|errand|family)\b/i.test(
-      text
+    /\b(doctor|dentist|gym|workout|personal|dinner|lunch|birthday|errand|family|movie|concert|spa|salon)\b/i.test(
+      titleAndDesc
     )
   ) {
     return { tag: "PERSONAL", color: "#d97706" };

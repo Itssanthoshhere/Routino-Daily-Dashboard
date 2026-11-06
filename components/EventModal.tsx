@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Clock, Video, Users, ExternalLink, X, Plus, MapPin, Calendar } from "lucide-react";
+import { CalendarDays, Clock, Video, Users, ExternalLink, X, Plus, MapPin, Calendar, Plane } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { appConfig } from "@/lib/config";
 import { getMeetingUrl } from "@/lib/meeting";
@@ -89,7 +89,22 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
                   <p className="mt-1 text-[12px] text-muted">{eventToView.description || "No description provided."}</p>
                 </div>
                 {eventToView.tag && (
-                  <span className="rounded-md bg-[#faf1e4] px-2 py-1 text-[10px] font-bold text-[#a5793d]">
+                  <span
+                    className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide flex items-center gap-1 shrink-0 ${
+                      eventToView.tag === "TRAVEL"
+                        ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
+                        : eventToView.tag === "PROJECT"
+                        ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
+                        : eventToView.tag === "MEETING"
+                        ? "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
+                        : eventToView.tag === "PERSONAL"
+                        ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                        : eventToView.tag === "OUTLOOK"
+                        ? "bg-[#ebf3fc] text-[#0078d4] border border-[#c7e0f4]"
+                        : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
+                    }`}
+                  >
+                    {eventToView.tag === "TRAVEL" && <Plane size={11} />}
                     {eventToView.tag}
                   </span>
                 )}
@@ -193,6 +208,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
               <div className="mt-1.5 flex gap-1.5">
                 {[
                   { id: "PROJECT", label: "Project", color: "bg-[#f5f3ff] text-[#7c3aed] border-[#ddd6fe]" },
+                  { id: "TRAVEL", label: "Travel", color: "bg-[#f0f9ff] text-[#0284c7] border-[#bae6fd]" },
                   { id: "WORK", label: "Work", color: "bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]" },
                   { id: "MEETING", label: "Meeting", color: "bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]" },
                   { id: "PERSONAL", label: "Personal", color: "bg-[#fffbeb] text-[#b45309] border-[#fde68a]" },
