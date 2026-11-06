@@ -42,7 +42,7 @@ import { NotesView } from "@/components/views/NotesView";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
-import { getMeetingUrl } from "@/lib/meeting";
+import { getMeetingUrl, inferEventCategory } from "@/lib/meeting";
 
 /* ─── Sample / seed data ────────────────────────────────────────── */
 
@@ -559,8 +559,15 @@ export default function Home() {
 
   /* ── Computed calendar data ── */
   const allEvents = useMemo(() => {
-    const live = liveData?.events ?? [];
-    const outlook = outlookData?.events ?? [];
+    const live = (liveData?.events ?? []).map((ev) => {
+      const cat = inferEventCategory(ev);
+      return { ...ev, tag: ev.tag || cat.tag, color: ev.color || cat.color };
+    });
+    const outlook = (outlookData?.events ?? []).map((ev) => ({
+      ...ev,
+      tag: ev.tag || "OUTLOOK",
+      color: ev.color || "#0078d4",
+    }));
     return [...live, ...outlook, ...customEvents];
   }, [liveData, outlookData, customEvents]);
 
@@ -587,16 +594,19 @@ export default function Home() {
   const isConnected = !!liveData?.connected || !!outlookData?.connected;
 
   const schedule: ScheduleItem[] = isConnected || customEvents.length > 0
-    ? todayEvents.map((ev, i) => ({
-        time: formatTime(ev.start?.dateTime),
-        end: formatTime(ev.end?.dateTime),
-        name: ev.summary || "Untitled event",
-        detail: ev.description?.slice(0, 90) || (ev.source === "outlook" ? "Outlook Calendar" : "Google Calendar"),
-        tag: ev.tag || (ev.source === "outlook" ? "OUTLOOK" : ""),
-        color: ev.color || (ev.source === "outlook" ? "#0078d4" : ["#7b8df4", "#e7a15a", "#5fa77d"][i % 3]),
-        meetUrl: getMeetingUrl(ev),
-        location: ev.location || null,
-      }))
+    ? todayEvents.map((ev, i) => {
+        const cat = inferEventCategory(ev);
+        return {
+          time: formatTime(ev.start?.dateTime),
+          end: formatTime(ev.end?.dateTime),
+          name: ev.summary || "Untitled event",
+          detail: ev.description?.slice(0, 90) || (ev.source === "outlook" ? "Outlook Calendar" : "Google Calendar"),
+          tag: ev.tag || cat.tag,
+          color: ev.color || cat.color,
+          meetUrl: getMeetingUrl(ev),
+          location: ev.location || null,
+        };
+      })
     : sampleSchedule;
 
   const displaySchedule = isConnected ? schedule : (schedule.length > 0 ? schedule : sampleSchedule);
@@ -1486,7 +1496,23 @@ export default function Home() {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <span className="hidden text-[10px] text-[#a0aaa1] sm:inline">{item.time}–{item.end}</span>
-                              {item.tag && <span className="rounded-md bg-[#faf1e4] px-2 py-1 text-[9px] font-bold tracking-wide text-[#a5793d]">{item.tag}</span>}
+                              {item.tag && (
+                                <span
+                                  className={`rounded-md px-2 py-0.5 text-[9px] font-bold tracking-wide ${
+                                    item.tag === "PROJECT"
+                                      ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
+                                      : item.tag === "MEETING"
+                                      ? "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
+                                      : item.tag === "PERSONAL"
+                                      ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                                      : item.tag === "OUTLOOK"
+                                      ? "bg-[#ebf3fc] text-[#0078d4] border border-[#c7e0f4]"
+                                      : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
+                                  }`}
+                                >
+                                  {item.tag}
+                                </span>
+                              )}
                               {item.meetUrl ? (
                                 <a
                                   href={item.meetUrl}

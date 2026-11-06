@@ -156,7 +156,7 @@ export function CalendarView({
         <span className="text-[11px] font-semibold text-muted flex items-center gap-1 mr-1">
           <Filter size={12} /> Filter:
         </span>
-        {["ALL", "WORK", "PREP", "PERSONAL", "OUTLOOK"].map((tag) => (
+        {["ALL", "PROJECT", "WORK", "MEETING", "PERSONAL", "OUTLOOK"].map((tag) => (
           <button
             key={tag}
             onClick={() => setSelectedTag(tag)}
@@ -258,10 +258,16 @@ export function CalendarView({
                         </span>
                         {event.tag && (
                           <span
-                            className={`rounded px-1.5 py-0.5 font-bold ${
-                              event.tag === "OUTLOOK"
-                                ? "bg-[#ebf3fc] text-[#0078d4]"
-                                : "bg-[#faf1e4] text-[#a5793d]"
+                            className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                              event.tag === "PROJECT"
+                                ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
+                                : event.tag === "MEETING"
+                                ? "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
+                                : event.tag === "PERSONAL"
+                                ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                                : event.tag === "OUTLOOK"
+                                ? "bg-[#ebf3fc] text-[#0078d4] border border-[#c7e0f4]"
+                                : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
                             }`}
                           >
                             {event.tag}

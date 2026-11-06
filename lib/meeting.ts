@@ -39,3 +39,66 @@ export function getMeetingUrl(event: DashboardEvent): string | null {
 
   return null;
 }
+
+/**
+ * Automatically infers an event's category/tag and theme color from its title,
+ * description, and properties.
+ * Identifies:
+ * - "PROJECT": hands-on build sessions (keywords: project, website, app, building, portfolio, dev, code, design)
+ * - "MEETING": video calls, syncs, reviews, 1:1s
+ * - "PERSONAL": travel, flights, doctor, workout, personal life
+ * - "OUTLOOK": synced via Microsoft Outlook
+ * - "WORK": default professional work
+ */
+export function inferEventCategory(event: DashboardEvent): { tag: string; color: string } {
+  if (event.tag && event.tag !== "WORK") {
+    return {
+      tag: event.tag.toUpperCase(),
+      color:
+        event.color ||
+        (event.tag === "PROJECT"
+          ? "#7c3aed"
+          : event.tag === "MEETING"
+          ? "#2563eb"
+          : event.tag === "PERSONAL"
+          ? "#d97706"
+          : "#16a34a"),
+    };
+  }
+
+  if (event.source === "outlook") {
+    return { tag: "OUTLOOK", color: "#0078d4" };
+  }
+
+  const text = `${event.summary || ""} ${event.description || ""}`.toLowerCase();
+
+  // Project / Building keywords
+  if (
+    /\b(project|website|app|building|portfolio|coding|code|dev|develop|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo)\b/i.test(
+      text
+    )
+  ) {
+    return { tag: "PROJECT", color: "#7c3aed" };
+  }
+
+  // Meeting / Video call keywords
+  if (
+    /\b(sync|standup|1:1|one-on-one|interview|review|sync-up|check-in|catch-up|huddle|debrief|meeting|demo)\b/i.test(
+      text
+    ) ||
+    !!event.meetLink
+  ) {
+    return { tag: "MEETING", color: "#2563eb" };
+  }
+
+  // Personal / Life keywords
+  if (
+    /\b(flight|hotel|dentist|doctor|gym|workout|personal|dinner|lunch|trip|vacation|birthday|errand|family)\b/i.test(
+      text
+    )
+  ) {
+    return { tag: "PERSONAL", color: "#d97706" };
+  }
+
+  return { tag: event.tag || "WORK", color: event.color || "#16a34a" };
+}

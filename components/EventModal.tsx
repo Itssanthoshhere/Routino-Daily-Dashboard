@@ -37,7 +37,14 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
       end: { dateTime: new Date(Date.now() + 3600000).toISOString() },
       tag,
       meetLink: meetLink.trim() || undefined,
-      color: tag === "PREP" ? "#e7a15a" : tag === "WORK" ? "#7b8df4" : "#5fa77d",
+      color:
+        tag === "PROJECT"
+          ? "#7c3aed"
+          : tag === "MEETING"
+          ? "#2563eb"
+          : tag === "PERSONAL"
+          ? "#d97706"
+          : "#16a34a",
       isCustom: true,
     };
 
@@ -178,6 +185,31 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
                   placeholder="11:00 AM"
                   className="mt-1.5 w-full rounded-xl border border-line bg-white px-3.5 py-2 text-[12px] text-ink outline-none focus:border-forest transition"
                 />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-ink">Category / Tag</label>
+              <div className="mt-1.5 flex gap-1.5">
+                {[
+                  { id: "PROJECT", label: "Project", color: "bg-[#f5f3ff] text-[#7c3aed] border-[#ddd6fe]" },
+                  { id: "WORK", label: "Work", color: "bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]" },
+                  { id: "MEETING", label: "Meeting", color: "bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]" },
+                  { id: "PERSONAL", label: "Personal", color: "bg-[#fffbeb] text-[#b45309] border-[#fde68a]" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setTag(item.id)}
+                    className={`flex-1 rounded-xl border py-1.5 text-[11px] font-bold transition cursor-pointer ${
+                      tag === item.id
+                        ? `${item.color} ring-1 ring-black/10 shadow-2xs`
+                        : "border-line bg-white text-muted hover:bg-black/5"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
             </div>
 
