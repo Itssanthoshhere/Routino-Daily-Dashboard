@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Pin,
   Plus,
@@ -9,7 +9,6 @@ import {
   Check,
   CheckSquare,
   Search,
-  Sparkles,
   Palette,
   X,
   FileText,
@@ -21,7 +20,19 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  HelpCircle,
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  Code,
+  Heading1,
+  Heading2,
+  List,
+  ListOrdered,
+  Quote,
+  Maximize2,
+  Minimize2,
+  Edit3,
 } from "lucide-react";
 import { KeepNote, KeepNoteChecklistItem } from "@/types/dashboard";
 import {
@@ -86,6 +97,166 @@ type NotesViewProps = {
   onDeleteNote: (id: string) => void;
 };
 
+// Markdown & rich text token parser
+function parseInline(text: string): React.ReactNode {
+  const tokenRegex = /(\*\*[^*]+\*\*|<u>[\s\S]*?<\/u>|~~[^~]+~~|\*[^*]+\*|`[^`]+`)/g;
+  const parts = text.split(tokenRegex);
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
+      return (
+        <strong key={index} className="font-bold text-ink">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("<u>") && part.endsWith("</u>") && part.length >= 7) {
+      return (
+        <span
+          key={index}
+          className="underline decoration-current underline-offset-2 font-medium"
+        >
+          {part.slice(3, -4)}
+        </span>
+      );
+    }
+    if (part.startsWith("~~") && part.endsWith("~~") && part.length >= 4) {
+      return (
+        <del key={index} className="line-through opacity-70">
+          {part.slice(2, -2)}
+        </del>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*") && part.length >= 2) {
+      return (
+        <em key={index} className="italic text-ink/90">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
+      return (
+        <code
+          key={index}
+          className="rounded bg-black/5 px-1.5 py-0.5 font-mono text-[11px] text-[#b91c1c] font-medium"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
+// Full Markdown & codeblock preview component
+function FormattedContent({ text, isCompact = false }: { text: string; isCompact?: boolean }) {
+  if (!text) return null;
+
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let inCodeBlock = false;
+  let codeBlockLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.trim().startsWith("```")) {
+      if (inCodeBlock) {
+        const codeText = codeBlockLines.join("\n");
+        elements.push(
+          <div
+            key={`cb-${i}`}
+            className="my-2 rounded-xl bg-[#1e232a] p-3 text-white font-mono text-[11px] overflow-x-auto shadow-sm border border-black/20"
+          >
+            <pre className="whitespace-pre">{codeText}</pre>
+          </div>
+        );
+        codeBlockLines = [];
+        inCodeBlock = false;
+      } else {
+        inCodeBlock = true;
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(line);
+      continue;
+    }
+
+    if (line.startsWith("# ")) {
+      elements.push(
+        <h2 key={i} className={`${isCompact ? "text-[13px]" : "text-[16px]"} font-bold text-ink mt-2 mb-1`}>
+          {parseInline(line.slice(2))}
+        </h2>
+      );
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      elements.push(
+        <h3 key={i} className={`${isCompact ? "text-[12px]" : "text-[14px]"} font-bold text-ink mt-1.5 mb-1`}>
+          {parseInline(line.slice(3))}
+        </h3>
+      );
+      continue;
+    }
+    if (line.startsWith("> ")) {
+      elements.push(
+        <blockquote
+          key={i}
+          className="border-l-2 border-forest/50 pl-2.5 my-1 text-muted italic text-[11px] bg-black/[0.02] py-0.5"
+        >
+          {parseInline(line.slice(2))}
+        </blockquote>
+      );
+      continue;
+    }
+    if (line.startsWith("- ") || line.startsWith("* ")) {
+      elements.push(
+        <div key={i} className="flex items-start gap-1.5 my-0.5 text-[12px]">
+          <span className="text-forest mt-0.5">•</span>
+          <span className="flex-1">{parseInline(line.slice(2))}</span>
+        </div>
+      );
+      continue;
+    }
+    const numMatch = line.match(/^(\d+)\.\s+(.*)$/);
+    if (numMatch) {
+      elements.push(
+        <div key={i} className="flex items-start gap-1.5 my-0.5 text-[12px]">
+          <span className="font-semibold text-muted text-[11px] min-w-[16px]">{numMatch[1]}.</span>
+          <span className="flex-1">{parseInline(numMatch[2])}</span>
+        </div>
+      );
+      continue;
+    }
+
+    if (!line.trim()) {
+      elements.push(<div key={i} className="h-1.5" />);
+      continue;
+    }
+
+    elements.push(
+      <p key={i} className="my-0.5 text-[12px] leading-relaxed text-[#404c43]">
+        {parseInline(line)}
+      </p>
+    );
+  }
+
+  if (inCodeBlock && codeBlockLines.length > 0) {
+    elements.push(
+      <div
+        key="cb-end"
+        className="my-2 rounded-xl bg-[#1e232a] p-3 text-white font-mono text-[11px] overflow-x-auto shadow-sm border border-black/20"
+      >
+        <pre className="whitespace-pre">{codeBlockLines.join("\n")}</pre>
+      </div>
+    );
+  }
+
+  return <div className="space-y-0.5">{elements}</div>;
+}
+
 export function NotesView({
   notes,
   onAddNote,
@@ -126,6 +297,113 @@ export function NotesView({
   const [editDecryptedContent, setEditDecryptedContent] = useState("");
   const [editDecryptedChecklist, setEditDecryptedChecklist] = useState<KeepNoteChecklistItem[]>([]);
   const [editIsEncrypted, setEditIsEncrypted] = useState(false);
+  const [isModalExpanded, setIsModalExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+
+  // Textarea Refs for Rich Text Insertion
+  const composeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Formatting Insertion Helper
+  const applyFormatting = (
+    textarea: HTMLTextAreaElement | null,
+    format: "bold" | "italic" | "underline" | "strike" | "code" | "codeblock" | "h1" | "h2" | "bullet" | "number" | "quote",
+    currentValue: string,
+    setValue: (val: string) => void
+  ) => {
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = currentValue.slice(start, end);
+
+    let replacement = "";
+    let cursorOffset = 0;
+
+    switch (format) {
+      case "bold":
+        replacement = `**${selected || "bold text"}**`;
+        cursorOffset = selected ? replacement.length : 2;
+        break;
+      case "italic":
+        replacement = `*${selected || "italic text"}*`;
+        cursorOffset = selected ? replacement.length : 1;
+        break;
+      case "underline":
+        replacement = `<u>${selected || "underlined text"}</u>`;
+        cursorOffset = selected ? replacement.length : 3;
+        break;
+      case "strike":
+        replacement = `~~${selected || "strikethrough"}~~`;
+        cursorOffset = selected ? replacement.length : 2;
+        break;
+      case "code":
+        replacement = `\`${selected || "code"}\``;
+        cursorOffset = selected ? replacement.length : 1;
+        break;
+      case "codeblock":
+        replacement = selected
+          ? `\`\`\`\n${selected}\n\`\`\``
+          : `\`\`\`bash\n# commands or code\n\`\`\``;
+        cursorOffset = replacement.length;
+        break;
+      case "h1":
+        replacement = `# ${selected || "Heading 1"}`;
+        cursorOffset = replacement.length;
+        break;
+      case "h2":
+        replacement = `## ${selected || "Heading 2"}`;
+        cursorOffset = replacement.length;
+        break;
+      case "bullet":
+        replacement = selected
+          ? selected.split("\n").map((l) => `- ${l}`).join("\n")
+          : `- List item`;
+        cursorOffset = replacement.length;
+        break;
+      case "number":
+        replacement = selected
+          ? selected.split("\n").map((l, i) => `${i + 1}. ${l}`).join("\n")
+          : `1. List item`;
+        cursorOffset = replacement.length;
+        break;
+      case "quote":
+        replacement = selected
+          ? selected.split("\n").map((l) => `> ${l}`).join("\n")
+          : `> Quote`;
+        cursorOffset = replacement.length;
+        break;
+    }
+
+    const nextValue = currentValue.slice(0, start) + replacement + currentValue.slice(end);
+    setValue(nextValue);
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + cursorOffset, start + cursorOffset);
+    }, 0);
+  };
+
+  // Keyboard shortcut handler for rich formatting
+  const handleEditorKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+    textarea: HTMLTextAreaElement | null,
+    currentValue: string,
+    setValue: (val: string) => void
+  ) => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+      if (e.key === "b" || e.key === "B") {
+        e.preventDefault();
+        applyFormatting(textarea, "bold", currentValue, setValue);
+      } else if (e.key === "i" || e.key === "I") {
+        e.preventDefault();
+        applyFormatting(textarea, "italic", currentValue, setValue);
+      } else if (e.key === "u" || e.key === "U") {
+        e.preventDefault();
+        applyFormatting(textarea, "underline", currentValue, setValue);
+      }
+    }
+  };
 
   // Load vault configuration from localStorage
   useEffect(() => {
@@ -147,7 +425,6 @@ export function NotesView({
         try {
           const decryptedString = await decryptPayload(note.content, pin);
           try {
-            // Attempt JSON parse in case checklist + text were bundled
             const parsed = JSON.parse(decryptedString);
             if (typeof parsed === "object" && parsed !== null && "text" in parsed) {
               nextCache[note.id] = {
@@ -161,7 +438,7 @@ export function NotesView({
           }
           nextCache[note.id] = { text: decryptedString, checklist: note.checklist };
         } catch {
-          // If decryption fails (e.g. wrong key or corrupt), ignore
+          // If decryption fails, ignore
         }
       }
     }
@@ -252,7 +529,6 @@ export function NotesView({
         return;
       }
 
-      // Re-encrypt all existing encrypted notes with the new PIN
       for (const note of notes) {
         if (note.isEncrypted || isEncryptedPayload(note.content)) {
           const cached = decryptedCache[note.id];
@@ -312,14 +588,13 @@ export function NotesView({
         return;
       }
 
-      // Bundle text and checklist into a JSON payload, then encrypt with AES-256-GCM
       const payloadString = JSON.stringify({
         text: finalContent,
         checklist: finalChecklist,
       });
 
       finalContent = await encryptPayload(payloadString, sessionPin);
-      finalChecklist = undefined; // Checklist is safely stored encrypted inside payload
+      finalChecklist = undefined;
     }
 
     onAddNote({
@@ -339,7 +614,7 @@ export function NotesView({
     setIsComposing(false);
   };
 
-  // Copy note text to clipboard (decrypted if encrypted)
+  // Copy note text to clipboard
   const handleCopyNote = (note: KeepNote) => {
     let textToCopy = note.content;
     let checklistToCopy = note.checklist;
@@ -407,6 +682,7 @@ export function NotesView({
 
     setEditingNote(note);
     setEditIsEncrypted(Boolean(note.isEncrypted));
+    setActiveTab("edit");
 
     if (note.isEncrypted && decryptedCache[note.id]) {
       setEditDecryptedContent(decryptedCache[note.id].text);
@@ -484,6 +760,110 @@ export function NotesView({
   const pinnedNotes = filteredNotes.filter((n) => n.pinned);
   const otherNotes = filteredNotes.filter((n) => !n.pinned);
 
+  // Render Rich Text Toolbar
+  const renderFormattingToolbar = (
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>,
+    currentValue: string,
+    setValue: (val: string) => void
+  ) => (
+    <div className="flex flex-wrap items-center gap-1 rounded-xl bg-black/[0.04] p-1 border border-black/5">
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "bold", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Bold (Ctrl+B)"
+      >
+        <Bold size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "italic", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Italic (Ctrl+I)"
+      >
+        <Italic size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "underline", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Underline (Ctrl+U)"
+      >
+        <UnderlineIcon size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "strike", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Strikethrough"
+      >
+        <Strikethrough size={13} />
+      </button>
+
+      <span className="h-3.5 w-px bg-black/15 mx-0.5" />
+
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "code", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Inline Code"
+      >
+        <Code size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "codeblock", currentValue, setValue)}
+        className="rounded px-1.5 py-1 text-[11px] font-mono text-[#404c43] hover:bg-black/10 transition"
+        title="Code Block"
+      >
+        {"{ }"}
+      </button>
+
+      <span className="h-3.5 w-px bg-black/15 mx-0.5" />
+
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "h1", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Heading 1"
+      >
+        <Heading1 size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "h2", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Heading 2"
+      >
+        <Heading2 size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "bullet", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Bullet List"
+      >
+        <List size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "number", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Numbered List"
+      >
+        <ListOrdered size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => applyFormatting(textareaRef.current, "quote", currentValue, setValue)}
+        className="rounded p-1.5 text-[#404c43] hover:bg-black/10 transition"
+        title="Quote Block"
+      >
+        <Quote size={13} />
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* View Header with Security Vault Status */}
@@ -496,13 +876,12 @@ export function NotesView({
             </span>
           </div>
           <p className="mt-0.5 text-[12px] text-muted">
-            Quick notes, thoughts, passwords & Keep-style lists with zero-knowledge AES-256 encryption.
+            Rich markdown notes with bold, underline, code blocks & zero-knowledge AES-256 encryption.
           </p>
         </div>
 
         {/* Security Controls + Search Bar */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Zero-Knowledge Vault Badge / Control */}
           {!vaultVerifier ? (
             <button
               onClick={() => {
@@ -579,7 +958,7 @@ export function NotesView({
               onClick={() => setIsComposing(true)}
               className="flex items-center justify-between px-4 py-3 cursor-text text-muted hover:text-ink transition"
             >
-              <span className="text-[13px] font-medium">Take a note, password, or checklist...</span>
+              <span className="text-[13px] font-medium">Take a note, code snippet, or password...</span>
               <div className="flex items-center gap-2 text-muted">
                 <button
                   type="button"
@@ -618,7 +997,7 @@ export function NotesView({
               <div className="flex items-center justify-between gap-2">
                 <input
                   type="text"
-                  placeholder="Title (e.g. Server Passwords, AWS Keys)"
+                  placeholder="Title (e.g. Git Config, Server Credentials)"
                   value={composeTitle}
                   onChange={(e) => setComposeTitle(e.target.value)}
                   className="w-full bg-transparent text-[14px] font-semibold text-ink outline-none placeholder:text-muted/60"
@@ -667,13 +1046,18 @@ export function NotesView({
                 </div>
               </div>
 
-              {/* Note Content */}
+              {/* Formatting Toolbar */}
+              {renderFormattingToolbar(composeTextareaRef, composeContent, setComposeContent)}
+
+              {/* Note Content Textarea */}
               <textarea
-                placeholder={composeEncrypted ? "Enter sensitive secrets, passwords, or tokens (encrypted with AES-256-GCM)..." : "Take a note..."}
-                rows={3}
+                ref={composeTextareaRef}
+                placeholder={composeEncrypted ? "Enter sensitive secrets (encrypted with AES-256-GCM)..." : "Take a note (supports **bold**, <u>underline</u>, `code`, and markdown)..."}
+                rows={4}
                 value={composeContent}
                 onChange={(e) => setComposeContent(e.target.value)}
-                className="w-full resize-none bg-transparent text-[12px] text-ink outline-none placeholder:text-muted/60 font-mono"
+                onKeyDown={(e) => handleEditorKeyDown(e, composeTextareaRef.current, composeContent, setComposeContent)}
+                className="w-full resize-none bg-transparent text-[12px] text-ink outline-none placeholder:text-muted/60 font-mono leading-relaxed"
               />
 
               {/* Checklist items */}
@@ -795,7 +1179,7 @@ export function NotesView({
         )}
       </div>
 
-      {/* Render Note Card Function */}
+      {/* Render Expanded Note Card Modal */}
       {renderNoteCardModal()}
 
       {/* Setup Master PIN Modal */}
@@ -1131,11 +1515,11 @@ export function NotesView({
             </div>
           ) : (
             <>
-              {/* Body content */}
+              {/* Formatted body content with bold, underline, lists, and codeblocks */}
               {displayContent && (
-                <p className="mt-2 text-[12px] leading-relaxed text-[#404c43] line-clamp-6 whitespace-pre-wrap font-mono">
-                  {displayContent}
-                </p>
+                <div className="mt-2 line-clamp-6 text-[#404c43]">
+                  <FormattedContent text={displayContent} isCompact={true} />
+                </div>
               )}
 
               {/* Checklist preview */}
@@ -1237,25 +1621,60 @@ export function NotesView({
     );
   }
 
+  // Expanded Rich Modal Preview & Editor
   function renderNoteCardModal() {
     if (!editingNote) return null;
 
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm p-3 sm:p-5 animate-in fade-in duration-150">
         <div
-          className={`relative w-full max-w-lg rounded-2xl border p-5 shadow-2xl max-h-[90vh] overflow-y-auto ${
-            NOTE_COLORS[editingNote.color || "default"].bg
-          } ${NOTE_COLORS[editingNote.color || "default"].border}`}
+          className={`relative w-full rounded-3xl border shadow-2xl flex flex-col transition-all duration-300 overflow-hidden ${
+            isModalExpanded
+              ? "max-w-[96vw] h-[94vh]"
+              : "max-w-2xl sm:max-w-3xl xl:max-w-4xl max-h-[92vh] min-h-[520px] sm:min-h-[580px]"
+          } ${NOTE_COLORS[editingNote.color || "default"].bg} ${
+            NOTE_COLORS[editingNote.color || "default"].border
+          }`}
         >
-          <div className="flex items-center justify-between pb-3 border-b border-black/5">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between px-5 sm:px-7 pt-5 pb-3 border-b border-black/10 shrink-0">
             <input
               type="text"
               placeholder="Title"
               value={editingNote.title}
               onChange={(e) => setEditingNote({ ...editingNote, title: e.target.value })}
-              className="w-full bg-transparent text-[16px] font-semibold text-ink outline-none"
+              className="w-full bg-transparent text-[17px] sm:text-[19px] font-bold text-ink outline-none placeholder:text-muted/60 pr-4"
             />
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Tab Selector: Edit vs Preview */}
+              <div className="flex items-center rounded-xl bg-black/5 p-0.5 border border-black/5 mr-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("edit")}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
+                    activeTab === "edit"
+                      ? "bg-white text-ink shadow-xs"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  <Edit3 size={12} />
+                  <span>Edit</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("preview")}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
+                    activeTab === "preview"
+                      ? "bg-white text-ink shadow-xs"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  <Eye size={12} />
+                  <span>Preview</span>
+                </button>
+              </div>
+
+              {/* Encryption Toggle */}
               <button
                 type="button"
                 onClick={() => {
@@ -1281,9 +1700,10 @@ export function NotesView({
                 title="Toggle AES-256 client-side encryption"
               >
                 {editIsEncrypted ? <Lock size={12} className="text-[#059669]" /> : <Unlock size={12} />}
-                <span>{editIsEncrypted ? "AES-256 Encrypted" : "Encrypt"}</span>
+                <span className="hidden sm:inline">{editIsEncrypted ? "AES-256" : "Encrypt"}</span>
               </button>
 
+              {/* Pin note */}
               <button
                 type="button"
                 onClick={() =>
@@ -1296,49 +1716,90 @@ export function NotesView({
               >
                 <Pin size={16} className={editingNote.pinned ? "fill-forest" : ""} />
               </button>
+
+              {/* Expand / Minimize Modal */}
+              <button
+                type="button"
+                onClick={() => setIsModalExpanded(!isModalExpanded)}
+                className="p-1.5 rounded-lg text-muted hover:bg-black/5 hover:text-ink transition"
+                title={isModalExpanded ? "Exit fullscreen" : "Expand preview"}
+              >
+                {isModalExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
             </div>
           </div>
 
-          <textarea
-            rows={6}
-            value={editDecryptedContent}
-            onChange={(e) => setEditDecryptedContent(e.target.value)}
-            placeholder="Note text or secret credentials..."
-            className="mt-3 w-full bg-transparent text-[13px] text-ink outline-none resize-none leading-relaxed font-mono"
-          />
-
-          {/* Checklist */}
-          {editDecryptedChecklist.length > 0 && (
-            <div className="mt-3 space-y-1.5 border-t border-black/5 pt-3">
-              {editDecryptedChecklist.map((item) => (
-                <div key={item.id} className="flex items-center gap-2.5 text-[12px]">
-                  <input
-                    type="checkbox"
-                    checked={item.done}
-                    onChange={() => {
-                      const next = editDecryptedChecklist.map((c) =>
-                        c.id === item.id ? { ...c, done: !c.done } : c
-                      );
-                      setEditDecryptedChecklist(next);
-                    }}
-                    className="rounded border-[#cbd5cc] text-forest focus:ring-forest"
-                  />
-                  <span className={item.done ? "line-through text-muted" : "text-ink"}>
-                    {item.text}
-                  </span>
+          {/* Modal Body */}
+          <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-4 flex flex-col sidebar-scroll">
+            {activeTab === "edit" ? (
+              <>
+                {/* Rich formatting toolbar */}
+                <div className="mb-3 shrink-0">
+                  {renderFormattingToolbar(editTextareaRef, editDecryptedContent, setEditDecryptedContent)}
                 </div>
-              ))}
-            </div>
-          )}
 
-          {/* Modal action bar */}
-          <div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3">
+                {/* Edit Textarea */}
+                <textarea
+                  ref={editTextareaRef}
+                  value={editDecryptedContent}
+                  onChange={(e) => setEditDecryptedContent(e.target.value)}
+                  onKeyDown={(e) => handleEditorKeyDown(e, editTextareaRef.current, editDecryptedContent, setEditDecryptedContent)}
+                  placeholder="Note text, commands, or secrets (use **bold**, <u>underline</u>, or toolbar above)..."
+                  className="flex-1 w-full bg-transparent text-[13px] sm:text-[14px] text-ink outline-none resize-none leading-relaxed font-mono min-h-[260px] sm:min-h-[320px]"
+                />
+              </>
+            ) : (
+              /* Live Rendered Markdown & Rich Text Preview */
+              <div className="flex-1 rounded-2xl bg-white/70 p-5 border border-black/5 overflow-y-auto sidebar-scroll min-h-[300px]">
+                <h1 className="text-[18px] font-bold text-ink mb-3 pb-2 border-b border-black/5">
+                  {editingNote.title || "Untitled Note"}
+                </h1>
+                {editDecryptedContent ? (
+                  <FormattedContent text={editDecryptedContent} isCompact={false} />
+                ) : (
+                  <p className="text-muted italic text-[12px]">No body text written yet.</p>
+                )}
+              </div>
+            )}
+
+            {/* Checklist */}
+            {editDecryptedChecklist.length > 0 && (
+              <div className="mt-4 space-y-2 border-t border-black/10 pt-3 shrink-0">
+                <p className="text-[11px] font-semibold text-muted uppercase tracking-wider">
+                  Checklist Items ({editDecryptedChecklist.filter((c) => c.done).length}/{editDecryptedChecklist.length})
+                </p>
+                {editDecryptedChecklist.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2.5 text-[13px]">
+                    <input
+                      type="checkbox"
+                      checked={item.done}
+                      onChange={() => {
+                        const next = editDecryptedChecklist.map((c) =>
+                          c.id === item.id ? { ...c, done: !c.done } : c
+                        );
+                        setEditDecryptedChecklist(next);
+                      }}
+                      className="rounded border-[#cbd5cc] text-forest focus:ring-forest h-4 w-4"
+                    />
+                    <span className={item.done ? "line-through text-muted" : "text-ink"}>
+                      {item.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="px-5 sm:px-7 py-3.5 border-t border-black/10 flex flex-wrap items-center justify-between gap-3 shrink-0 bg-black/[0.02]">
+            {/* Color Palette */}
             <div className="flex items-center gap-1.5">
               {(Object.keys(NOTE_COLORS) as Array<NonNullable<KeepNote["color"]>>).map((col) => (
                 <button
                   key={col}
                   type="button"
                   onClick={() => setEditingNote({ ...editingNote, color: col })}
+                  title={NOTE_COLORS[col].name}
                   className={`h-5 w-5 rounded-full border transition-all ${
                     NOTE_COLORS[col].bg
                   } ${NOTE_COLORS[col].border} ${
@@ -1348,19 +1809,21 @@ export function NotesView({
               ))}
             </div>
 
+            {/* Cancel & Save Buttons */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setEditingNote(null)}
-                className="rounded-xl px-3 py-1.5 text-[11px] font-medium text-muted hover:bg-black/5 transition"
+                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-black/5 transition"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleSaveEdit}
-                className="rounded-xl bg-forest px-4 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition"
+                className="rounded-xl bg-forest px-5 py-2 text-[12px] font-semibold text-white shadow-sm hover:bg-[#8b1116] transition flex items-center gap-1.5"
               >
+                {editIsEncrypted && <Lock size={13} />}
                 Save Changes
               </button>
             </div>
