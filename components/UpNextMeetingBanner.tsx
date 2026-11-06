@@ -1,22 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Video, ExternalLink, X, Clock3, Calendar } from "lucide-react";
+import { Video, ExternalLink, X, Clock3, Calendar, MapPin } from "lucide-react";
 import type { DashboardEvent } from "@/types/dashboard";
-
-function extractMeetingUrl(event: DashboardEvent): string | null {
-  if (event.meetLink) return event.meetLink;
-  // Google Calendar raw property
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawHangout = (event as any).hangoutLink;
-  if (rawHangout) return rawHangout;
-
-  const textToScan = `${event.location || ""} ${event.description || ""}`;
-  const meetMatch = textToScan.match(/https:\/\/(?:meet\.google\.com|[\w-]+\.zoom\.us\/j|teams\.microsoft\.com|teams\.live\.com)\/[^\s"'>]+/i);
-  if (meetMatch) return meetMatch[0];
-
-  return event.htmlLink || null;
-}
+import { getMeetingUrl } from "@/lib/meeting";
 
 export function UpNextMeetingBanner({ events }: { events: DashboardEvent[] }) {
   const [dismissedId, setDismissedId] = useState<string | null>(null);
@@ -47,7 +34,7 @@ export function UpNextMeetingBanner({ events }: { events: DashboardEvent[] }) {
       const isSoon = diffMinutes >= 0 && diffMinutes <= 35;
 
       if (isOngoing || isSoon) {
-        const joinUrl = extractMeetingUrl(event);
+        const joinUrl = getMeetingUrl(event);
         return {
           event,
           isOngoing,
@@ -63,14 +50,26 @@ export function UpNextMeetingBanner({ events }: { events: DashboardEvent[] }) {
 
   if (!upNext) return null;
 
+  const hasVideoCall = !!upNext.joinUrl;
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-forest/20 bg-gradient-to-r from-[#fdf6f6] via-[#fffbf9] to-[#fafbf8] p-3.5 sm:p-4 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Left: Meeting Status & Title */}
         <div className="flex items-start sm:items-center gap-3 min-w-0">
           <div className="relative shrink-0 mt-0.5 sm:mt-0">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-forest text-white shadow-xs">
-              <Video size={17} />
+            <span
+              className={`grid h-9 w-9 place-items-center rounded-xl text-white shadow-xs ${
+                hasVideoCall ? "bg-forest" : "bg-[#4a564e]"
+              }`}
+            >
+              {hasVideoCall ? (
+                <Video size={17} />
+              ) : upNext.event.location ? (
+                <MapPin size={17} />
+              ) : (
+                <Calendar size={17} />
+              )}
             </span>
             <span
               className={`absolute -top-1 -right-1 h-3 w-3 rounded-full border-2 border-white ${
@@ -95,18 +94,24 @@ export function UpNextMeetingBanner({ events }: { events: DashboardEvent[] }) {
                 <Calendar size={11} />
                 {upNext.startTimeStr} – {upNext.endTimeStr}
               </span>
+              {!hasVideoCall && upNext.event.location && (
+                <span className="text-[11px] font-medium text-[#7c5e2a] bg-[#fefce8] px-2 py-0.5 rounded-md border border-[#fef08a] flex items-center gap-1">
+                  <MapPin size={10} />
+                  <span className="truncate max-w-[150px]">{upNext.event.location}</span>
+                </span>
+              )}
             </div>
             <h4 className="mt-1 truncate text-[13px] font-bold text-ink">
-              {upNext.event.summary || "Scheduled Call"}
+              {upNext.event.summary || "Scheduled Event"}
             </h4>
           </div>
         </div>
 
         {/* Right: Action Buttons */}
         <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-          {upNext.joinUrl && (
+          {hasVideoCall ? (
             <a
-              href={upNext.joinUrl}
+              href={upNext.joinUrl!}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-[12px] font-bold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer"
@@ -115,6 +120,24 @@ export function UpNextMeetingBanner({ events }: { events: DashboardEvent[] }) {
               <span>Join Meeting</span>
               <ExternalLink size={12} className="opacity-80" />
             </a>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-medium text-muted px-2 py-1 rounded-lg bg-black/[0.04]">
+                In-person Event
+              </span>
+              {upNext.event.htmlLink && (
+                <a
+                  href={upNext.event.htmlLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-xl border border-line bg-white px-3 py-1.5 text-[11px] font-semibold text-ink hover:bg-black/5 transition cursor-pointer shadow-2xs"
+                >
+                  <Calendar size={12} />
+                  <span>View Details</span>
+                  <ExternalLink size={11} className="opacity-70" />
+                </a>
+              )}
+            </div>
           )}
           <button
             type="button"

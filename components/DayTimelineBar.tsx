@@ -1,26 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Clock, Video, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, Video, Calendar, ChevronDown, ChevronUp, MapPin } from "lucide-react";
 import type { DashboardEvent } from "@/types/dashboard";
+import { getMeetingUrl } from "@/lib/meeting";
 
 interface DayTimelineBarProps {
   events: DashboardEvent[];
   startHour?: number; // e.g. 8 for 8:00 AM
   endHour?: number;   // e.g. 20 for 8:00 PM
-}
-
-function extractMeetingUrl(event: DashboardEvent): string | null {
-  if (event.meetLink) return event.meetLink;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawHangout = (event as any).hangoutLink;
-  if (rawHangout) return rawHangout;
-
-  const textToScan = `${event.location || ""} ${event.description || ""}`;
-  const meetMatch = textToScan.match(/https:\/\/(?:meet\.google\.com|[\w-]+\.zoom\.us\/j|teams\.microsoft\.com|teams\.live\.com)\/[^\s"'>]+/i);
-  if (meetMatch) return meetMatch[0];
-
-  return event.htmlLink || null;
 }
 
 export function DayTimelineBar({
@@ -92,11 +80,12 @@ export function DayTimelineBar({
         const isUpcoming = eventStartMin >= currentMinutes;
 
         const timeLabel = startDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-        const meetUrl = extractMeetingUrl(ev);
+        const meetUrl = getMeetingUrl(ev);
 
         return {
           id: ev.id,
           summary: ev.summary || "Untitled Event",
+          location: ev.location || null,
           startDate,
           endDate,
           timeLabel,
@@ -106,6 +95,7 @@ export function DayTimelineBar({
           isCurrent,
           isUpcoming,
           meetUrl,
+          htmlLink: ev.htmlLink,
         };
       })
       .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
@@ -184,7 +174,9 @@ export function DayTimelineBar({
                   ? "bg-[#2563eb] ring-2 ring-[#2563eb]/40 animate-pulse"
                   : ev.isPast
                   ? "bg-[#cbd5e1]"
-                  : "bg-[#e11d48]"
+                  : ev.meetUrl
+                  ? "bg-forest"
+                  : "bg-[#d97706]"
               }`}
             />
 
@@ -202,15 +194,21 @@ export function DayTimelineBar({
                       Now
                     </span>
                   )}
-                  {ev.meetUrl && (
+                  {ev.meetUrl ? (
                     <a
                       href={ev.meetUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-0.5 text-[#93c5fd] hover:underline"
                     >
-                      <Video size={9} /> Join
+                      <Video size={9} /> Join Meeting
                     </a>
+                  ) : ev.location ? (
+                    <span className="text-amber-200 flex items-center gap-0.5">
+                      <MapPin size={9} /> {ev.location}
+                    </span>
+                  ) : (
+                    <span className="text-white/50">In-person</span>
                   )}
                 </div>
               </div>
@@ -261,9 +259,16 @@ export function DayTimelineBar({
                 <div className="text-[10px] text-muted mt-0.5 flex items-center gap-1">
                   <Calendar size={10} className="shrink-0" />
                   <span>{ev.timeLabel}</span>
+                  {ev.location && (
+                    <>
+                      <span>·</span>
+                      <MapPin size={9} className="shrink-0 text-amber-600" />
+                      <span className="truncate max-w-[100px] text-amber-800">{ev.location}</span>
+                    </>
+                  )}
                 </div>
               </div>
-              {ev.meetUrl && (
+              {ev.meetUrl ? (
                 <a
                   href={ev.meetUrl}
                   target="_blank"
@@ -271,12 +276,22 @@ export function DayTimelineBar({
                   className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold transition shrink-0 cursor-pointer ${
                     ev.isCurrent
                       ? "bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
-                      : "bg-[#f1f3ed] text-ink hover:bg-black/5"
+                      : "bg-[#fdf2f2] text-forest hover:bg-[#8b1116] hover:text-white"
                   }`}
                 >
                   <Video size={11} />
-                  <span>Join</span>
+                  <span>Join Meeting</span>
                 </a>
+              ) : ev.location ? (
+                <span className="inline-flex items-center gap-1 rounded-lg bg-[#fefce8] border border-[#fef08a] px-2 py-1 text-[10px] font-semibold text-[#854d0e] shrink-0">
+                  <MapPin size={10} />
+                  <span>In-person</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-lg bg-[#f1f3ed] px-2 py-1 text-[10px] font-medium text-muted shrink-0">
+                  <Calendar size={10} />
+                  <span>Calendar Event</span>
+                </span>
               )}
             </div>
           ))}

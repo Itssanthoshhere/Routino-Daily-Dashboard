@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
-  Inbox, Keyboard, Link2, ListTodo, Mail, Menu, MoreHorizontal, Plus, Printer, Search, Shuffle, Sparkles,
+  Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plus, Printer, Search, Shuffle, Sparkles,
   StickyNote, Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
@@ -42,10 +42,20 @@ import { NotesView } from "@/components/views/NotesView";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
+import { getMeetingUrl } from "@/lib/meeting";
 
 /* ─── Sample / seed data ────────────────────────────────────────── */
 
-type ScheduleItem = { time: string; end: string; name: string; detail: string; tag: string; color: string };
+type ScheduleItem = {
+  time: string;
+  end: string;
+  name: string;
+  detail: string;
+  tag: string;
+  color: string;
+  meetUrl?: string | null;
+  location?: string | null;
+};
 
 const nav = [
   { icon: Target, label: "Overview" },
@@ -584,6 +594,8 @@ export default function Home() {
         detail: ev.description?.slice(0, 90) || (ev.source === "outlook" ? "Outlook Calendar" : "Google Calendar"),
         tag: ev.tag || (ev.source === "outlook" ? "OUTLOOK" : ""),
         color: ev.color || (ev.source === "outlook" ? "#0078d4" : ["#7b8df4", "#e7a15a", "#5fa77d"][i % 3]),
+        meetUrl: getMeetingUrl(ev),
+        location: ev.location || null,
       }))
     : sampleSchedule;
 
@@ -1472,9 +1484,30 @@ export default function Home() {
                               <h3 className="text-[12px] font-semibold group-hover:text-forest transition">{item.name}</h3>
                               <p className="mt-1 text-[10px] text-muted">{item.detail}</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
                               <span className="hidden text-[10px] text-[#a0aaa1] sm:inline">{item.time}–{item.end}</span>
                               {item.tag && <span className="rounded-md bg-[#faf1e4] px-2 py-1 text-[9px] font-bold tracking-wide text-[#a5793d]">{item.tag}</span>}
+                              {item.meetUrl ? (
+                                <a
+                                  href={item.meetUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-[#fdf2f2] px-2 py-1 text-[10px] font-bold text-forest hover:bg-[#8b1116] hover:text-white transition cursor-pointer"
+                                >
+                                  <Video size={10} />
+                                  <span>Join Meeting</span>
+                                </a>
+                              ) : item.location ? (
+                                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-muted max-w-[120px] truncate">
+                                  <MapPin size={9} className="shrink-0 text-amber-600" />
+                                  <span className="truncate">{item.location}</span>
+                                </span>
+                              ) : (
+                                <span className="hidden sm:inline-flex items-center rounded-md bg-[#f1f3ed] px-1.5 py-0.5 text-[9px] font-medium text-muted">
+                                  In-person
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>

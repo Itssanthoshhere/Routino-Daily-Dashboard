@@ -11,9 +11,11 @@ import {
   ChevronRight,
   Filter,
   Sparkles,
+  MapPin,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
+import { getMeetingUrl } from "@/lib/meeting";
 
 type CalendarViewProps = {
   events: DashboardEvent[];
@@ -270,20 +272,38 @@ export function CalendarView({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {event.meetLink && (
-                      <a
-                        href={event.meetLink}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1.5 rounded-lg bg-[#fdf2f2] px-2.5 py-1.5 text-[11px] font-semibold text-forest hover:bg-[#d8edd3] transition"
-                      >
-                        <Video size={13} /> Join Meet
-                      </a>
-                    )}
+                    {(() => {
+                      const meetUrl = getMeetingUrl(event);
+                      if (meetUrl) {
+                        return (
+                          <a
+                            href={meetUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 rounded-lg bg-[#fdf2f2] px-2.5 py-1.5 text-[11px] font-semibold text-forest hover:bg-[#8b1116] hover:text-white transition cursor-pointer"
+                          >
+                            <Video size={13} /> Join Meeting
+                          </a>
+                        );
+                      }
+                      if (event.location) {
+                        return (
+                          <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-muted max-w-[150px] truncate">
+                            <MapPin size={11} className="shrink-0 text-amber-600" />
+                            <span className="truncate">{event.location}</span>
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="hidden sm:inline-flex items-center rounded-md bg-[#f4f5f0] px-2 py-0.5 text-[10px] font-medium text-muted">
+                          In-person
+                        </span>
+                      );
+                    })()}
                     <button
                       onClick={() => onSelectEvent(event)}
-                      className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[11px] font-medium text-muted group-hover:text-ink transition"
+                      className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[11px] font-medium text-muted group-hover:text-ink transition cursor-pointer"
                     >
                       Details
                     </button>

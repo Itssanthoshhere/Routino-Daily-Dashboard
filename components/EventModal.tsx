@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, Clock, Video, Users, ExternalLink, X, Plus, MapPin } from "lucide-react";
+import { CalendarDays, Clock, Video, Users, ExternalLink, X, Plus, MapPin, Calendar } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { appConfig } from "@/lib/config";
+import { getMeetingUrl } from "@/lib/meeting";
 
 type EventModalProps = {
   isOpen: boolean;
@@ -105,33 +106,42 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-              {eventToView.meetLink || eventToView.htmlLink ? (
-                <a
-                  href={eventToView.meetLink || eventToView.htmlLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#8b1116]"
-                >
-                  <Video size={14} /> Join Meeting <ExternalLink size={12} />
-                </a>
-              ) : (
-                <a
-                  href="https://calendar.google.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2 text-[12px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed]"
-                >
-                  View on Google Calendar <ExternalLink size={12} />
-                </a>
-              )}
-              <button
-                onClick={onClose}
-                className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-[#f1f3ed]"
-              >
-                Done
-              </button>
-            </div>
+            {(() => {
+              const videoMeetUrl = getMeetingUrl(eventToView);
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
+                  {videoMeetUrl ? (
+                    <a
+                      href={videoMeetUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2.5 text-[12px] font-semibold text-white transition hover:bg-[#8b1116] cursor-pointer"
+                    >
+                      <Video size={14} /> Join Meeting <ExternalLink size={12} />
+                    </a>
+                  ) : eventToView.htmlLink ? (
+                    <a
+                      href={eventToView.htmlLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2 text-[12px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition cursor-pointer"
+                    >
+                      <Calendar size={13} /> View on Google Calendar <ExternalLink size={12} />
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#f4f5f0] px-3 py-1.5 text-[11px] font-medium text-muted">
+                      <Calendar size={13} /> In-person / Local Event
+                    </span>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="rounded-xl px-4 py-2 text-[12px] font-medium text-muted hover:bg-[#f1f3ed] cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <form onSubmit={handleCreate} className="mt-5 space-y-4">
