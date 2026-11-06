@@ -1256,7 +1256,7 @@ export function NotesView({
             </span>
           </div>
           <p className="mt-0.5 text-[12px] text-muted">
-            Drag to reorder, set priorities, attach images, and secure passwords with zero-knowledge AES-256.
+            Drag to reorder, set priorities, attach images, and lock sensitive notes with a private PIN.
           </p>
         </div>
 
@@ -1292,27 +1292,27 @@ export function NotesView({
             </select>
           </div>
 
-          {/* Zero-Knowledge Vault Control */}
+          {/* Private Notes Security Control */}
           {!vaultVerifier ? (
             <button
               onClick={() => {
                 setPinError(null);
                 setShowSetupPinModal(true);
               }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-[#d1d7cc] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#5a685e] hover:border-forest hover:text-forest transition shadow-sm"
-              title="Set a master PIN to enable client-side AES-256 encryption"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-[#d1d7cc] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#5a685e] hover:border-forest hover:text-forest transition shadow-sm cursor-pointer"
+              title="Set a master PIN to lock sensitive notes"
             >
               <Shield size={13} className="text-forest" />
-              <span>Enable Vault</span>
+              <span>Set Master PIN</span>
             </button>
           ) : sessionPin ? (
             <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-1.5 text-[11px] font-semibold text-[#166534] shadow-sm">
               <ShieldCheck size={14} className="text-[#16a34a]" />
-              <span>Vault Active</span>
+              <span>Notes Unlocked</span>
               <button
                 onClick={handleLockVault}
-                className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-[#b91c1c] hover:bg-[#fee2e2] transition"
-                title="Lock vault immediately"
+                className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-[#b91c1c] hover:bg-[#fee2e2] transition cursor-pointer"
+                title="Lock notes immediately"
               >
                 Lock
               </button>
@@ -1321,7 +1321,7 @@ export function NotesView({
                   setPinError(null);
                   setShowChangePinModal(true);
                 }}
-                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[#166534] hover:bg-[#dcfce7] transition"
+                className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[#166534] hover:bg-[#dcfce7] transition cursor-pointer"
                 title="Change master PIN"
               >
                 PIN
@@ -1333,11 +1333,11 @@ export function NotesView({
                 setPinError(null);
                 setShowUnlockModal(true);
               }}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#fed7aa] bg-[#fffaf5] px-3 py-1.5 text-[11px] font-semibold text-[#9a3412] hover:bg-[#ffedd5] transition shadow-sm"
-              title="Click to unlock encrypted notes with your master PIN"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#fed7aa] bg-[#fffaf5] px-3 py-1.5 text-[11px] font-semibold text-[#9a3412] hover:bg-[#ffedd5] transition shadow-sm cursor-pointer"
+              title="Click to unlock protected notes with your master PIN"
             >
               <Lock size={13} className="text-[#c2410c]" />
-              <span>Vault Locked</span>
+              <span>Notes Locked</span>
             </button>
           )}
 
@@ -1407,8 +1407,8 @@ export function NotesView({
                     }
                     setIsComposing(true);
                   }}
-                  className="rounded-lg p-1.5 hover:bg-[#f1f3ed] hover:text-forest transition"
-                  title="Encrypted secret note"
+                  className="rounded-lg p-1.5 hover:bg-[#f1f3ed] hover:text-forest transition cursor-pointer"
+                  title="Lock with private PIN"
                 >
                   <Lock size={15} />
                 </button>
@@ -1432,7 +1432,7 @@ export function NotesView({
                 </div>
               )}
 
-              {/* Title & Pin & Encrypt Toggle & Priority */}
+              {/* Title & Pin & Lock Toggle & Priority */}
               <div className="flex items-center justify-between gap-2">
                 <input
                   type="text"
@@ -1455,7 +1455,7 @@ export function NotesView({
                     <option value="low">🟢 Low Priority</option>
                   </select>
 
-                  {/* Encryption Toggle */}
+                  {/* Lock note toggle */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1473,15 +1473,15 @@ export function NotesView({
                         setComposeEncrypted(false);
                       }
                     }}
-                    className={`rounded-lg px-2 py-1 text-[11px] font-semibold flex items-center gap-1 transition ${
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer ${
                       composeEncrypted
                         ? "bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]"
                         : "text-muted hover:bg-black/5 hover:text-ink"
                     }`}
-                    title={composeEncrypted ? "AES-256 Client-Side Encryption Enabled" : "Enable AES-256 Encryption"}
+                    title={composeEncrypted ? "Protected by Master PIN" : "Lock note with Master PIN"}
                   >
                     {composeEncrypted ? <Lock size={12} className="text-[#059669]" /> : <Unlock size={12} />}
-                    <span className="hidden sm:inline">{composeEncrypted ? "Encrypted" : "Encrypt"}</span>
+                    <span>{composeEncrypted ? "Protected" : "Lock"}</span>
                   </button>
 
                   {/* Pin note */}
@@ -1506,7 +1506,7 @@ export function NotesView({
               {/* Note Content Textarea */}
               <textarea
                 ref={composeTextareaRef}
-                placeholder={composeEncrypted ? "Enter sensitive secrets (encrypted with AES-256-GCM)..." : "Take a note (supports **bold**, <u>underline</u>, `code`, and markdown)..."}
+                placeholder={composeEncrypted ? "Write private note (protected by your master PIN)..." : "Take a note (supports **bold**, <u>underline</u>, `code`, and markdown)..."}
                 rows={4}
                 value={composeContent}
                 onChange={(e) => setComposeContent(e.target.value)}
@@ -1669,19 +1669,19 @@ export function NotesView({
 
             <form onSubmit={handleSetupPin} className="mt-4 space-y-3">
               <p className="text-[11px] text-muted leading-relaxed">
-                Choose a master PIN. All encrypted notes will be protected using <strong>AES-256-GCM</strong>. Your raw PIN is never sent to the server.
+                Choose a master PIN to protect your private notes. Your notes stay encrypted on your device and can only be opened with this PIN.
               </p>
 
               <div>
                 <label className="block text-[11px] font-semibold text-[#404c43] mb-1">
-                  Master PIN / Passphrase (min 4 characters)
+                  Master PIN (min 4 characters)
                 </label>
                 <div className="relative">
                   <input
                     type={showPinText ? "text" : "password"}
                     value={pinInput}
                     onChange={(e) => setPinInput(e.target.value)}
-                    placeholder="Enter secret PIN"
+                    placeholder="Enter private PIN"
                     className="w-full rounded-xl border border-line bg-[#fafbf8] px-3.5 py-2 text-[12px] text-ink outline-none focus:border-forest transition pr-9"
                     autoFocus
                   />
@@ -1703,7 +1703,7 @@ export function NotesView({
                   type={showPinText ? "text" : "password"}
                   value={pinConfirmInput}
                   onChange={(e) => setPinConfirmInput(e.target.value)}
-                  placeholder="Re-enter secret PIN"
+                  placeholder="Re-enter private PIN"
                   className="w-full rounded-xl border border-line bg-[#fafbf8] px-3.5 py-2 text-[12px] text-ink outline-none focus:border-forest transition"
                 />
               </div>
@@ -1727,7 +1727,7 @@ export function NotesView({
                   type="submit"
                   className="rounded-xl bg-forest px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-[#8b1116] transition"
                 >
-                  Save & Enable Vault
+                  Save Master PIN
                 </button>
               </div>
             </form>
@@ -1744,7 +1744,7 @@ export function NotesView({
                 <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#fff7ed] text-[#c2410c]">
                   <Lock size={15} />
                 </span>
-                <h3 className="text-[14px] font-bold text-ink">Unlock Security Vault</h3>
+                <h3 className="text-[14px] font-bold text-ink">Unlock Private Notes</h3>
               </div>
               <button
                 type="button"
@@ -1757,7 +1757,7 @@ export function NotesView({
 
             <form onSubmit={handleUnlockVault} className="mt-4 space-y-3">
               <p className="text-[11px] text-muted leading-relaxed">
-                Enter your master PIN to view and edit your encrypted notes.
+                Enter your master PIN to view and edit your locked notes.
               </p>
 
               <div className="relative">
@@ -1991,7 +1991,7 @@ export function NotesView({
                 </span>
               )}
 
-              {/* Encryption Pill */}
+              {/* Protection Pill */}
               {isNoteEncrypted && (
                 <span
                   className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold ${
@@ -1999,10 +1999,10 @@ export function NotesView({
                       ? "bg-[#dcfce7] text-[#15803d]"
                       : "bg-[#fed7aa] text-[#9a3412]"
                   }`}
-                  title={isDecrypted ? "Zero-Knowledge AES-256 Decrypted in Browser" : "Encrypted (PIN Required)"}
+                  title={isDecrypted ? "Protected Note (Unlocked)" : "Locked Note (PIN required)"}
                 >
                   {isDecrypted ? <Unlock size={10} /> : <Lock size={10} />}
-                  <span>{isDecrypted ? "AES-256" : "LOCKED"}</span>
+                  <span>{isDecrypted ? "Unlocked" : "Locked"}</span>
                 </span>
               )}
 
@@ -2031,13 +2031,13 @@ export function NotesView({
             </button>
           </div>
 
-          {/* Locked View when encrypted and vault is locked */}
+          {/* Locked View when note is locked */}
           {isNoteEncrypted && !isDecrypted ? (
-            <div className="mt-3.5 rounded-xl border border-dashed border-[#fed7aa] bg-[#fffaf5] p-3 text-center">
-              <Lock size={18} className="mx-auto text-[#c2410c] mb-1" />
-              <p className="text-[11px] font-semibold text-[#9a3412]">Encrypted with AES-256</p>
-              <p className="mt-0.5 text-[9px] text-[#b45309] font-mono tracking-widest">
-                ••••••••••••••••••••••
+            <div className="mt-3.5 rounded-xl border border-dashed border-[#fed7aa] bg-[#fffaf5] p-3.5 text-center">
+              <Lock size={18} className="mx-auto text-[#c2410c] mb-1.5" />
+              <p className="text-[12px] font-semibold text-[#9a3412]">Locked Note</p>
+              <p className="mt-0.5 text-[10px] text-[#b45309]">
+                Enter your PIN to view
               </p>
               <button
                 type="button"
@@ -2045,9 +2045,9 @@ export function NotesView({
                   e.stopPropagation();
                   setShowUnlockModal(true);
                 }}
-                className="mt-2.5 inline-flex items-center gap-1 rounded-lg bg-[#ea580c] px-2.5 py-1 text-[10px] font-bold text-white shadow-sm hover:bg-[#c2410c] transition"
+                className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-[#ea580c] px-3 py-1.5 text-[10.5px] font-semibold text-white shadow-sm hover:bg-[#c2410c] transition cursor-pointer"
               >
-                <Key size={11} /> Unlock with PIN
+                <Key size={11} /> Unlock Note
               </button>
             </div>
           ) : (
@@ -2277,15 +2277,15 @@ export function NotesView({
                     setEditIsEncrypted(false);
                   }
                 }}
-                className={`rounded-lg px-2 py-1 text-[11px] font-semibold flex items-center gap-1 transition ${
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1.5 transition cursor-pointer ${
                   editIsEncrypted
                     ? "bg-[#ecfdf5] text-[#065f46] border border-[#a7f3d0]"
                     : "text-muted hover:bg-black/5 hover:text-ink"
                 }`}
-                title="Toggle AES-256 client-side encryption"
+                title={editIsEncrypted ? "Protected by Master PIN" : "Lock note with Master PIN"}
               >
                 {editIsEncrypted ? <Lock size={12} className="text-[#059669]" /> : <Unlock size={12} />}
-                <span className="hidden sm:inline">{editIsEncrypted ? "AES-256" : "Encrypt"}</span>
+                <span className="hidden sm:inline">{editIsEncrypted ? "Protected" : "Lock Note"}</span>
               </button>
 
               {/* Pin note */}
