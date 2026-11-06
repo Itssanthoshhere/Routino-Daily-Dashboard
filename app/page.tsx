@@ -26,6 +26,7 @@ import { GoogleDriveFilesCard } from "@/components/GoogleDriveFilesCard";
 import { UpNextMeetingBanner } from "@/components/UpNextMeetingBanner";
 import { DailyRoutineModal } from "@/components/DailyRoutineModal";
 import { DailyDeskSheetModal } from "@/components/DailyDeskSheetModal";
+import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 import { QuickScratchpadCard } from "@/components/QuickScratchpadCard";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
@@ -293,6 +294,7 @@ export default function Home() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showRoutineModal, setShowRoutineModal] = useState(false);
   const [showDeskSheet, setShowDeskSheet] = useState(false);
+  const [showQuickCapture, setShowQuickCapture] = useState(false);
   const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -666,6 +668,13 @@ export default function Home() {
       if (e.key === "h" || e.key === "H") {
         e.preventDefault();
         setShowHabitsModal(true);
+        return;
+      }
+
+      // Q for universal quick capture
+      if (e.key === "q" || e.key === "Q") {
+        e.preventDefault();
+        setShowQuickCapture(true);
         return;
       }
     }
@@ -1789,6 +1798,31 @@ export default function Home() {
       </main>
 
       {/* ─── Modals & overlays ─── */}
+      <QuickCaptureModal
+        isOpen={showQuickCapture}
+        onClose={() => setShowQuickCapture(false)}
+        onAddTask={(task) => {
+          addTask(task);
+          toast("Task captured!");
+        }}
+        onAddNote={(note) => {
+          addNote(note);
+          toast("Note captured!");
+        }}
+        onAppendScratchpad={(text) => {
+          const current =
+            typeof window !== "undefined"
+              ? localStorage.getItem("routino_scratchpad") || ""
+              : "";
+          const updated = current ? `${current}\n${text}` : text;
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("routino_scratchpad", updated);
+            } catch {}
+          }
+          toast("Appended to scratchpad!");
+        }}
+      />
       <DailyDeskSheetModal
         isOpen={showDeskSheet}
         onClose={() => setShowDeskSheet(false)}
