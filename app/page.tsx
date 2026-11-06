@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
-  Inbox, Keyboard, Link2, ListTodo, Mail, Menu, MoreHorizontal, Plus, Search, Shuffle, Sparkles,
+  Inbox, Keyboard, Link2, ListTodo, Mail, Menu, MoreHorizontal, Plus, Printer, Search, Shuffle, Sparkles,
   StickyNote, Target, Timer, TriangleAlert, Video, X,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
@@ -25,6 +25,7 @@ import { GoogleSetupModal } from "@/components/GoogleSetupModal";
 import { GoogleDriveFilesCard } from "@/components/GoogleDriveFilesCard";
 import { UpNextMeetingBanner } from "@/components/UpNextMeetingBanner";
 import { DailyRoutineModal } from "@/components/DailyRoutineModal";
+import { DailyDeskSheetModal } from "@/components/DailyDeskSheetModal";
 import { QuickScratchpadCard } from "@/components/QuickScratchpadCard";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
@@ -291,6 +292,7 @@ export default function Home() {
   const [showIndividualHabitModal, setShowIndividualHabitModal] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showRoutineModal, setShowRoutineModal] = useState(false);
+  const [showDeskSheet, setShowDeskSheet] = useState(false);
   const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -1328,6 +1330,14 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setShowDeskSheet(true)}
+                    title="Preview & print today's Desk Sheet (Cmd+P)"
+                    className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2.5 text-[11px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition shadow-2xs cursor-pointer"
+                  >
+                    <Printer size={13} className="text-[#6088d1]" />
+                    <span className="hidden sm:inline">Desk Sheet</span>
+                  </button>
+                  <button
                     onClick={() => setShowRoutineModal(true)}
                     title="Open Daily Routine (Morning Plan / Evening Wrap-up)"
                     className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[11px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition shadow-2xs cursor-pointer"
@@ -1779,6 +1789,18 @@ export default function Home() {
       </main>
 
       {/* ─── Modals & overlays ─── */}
+      <DailyDeskSheetModal
+        isOpen={showDeskSheet}
+        onClose={() => setShowDeskSheet(false)}
+        tasks={tasks}
+        events={allEvents}
+        habits={habits}
+        scratchpadText={
+          typeof window !== "undefined"
+            ? localStorage.getItem("routino_scratchpad") || ""
+            : ""
+        }
+      />
       <DailyRoutineModal
         isOpen={showRoutineModal}
         onClose={() => setShowRoutineModal(false)}
