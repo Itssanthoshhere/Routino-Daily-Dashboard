@@ -29,11 +29,11 @@
   <br /><br />
 
   <p align="center">
-    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, and the week ahead. Integrates with Google Calendar, Gmail, and Microsoft Outlook (Mail & Calendar via Graph API). Google Drive and Google Sites are not integrated.</em>
+    <em>A calm, responsive workspace for your daily routine, schedule, unread email, personal priorities, zero-knowledge encrypted notes, and the week ahead. Integrates with Google Calendar, Gmail, and Microsoft Outlook (Mail & Calendar via Graph API). Google Drive and Google Sites are not integrated.</em>
   </p>
 
   <p align="center">
-    <code>nextjs</code> · <code>react</code> · <code>typescript</code> · <code>tailwindcss</code> · <code>dashboard</code> · <code>productivity</code> · <code>daily-planner</code> · <code>google-calendar</code> · <code>gmail-api</code> · <code>outlook</code> · <code>microsoft-graph</code> · <code>focus-timer</code> · <code>habit-tracker</code> · <code>open-source</code>
+    <code>nextjs</code> · <code>react</code> · <code>typescript</code> · <code>tailwindcss</code> · <code>dashboard</code> · <code>productivity</code> · <code>daily-planner</code> · <code>google-calendar</code> · <code>gmail-api</code> · <code>outlook</code> · <code>microsoft-graph</code> · <code>google-keep</code> · <code>zero-knowledge</code> · <code>aes-256-gcm</code> · <code>focus-timer</code> · <code>habit-tracker</code> · <code>open-source</code>
   </p>
 
 </div>
@@ -42,7 +42,7 @@
 
 ## 📌 Executive Summary
 
-**Routino** brings the parts of a busy day into one calm view: upcoming meetings, unread messages, tasks, focus time, deadlines, and frequently used links. The responsive interface is built with Next.js, TypeScript, and Tailwind CSS, and is deployed on Vercel.
+**Routino** brings the parts of a busy day into one calm view: upcoming meetings, unread messages, tasks, zero-knowledge encrypted notes, focus time, deadlines, and frequently used links. The responsive interface is built with Next.js, TypeScript, and Tailwind CSS, and is deployed on Vercel.
 
 Google sign-in uses Auth.js. When the account holder signs in and approves access, the app reads Calendar events and limited Gmail message details. Until then, the page shows clearly identified sample content. The app never writes to Gmail or Calendar.
 
@@ -55,6 +55,7 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 | **The week ahead** | A rolling seven-day calendar view | Google Calendar, Outlook Calendar, or labeled preview events |
 | **Worth a look** | Sender, subject, date, and short snippet for unread messages | Gmail, Outlook Mail, or labeled preview messages |
 | **Priorities & follow-ups** | Checkable tasks, custom categories, and completion progress | Local storage & server-side database sync |
+| **Notes & Scratchpad** | Google Keep-style notes, checklists, compressed images, priorities, drag-and-drop, and zero-knowledge AES-256 encryption | Web Crypto API, Local storage & database sync |
 | **Focus plan & deadlines** | Focus timer with ambient soundscapes (rain, waves, brown noise) | Synthesized Web Audio API & user state |
 | **Quick links** | Shortcuts to Calendar, Gmail, LinkedIn, GitHub, and Portfolio | User configurable with custom modal & persistent links |
 | **Preferences & Settings** | Routine defaults, focus durations, audio feedback, JSON export/import | Dedicated Preferences modal and DB sync |
@@ -84,18 +85,36 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
    - Persisted instantly to browser `localStorage` and automatically synchronized with the account database via `/api/user-data`.
    - Supports durable Neon Postgres, Upstash Redis, Vercel KV, or local development file storage for cross-device synchronization.
 
-5. **Focus Timer & Ambient Soundscapes**
+5. **Google Keep-Style Notes & Scratchpad**
+   - Quick composer and expanded modal editor with live rendered Markdown preview.
+   - Rich text formatting toolbar: **Bold**, *Italic*, <u>Underline</u>, ~~Strikethrough~~, `Inline Code`, Code Blocks, Headings (H1/H2), Bullet Lists, Numbered Lists, and Quotes.
+   - Smart scroll & cursor lock prevents viewport jumping when applying text styles.
+   - Continuous real-time debounced auto-saving while typing (600ms) with live status badge (`Saving...` / `✓ Saved` / `Auto-saved`).
+   - Default preview-first mode: opens rendered markdown with 1-click toggle to edit mode.
+   - HTML5 drag-and-drop note reordering with visual drop indicators.
+   - Priority badges: High (🔴), Medium (🟡), Low (🟢), and Normal with dedicated header filter and sort controls.
+   - Image attachments with client-side canvas compression (max 1200px, 80% JPEG) to keep storage lightweight.
+   - Interactive checklists, color coding (Lemon, Mint, Sky, Peach, Lavender, Default), and note pinning.
+
+6. **Zero-Knowledge Client-Side AES-256-GCM Vault**
+   - Master PIN vault using native browser Web Crypto API (`window.crypto.subtle`).
+   - Uses PBKDF2 (100,000 iterations, SHA-256) for key derivation and AES-256-GCM for authenticated encryption.
+   - True zero-knowledge architecture: no raw PIN or plaintext note content is ever transmitted to the server or database.
+   - Seals note text, checklists, and attached images together inside an authenticated ciphertext payload (`aes256:salt:iv:ciphertext`).
+   - Master PIN verification hash stored locally; 1-click vault locking, unlocking, and PIN change workflows.
+
+7. **Focus Timer & Ambient Soundscapes**
    - Customizable focus blocks (25m, 45m, 60m, 90m).
    - Built-in Web Audio synthesis: gentle rain, ocean waves, calming brown noise, and focus white noise.
    - Zero external audio files required.
 
-6. **Comprehensive Preferences Modal**
+8. **Comprehensive Preferences Modal**
    - Open via user avatar menu, sidebar bottom card (`···`), or Command Palette (`Cmd+K`).
    - General & Routine tab: focus duration target, audio feedback toggle, clear completed tasks.
    - Database & Sync tab: live account cloud sync status, manual sync trigger, JSON workspace backup & restore.
    - About tab: architecture and privacy information.
 
-5. **Preview mode**
+9. **Preview mode**
    - Shows sample data before Google is connected.
    - Labels preview information so it is not mistaken for real account data.
 
@@ -214,13 +233,17 @@ Routino-Daily-Dashboard/
 │   ├── page.tsx                   # Responsive dashboard interface
 │   └── globals.css                # Global styles and Tailwind layers
 ├── components/                    # Interactive UI modules, modals, and tabs
+│   ├── views/NotesView.tsx        # Google Keep-style notes, markdown editor & live preview
+│   └── MobileSidebar.tsx          # Responsive mobile navigation sidebar
 ├── lib/
 │   ├── auth.ts                    # Google provider and session callbacks
 │   ├── config.ts                  # Centralized typed configuration
+│   ├── crypto.ts                  # Zero-knowledge PBKDF2 + AES-256-GCM client-side encryption
+│   ├── database.ts                # Neon Postgres, Upstash Redis & KV persistence adapter
 │   ├── google.ts                  # Server-side token refresh and Google requests
 │   └── sound.ts                   # Web Audio synthesizers for timer feedback
 ├── types/
-│   ├── dashboard.ts               # Core domain types (Tasks, Events, Mail)
+│   ├── dashboard.ts               # Core domain types (Notes, Tasks, Events, Mail)
 │   └── next-auth.d.ts             # Auth.js token type declarations
 ├── .env.example                   # Environment variable template
 ├── .gitignore

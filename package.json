@@ -1,7 +1,7 @@
 {
   "name": "routino",
   "version": "1.0.0",
-  "description": "A calm, responsive personal workspace for daily routines, Google Calendar, Gmail, Microsoft Outlook, focus timer, and priorities.",
+  "description": "A calm, responsive personal workspace for daily routines, Google Calendar, Gmail, Microsoft Outlook, zero-knowledge encrypted notes, focus timer, and priorities.",
   "author": "Santhosh VS <santhosh02vs@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -26,6 +26,13 @@
     "habit-tracker",
     "soundscapes",
     "web-audio-api",
+    "google-keep",
+    "notes",
+    "markdown-editor",
+    "zero-knowledge",
+    "aes-256-gcm",
+    "client-side-encryption",
+    "drag-and-drop",
     "authjs",
     "nextauth",
     "minimalist",
