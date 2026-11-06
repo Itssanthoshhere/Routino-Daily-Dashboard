@@ -13,5 +13,6 @@ export const appConfig = {
     mail: process.env.NEXT_PUBLIC_MAIL_URL || "https://mail.google.com",
     github: process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com/Itssanthoshhere",
     portfolio: process.env.NEXT_PUBLIC_PORTFOLIO_URL || "https://santhosh-vs-portfolio.vercel.app/",
+    drive: process.env.NEXT_PUBLIC_DRIVE_URL || "https://drive.google.com/drive/my-drive",
   },
 };

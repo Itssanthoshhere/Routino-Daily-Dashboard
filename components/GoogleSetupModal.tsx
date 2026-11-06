@@ -38,7 +38,7 @@ export function GoogleSetupModal({ isOpen, onClose }: GoogleSetupModalProps) {
             </span>
             <div>
               <h3 className="text-[15px] font-semibold text-ink">Google OAuth Setup Needed</h3>
-              <p className="text-[11px] text-muted">To sync real Calendar & Gmail data in local dev</p>
+              <p className="text-[11px] text-muted">To sync real Calendar, Gmail & Drive data in local dev</p>
             </div>
           </div>
           <button
@@ -70,7 +70,7 @@ export function GoogleSetupModal({ isOpen, onClose }: GoogleSetupModalProps) {
                 >
                   Google Cloud Console <ExternalLink size={11} />
                 </a>{" "}
-                and enable <strong>Calendar API</strong> & <strong>Gmail API</strong>.
+                and enable <strong>Calendar API</strong>, <strong>Gmail API</strong>, and <strong>Google Drive API</strong>.
               </li>
               <li>
                 Under <strong>APIs & Services &gt; Credentials</strong>, create an <strong>OAuth 2.0 Client ID</strong> (Web Application).

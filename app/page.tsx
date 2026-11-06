@@ -121,7 +121,7 @@ const seedLinks: QuickLink[] = [
   { id: "ql-3", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.live.com/mail", iconName: "outlook", available: true },
   { id: "ql-5", title: "GitHub", subtitle: "Itssanthoshhere", url: appConfig.links.github, iconName: "github", available: true },
   { id: "ql-6", title: "Portfolio", subtitle: "santhosh-vs-portfolio", url: appConfig.links.portfolio, iconName: "globe", available: true },
-  { id: "ql-7", title: "Google Drive", subtitle: "Recent files", url: "https://drive.google.com/drive/my-drive", iconName: "drive", available: true },
+  { id: "ql-7", title: "Google Drive", subtitle: "Recent files", url: appConfig.links.drive, iconName: "drive", available: true },
   { id: "ql-8", title: "Google Sites", subtitle: "Not integrated", url: "#", iconName: "sites", available: false },
 ];
 

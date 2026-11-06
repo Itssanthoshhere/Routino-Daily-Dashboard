@@ -3,14 +3,7 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, FileText, FolderOpen, LoaderCircle } from "lucide-react";
 import { connectGoogle } from "@/app/actions";
-
-type DriveFile = {
-  id: string;
-  name: string;
-  mimeType: string;
-  modifiedTime?: string;
-  webViewLink?: string;
-};
+import type { DriveFile } from "@/types/dashboard";
 
 type DriveResponse = {
   files?: DriveFile[];

@@ -1,16 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { googleFetch } from "@/lib/google";
+import type { DriveFile } from "@/types/dashboard";
 
 export const dynamic = "force-dynamic";
-
-type GoogleDriveFile = {
-  id: string;
-  name: string;
-  mimeType: string;
-  modifiedTime?: string;
-  webViewLink?: string;
-};
 
 export async function GET() {
   const session = await auth();
@@ -45,7 +38,7 @@ export async function GET() {
       );
     }
 
-    const result = (await response.json()) as { files?: GoogleDriveFile[] };
+    const result = (await response.json()) as { files?: DriveFile[] };
     const files = (result.files ?? []).map(({ id, name, mimeType, modifiedTime, webViewLink }) => ({
       id,
       name,
