@@ -1056,6 +1056,19 @@ export function NotesView({
     await saveCurrentNoteChanges(true);
   };
 
+  // Listen for Escape key to save and close modal
+  useEffect(() => {
+    if (!editingNote) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        void saveCurrentNoteChanges(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editingNote]);
+
   // Filter and sort notes
   let processedNotes = notes.filter((n) => {
     const q = searchQuery.toLowerCase();
@@ -2322,14 +2335,16 @@ export function NotesView({
                   alt="Attached illustration"
                   className="w-full h-48 sm:h-56 object-cover"
                 />
-                <button
-                  type="button"
-                  onClick={() => setEditImageUrl(null)}
-                  className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
-                  title="Remove image"
-                >
-                  <X size={15} />
-                </button>
+                {activeTab === "edit" && (
+                  <button
+                    type="button"
+                    onClick={() => setEditImageUrl(null)}
+                    className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
+                    title="Remove image"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
               </div>
             )}
 
