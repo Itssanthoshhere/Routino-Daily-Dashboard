@@ -33,8 +33,13 @@ import {
   Maximize2,
   Minimize2,
   Edit3,
+  Image as ImageIcon,
+  GripVertical,
+  Flag,
+  ArrowUpDown,
+  Filter,
 } from "lucide-react";
-import { KeepNote, KeepNoteChecklistItem } from "@/types/dashboard";
+import { KeepNote, KeepNoteChecklistItem, KeepNotePriority } from "@/types/dashboard";
 import {
   isEncryptedPayload,
   encryptPayload,
@@ -85,9 +90,40 @@ const NOTE_COLORS: Record<
   },
 };
 
+const PRIORITY_BADGES: Record<
+  KeepNotePriority,
+  { label: string; bg: string; text: string; border: string }
+> = {
+  high: {
+    label: "High Priority",
+    bg: "bg-[#fee2e2]",
+    text: "text-[#991b1b]",
+    border: "border-[#fca5a5]",
+  },
+  medium: {
+    label: "Medium",
+    bg: "bg-[#fef3c7]",
+    text: "text-[#92400e]",
+    border: "border-[#fcd34d]",
+  },
+  low: {
+    label: "Low Priority",
+    bg: "bg-[#ecfdf5]",
+    text: "text-[#065f46]",
+    border: "border-[#a7f3d0]",
+  },
+  none: {
+    label: "Normal",
+    bg: "bg-black/5",
+    text: "text-muted",
+    border: "border-transparent",
+  },
+};
+
 type DecryptedPayload = {
   text: string;
   checklist?: KeepNoteChecklistItem[];
+  imageUrl?: string;
 };
 
 type NotesViewProps = {
@@ -95,7 +131,42 @@ type NotesViewProps = {
   onAddNote: (note: Omit<KeepNote, "id" | "updatedAt">) => void;
   onUpdateNote: (id: string, updates: Partial<KeepNote>) => void;
   onDeleteNote: (id: string) => void;
+  onReorderNotes?: (reorderedNotes: KeepNote[]) => void;
 };
+
+// Client-side image compression helper to keep storage lightweight
+function compressImageFile(file: File, maxWidth = 1200, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(reader.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 // Markdown & rich text token parser
 function parseInline(text: string): React.ReactNode {
@@ -262,16 +333,28 @@ export function NotesView({
   onAddNote,
   onUpdateNote,
   onDeleteNote,
+  onReorderNotes,
 }: NotesViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | KeepNotePriority>("all");
+  const [sortBy, setSortBy] = useState<"custom" | "priority" | "newest">("custom");
+
+  // Drag and Drop State
+  const [draggedNoteId, setDraggedNoteId] = useState<string | null>(null);
+  const [dragOverNoteId, setDragOverNoteId] = useState<string | null>(null);
+
+  // Composer State
   const [isComposing, setIsComposing] = useState(false);
   const [composeTitle, setComposeTitle] = useState("");
   const [composeContent, setComposeContent] = useState("");
   const [composeColor, setComposeColor] = useState<NonNullable<KeepNote["color"]>>("default");
   const [composePinned, setComposePinned] = useState(false);
+  const [composePriority, setComposePriority] = useState<KeepNotePriority>("none");
+  const [composeImageUrl, setComposeImageUrl] = useState<string | null>(null);
   const [composeEncrypted, setComposeEncrypted] = useState(false);
   const [composeChecklist, setComposeChecklist] = useState<KeepNoteChecklistItem[]>([]);
   const [newChecklistText, setNewChecklistText] = useState("");
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activePaletteNoteId, setActivePaletteNoteId] = useState<string | null>(null);
 
@@ -296,11 +379,15 @@ export function NotesView({
   const [editingNote, setEditingNote] = useState<KeepNote | null>(null);
   const [editDecryptedContent, setEditDecryptedContent] = useState("");
   const [editDecryptedChecklist, setEditDecryptedChecklist] = useState<KeepNoteChecklistItem[]>([]);
+  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
+  const [editPriority, setEditPriority] = useState<KeepNotePriority>("none");
   const [editIsEncrypted, setEditIsEncrypted] = useState(false);
   const [isModalExpanded, setIsModalExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
-  // Textarea Refs for Rich Text Insertion
+  // File Input Refs
+  const composeFileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   const composeTextareaRef = useRef<HTMLTextAreaElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -405,6 +492,39 @@ export function NotesView({
     }
   };
 
+  // Image upload handler
+  const handleImageFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setImage: (url: string | null) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const compressedDataUrl = await compressImageFile(file);
+      setImage(compressedDataUrl);
+    } catch {
+      alert("Failed to process image file. Please try another image.");
+    }
+    e.target.value = "";
+  };
+
+  // Drag & Drop Reordering Handler
+  const handleDropReorder = (sourceId: string | null, targetId: string) => {
+    if (!sourceId || sourceId === targetId) return;
+
+    const currentNotes = [...notes];
+    const sourceIndex = currentNotes.findIndex((n) => n.id === sourceId);
+    const targetIndex = currentNotes.findIndex((n) => n.id === targetId);
+
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const [movedNote] = currentNotes.splice(sourceIndex, 1);
+    currentNotes.splice(targetIndex, 0, movedNote);
+
+    onReorderNotes?.(currentNotes);
+  };
+
   // Load vault configuration from localStorage
   useEffect(() => {
     try {
@@ -430,13 +550,18 @@ export function NotesView({
               nextCache[note.id] = {
                 text: parsed.text || "",
                 checklist: parsed.checklist || note.checklist,
+                imageUrl: parsed.imageUrl || note.imageUrl,
               };
               continue;
             }
           } catch {
             // Plaintext fallback
           }
-          nextCache[note.id] = { text: decryptedString, checklist: note.checklist };
+          nextCache[note.id] = {
+            text: decryptedString,
+            checklist: note.checklist,
+            imageUrl: note.imageUrl,
+          };
         } catch {
           // If decryption fails, ignore
         }
@@ -536,6 +661,7 @@ export function NotesView({
             const bundle = JSON.stringify({
               text: cached.text,
               checklist: cached.checklist,
+              imageUrl: cached.imageUrl,
             });
             const reEncrypted = await encryptPayload(bundle, pinInput);
             onUpdateNote(note.id, { content: reEncrypted });
@@ -573,7 +699,12 @@ export function NotesView({
 
   // Save new note with optional zero-knowledge encryption
   const handleSaveCompose = async () => {
-    if (!composeTitle.trim() && !composeContent.trim() && composeChecklist.length === 0) {
+    if (
+      !composeTitle.trim() &&
+      !composeContent.trim() &&
+      composeChecklist.length === 0 &&
+      !composeImageUrl
+    ) {
       setIsComposing(false);
       return;
     }
@@ -581,6 +712,7 @@ export function NotesView({
     let finalContent = composeContent.trim();
     let finalChecklist: KeepNoteChecklistItem[] | undefined =
       composeChecklist.length > 0 ? composeChecklist : undefined;
+    let finalImageUrl = composeImageUrl || undefined;
 
     if (composeEncrypted) {
       if (!sessionPin) {
@@ -591,10 +723,12 @@ export function NotesView({
       const payloadString = JSON.stringify({
         text: finalContent,
         checklist: finalChecklist,
+        imageUrl: finalImageUrl,
       });
 
       finalContent = await encryptPayload(payloadString, sessionPin);
       finalChecklist = undefined;
+      finalImageUrl = undefined; // Safely protected inside encrypted envelope
     }
 
     onAddNote({
@@ -602,6 +736,8 @@ export function NotesView({
       content: finalContent,
       color: composeColor,
       pinned: composePinned,
+      priority: composePriority !== "none" ? composePriority : undefined,
+      imageUrl: finalImageUrl,
       isEncrypted: composeEncrypted,
       checklist: finalChecklist,
     });
@@ -610,6 +746,8 @@ export function NotesView({
     setComposeContent("");
     setComposeColor("default");
     setComposePinned(false);
+    setComposePriority("none");
+    setComposeImageUrl(null);
     setComposeChecklist([]);
     setIsComposing(false);
   };
@@ -656,6 +794,7 @@ export function NotesView({
       const bundle = JSON.stringify({
         text: cached.text,
         checklist: updatedChecklist,
+        imageUrl: cached.imageUrl,
       });
       const reEncrypted = await encryptPayload(bundle, sessionPin);
 
@@ -682,14 +821,17 @@ export function NotesView({
 
     setEditingNote(note);
     setEditIsEncrypted(Boolean(note.isEncrypted));
+    setEditPriority(note.priority || "none");
     setActiveTab("edit");
 
     if (note.isEncrypted && decryptedCache[note.id]) {
       setEditDecryptedContent(decryptedCache[note.id].text);
       setEditDecryptedChecklist(decryptedCache[note.id].checklist || []);
+      setEditImageUrl(decryptedCache[note.id].imageUrl || null);
     } else {
       setEditDecryptedContent(note.content);
       setEditDecryptedChecklist(note.checklist || []);
+      setEditImageUrl(note.imageUrl || null);
     }
   };
 
@@ -700,6 +842,7 @@ export function NotesView({
     let finalContent = editDecryptedContent.trim();
     let finalChecklist: KeepNoteChecklistItem[] | undefined =
       editDecryptedChecklist.length > 0 ? editDecryptedChecklist : undefined;
+    let finalImageUrl = editImageUrl || undefined;
 
     if (editIsEncrypted) {
       if (!sessionPin) {
@@ -709,15 +852,18 @@ export function NotesView({
       const payloadString = JSON.stringify({
         text: finalContent,
         checklist: finalChecklist,
+        imageUrl: finalImageUrl,
       });
       finalContent = await encryptPayload(payloadString, sessionPin);
       finalChecklist = undefined;
+      finalImageUrl = undefined;
 
       setDecryptedCache((prev) => ({
         ...prev,
         [editingNote.id]: {
           text: editDecryptedContent.trim(),
           checklist: editDecryptedChecklist,
+          imageUrl: editImageUrl || undefined,
         },
       }));
     }
@@ -727,6 +873,8 @@ export function NotesView({
       content: finalContent,
       color: editingNote.color,
       pinned: editingNote.pinned,
+      priority: editPriority !== "none" ? editPriority : undefined,
+      imageUrl: finalImageUrl,
       isEncrypted: editIsEncrypted,
       checklist: finalChecklist,
     });
@@ -734,8 +882,8 @@ export function NotesView({
     setEditingNote(null);
   };
 
-  // Filter notes
-  const filteredNotes = notes.filter((n) => {
+  // Filter and sort notes
+  let processedNotes = notes.filter((n) => {
     const q = searchQuery.toLowerCase();
     const matchTitle = n.title.toLowerCase().includes(q);
 
@@ -754,11 +902,29 @@ export function NotesView({
       matchChecklist = Boolean(n.checklist?.some((c) => c.text.toLowerCase().includes(q)));
     }
 
-    return matchTitle || matchContent || matchChecklist;
+    const matchesSearch = matchTitle || matchContent || matchChecklist;
+    const matchesPriority =
+      priorityFilter === "all" || (n.priority || "none") === priorityFilter;
+
+    return matchesSearch && matchesPriority;
   });
 
-  const pinnedNotes = filteredNotes.filter((n) => n.pinned);
-  const otherNotes = filteredNotes.filter((n) => !n.pinned);
+  // Sorting
+  if (sortBy === "priority") {
+    const rank: Record<KeepNotePriority, number> = { high: 3, medium: 2, low: 1, none: 0 };
+    processedNotes = [...processedNotes].sort((a, b) => {
+      const rA = rank[a.priority || "none"];
+      const rB = rank[b.priority || "none"];
+      return rB - rA;
+    });
+  } else if (sortBy === "newest") {
+    processedNotes = [...processedNotes].sort(
+      (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
+    );
+  }
+
+  const pinnedNotes = processedNotes.filter((n) => n.pinned);
+  const otherNotes = processedNotes.filter((n) => !n.pinned);
 
   // Render Rich Text Toolbar
   const renderFormattingToolbar = (
@@ -866,7 +1032,23 @@ export function NotesView({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* View Header with Security Vault Status */}
+      {/* Hidden file inputs for image attachment */}
+      <input
+        ref={composeFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleImageFileChange(e, setComposeImageUrl)}
+      />
+      <input
+        ref={editFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleImageFileChange(e, setEditImageUrl)}
+      />
+
+      {/* View Header with Filters and Security Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-line pb-5">
         <div>
           <div className="flex items-center gap-2">
@@ -876,12 +1058,43 @@ export function NotesView({
             </span>
           </div>
           <p className="mt-0.5 text-[12px] text-muted">
-            Rich markdown notes with bold, underline, code blocks & zero-knowledge AES-256 encryption.
+            Drag to reorder, set priorities, attach images, and secure passwords with zero-knowledge AES-256.
           </p>
         </div>
 
-        {/* Security Controls + Search Bar */}
+        {/* Security Controls & Filter Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Priority Filter */}
+          <div className="flex items-center gap-1 rounded-xl bg-white border border-line px-2 py-1 text-[11px] shadow-2xs">
+            <Filter size={12} className="text-muted" />
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value as "all" | KeepNotePriority)}
+              className="bg-transparent font-medium text-ink outline-none cursor-pointer text-[11px]"
+            >
+              <option value="all">All Priorities</option>
+              <option value="high">🔴 High Priority</option>
+              <option value="medium">🟡 Medium</option>
+              <option value="low">🟢 Low</option>
+              <option value="none">Normal</option>
+            </select>
+          </div>
+
+          {/* Sort Selector */}
+          <div className="flex items-center gap-1 rounded-xl bg-white border border-line px-2 py-1 text-[11px] shadow-2xs">
+            <ArrowUpDown size={12} className="text-muted" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "custom" | "priority" | "newest")}
+              className="bg-transparent font-medium text-ink outline-none cursor-pointer text-[11px]"
+            >
+              <option value="custom">Drag Order</option>
+              <option value="priority">Priority First</option>
+              <option value="newest">Recently Updated</option>
+            </select>
+          </div>
+
+          {/* Zero-Knowledge Vault Control */}
           {!vaultVerifier ? (
             <button
               onClick={() => {
@@ -892,12 +1105,12 @@ export function NotesView({
               title="Set a master PIN to enable client-side AES-256 encryption"
             >
               <Shield size={13} className="text-forest" />
-              <span>Enable Zero-Knowledge Vault</span>
+              <span>Enable Vault</span>
             </button>
           ) : sessionPin ? (
             <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-1.5 text-[11px] font-semibold text-[#166534] shadow-sm">
               <ShieldCheck size={14} className="text-[#16a34a]" />
-              <span>Vault Unlocked</span>
+              <span>Vault Active</span>
               <button
                 onClick={handleLockVault}
                 className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-[#b91c1c] hover:bg-[#fee2e2] transition"
@@ -926,18 +1139,18 @@ export function NotesView({
               title="Click to unlock encrypted notes with your master PIN"
             >
               <Lock size={13} className="text-[#c2410c]" />
-              <span>Vault Locked · Unlock</span>
+              <span>Vault Locked</span>
             </button>
           )}
 
           {/* Search Input */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-56">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search notes & secrets..."
+              placeholder="Search notes..."
               className="w-full rounded-xl border border-line bg-white pl-9 pr-3.5 py-1.5 text-[12px] text-ink outline-none focus:border-forest transition"
             />
           </div>
@@ -958,8 +1171,20 @@ export function NotesView({
               onClick={() => setIsComposing(true)}
               className="flex items-center justify-between px-4 py-3 cursor-text text-muted hover:text-ink transition"
             >
-              <span className="text-[13px] font-medium">Take a note, code snippet, or password...</span>
+              <span className="text-[13px] font-medium">Take a note, code snippet, image, or password...</span>
               <div className="flex items-center gap-2 text-muted">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsComposing(true);
+                    composeFileInputRef.current?.click();
+                  }}
+                  className="rounded-lg p-1.5 hover:bg-[#f1f3ed] hover:text-ink transition"
+                  title="Add image"
+                >
+                  <ImageIcon size={16} />
+                </button>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -993,7 +1218,23 @@ export function NotesView({
             </div>
           ) : (
             <div className="p-4 space-y-3">
-              {/* Title & Pin & Encrypt Toggle */}
+              {/* Attached Image Preview */}
+              {composeImageUrl && (
+                <div className="relative rounded-xl overflow-hidden max-h-48 border border-black/10 group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={composeImageUrl} alt="Attachment" className="w-full h-40 object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setComposeImageUrl(null)}
+                    className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
+                    title="Remove image"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {/* Title & Pin & Encrypt Toggle & Priority */}
               <div className="flex items-center justify-between gap-2">
                 <input
                   type="text"
@@ -1002,7 +1243,21 @@ export function NotesView({
                   onChange={(e) => setComposeTitle(e.target.value)}
                   className="w-full bg-transparent text-[14px] font-semibold text-ink outline-none placeholder:text-muted/60"
                 />
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Priority selector */}
+                  <select
+                    value={composePriority}
+                    onChange={(e) => setComposePriority(e.target.value as KeepNotePriority)}
+                    className="rounded-lg border border-black/10 bg-black/[0.03] px-2 py-1 text-[10px] font-semibold text-ink outline-none cursor-pointer"
+                    title="Set Note Priority"
+                  >
+                    <option value="none">Priority: Normal</option>
+                    <option value="high">🔴 High Priority</option>
+                    <option value="medium">🟡 Medium Priority</option>
+                    <option value="low">🟢 Low Priority</option>
+                  </select>
+
+                  {/* Encryption Toggle */}
                   <button
                     type="button"
                     onClick={() => {
@@ -1031,6 +1286,7 @@ export function NotesView({
                     <span className="hidden sm:inline">{composeEncrypted ? "Encrypted" : "Encrypt"}</span>
                   </button>
 
+                  {/* Pin note */}
                   <button
                     type="button"
                     onClick={() => setComposePinned(!composePinned)}
@@ -1099,7 +1355,7 @@ export function NotesView({
                 />
               </div>
 
-              {/* Bottom bar: color palette & close */}
+              {/* Bottom bar: color palette, add image, & close */}
               <div className="flex items-center justify-between border-t border-black/5 pt-3">
                 <div className="flex items-center gap-1.5">
                   {(Object.keys(NOTE_COLORS) as Array<NonNullable<KeepNote["color"]>>).map((col) => (
@@ -1115,6 +1371,15 @@ export function NotesView({
                       }`}
                     />
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={() => composeFileInputRef.current?.click()}
+                    className="ml-1 rounded-lg p-1.5 text-muted hover:bg-black/5 hover:text-ink transition"
+                    title="Attach image"
+                  >
+                    <ImageIcon size={15} />
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1125,6 +1390,8 @@ export function NotesView({
                       setComposeTitle("");
                       setComposeContent("");
                       setComposeChecklist([]);
+                      setComposeImageUrl(null);
+                      setComposePriority("none");
                       setComposeEncrypted(false);
                     }}
                     className="rounded-xl px-3 py-1.5 text-[11px] font-medium text-muted hover:bg-black/5 transition"
@@ -1150,7 +1417,7 @@ export function NotesView({
       {pinnedNotes.length > 0 && (
         <div>
           <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted mb-3">
-            <Pin size={11} className="fill-muted" /> Pinned Notes
+            <Pin size={11} className="fill-muted" /> Pinned Notes ({pinnedNotes.length})
           </div>
           <div className="grid gap-3.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {pinnedNotes.map((note) => renderNoteCard(note))}
@@ -1162,14 +1429,14 @@ export function NotesView({
       <div>
         {pinnedNotes.length > 0 && otherNotes.length > 0 && (
           <div className="text-[10px] font-bold uppercase tracking-wider text-muted mb-3">
-            Other Notes
+            Other Notes ({otherNotes.length})
           </div>
         )}
         {otherNotes.length === 0 && pinnedNotes.length === 0 ? (
           <div className="py-16 text-center">
             <FileText size={32} className="mx-auto text-muted/40 mb-2" />
             <p className="text-[13px] font-medium text-muted">
-              {searchQuery ? "No notes found matching your search" : "No notes yet. Capture your first thought or encrypted secret above!"}
+              {searchQuery ? "No notes found matching your search" : "No notes yet. Capture your first thought, image, or secret above!"}
             </p>
           </div>
         ) : (
@@ -1204,7 +1471,7 @@ export function NotesView({
 
             <form onSubmit={handleSetupPin} className="mt-4 space-y-3">
               <p className="text-[11px] text-muted leading-relaxed">
-                Choose a master PIN or passphrase. All encrypted notes will be protected on your device using <strong>AES-256-GCM</strong>. Your raw PIN is never stored or sent to any server.
+                Choose a master PIN. All encrypted notes will be protected using <strong>AES-256-GCM</strong>. Your raw PIN is never sent to the server.
               </p>
 
               <div>
@@ -1430,6 +1697,7 @@ export function NotesView({
     </div>
   );
 
+  // Individual Note Card with Drag Handle & Image & Priority Badges
   function renderNoteCard(note: KeepNote) {
     const colorTheme = NOTE_COLORS[note.color || "default"];
     const isNoteEncrypted = Boolean(note.isEncrypted || isEncryptedPayload(note.content));
@@ -1447,16 +1715,85 @@ export function NotesView({
         : null
       : note.checklist;
 
+    const displayImage = isNoteEncrypted
+      ? isDecrypted
+        ? decryptedCache[note.id].imageUrl
+        : null
+      : note.imageUrl;
+
+    const priorityInfo = note.priority && note.priority !== "none" ? PRIORITY_BADGES[note.priority] : null;
+    const isDraggingThis = draggedNoteId === note.id;
+    const isDragOverThis = dragOverNoteId === note.id;
+
     return (
       <div
         key={note.id}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData("text/plain", note.id);
+          setDraggedNoteId(note.id);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (dragOverNoteId !== note.id) setDragOverNoteId(note.id);
+        }}
+        onDragLeave={() => {
+          if (dragOverNoteId === note.id) setDragOverNoteId(null);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          handleDropReorder(draggedNoteId, note.id);
+          setDraggedNoteId(null);
+          setDragOverNoteId(null);
+        }}
+        onDragEnd={() => {
+          setDraggedNoteId(null);
+          setDragOverNoteId(null);
+        }}
         onClick={() => handleOpenEdit(note)}
-        className={`group relative flex flex-col justify-between rounded-2xl border p-4 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${colorTheme.bg} ${colorTheme.border}`}
+        className={`group relative flex flex-col justify-between rounded-2xl border p-4 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden ${
+          colorTheme.bg
+        } ${colorTheme.border} ${isDraggingThis ? "opacity-40 scale-95" : ""} ${
+          isDragOverThis ? "ring-2 ring-forest scale-[1.02]" : ""
+        }`}
       >
+        {/* Attached Image Thumbnail */}
+        {displayImage && (
+          <div className="-mx-4 -mt-4 mb-3 overflow-hidden border-b border-black/5 bg-black/5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={displayImage}
+              alt={note.title || "Note image"}
+              className="h-36 sm:h-40 w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          </div>
+        )}
+
         <div>
-          {/* Header */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
+          {/* Header with Drag Handle, Priority Badge, Title, and Pin */}
+          <div className="flex items-start justify-between gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+              {/* Drag Handle */}
+              <span
+                className="opacity-0 group-hover:opacity-100 text-muted/60 hover:text-ink cursor-grab active:cursor-grabbing p-0.5 transition"
+                title="Drag to reorder"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <GripVertical size={13} />
+              </span>
+
+              {/* Priority Badge */}
+              {priorityInfo && (
+                <span
+                  className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold border ${priorityInfo.bg} ${priorityInfo.text} ${priorityInfo.border}`}
+                >
+                  <Flag size={9} />
+                  <span>{priorityInfo.label}</span>
+                </span>
+              )}
+
+              {/* Encryption Pill */}
               {isNoteEncrypted && (
                 <span
                   className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-bold ${
@@ -1470,6 +1807,8 @@ export function NotesView({
                   <span>{isDecrypted ? "AES-256" : "LOCKED"}</span>
                 </span>
               )}
+
+              {/* Title */}
               {note.title && (
                 <h3 className={`text-[13px] font-semibold truncate ${colorTheme.text}`}>
                   {note.title}
@@ -1483,7 +1822,7 @@ export function NotesView({
                 e.stopPropagation();
                 onUpdateNote(note.id, { pinned: !note.pinned });
               }}
-              className={`opacity-0 group-hover:opacity-100 p-1 rounded transition ml-auto ${
+              className={`opacity-0 group-hover:opacity-100 p-1 rounded transition ml-auto shrink-0 ${
                 note.pinned
                   ? "!opacity-100 text-forest bg-[#fdf2f2]"
                   : "text-muted hover:text-ink hover:bg-black/5"
@@ -1645,7 +1984,20 @@ export function NotesView({
               onChange={(e) => setEditingNote({ ...editingNote, title: e.target.value })}
               className="w-full bg-transparent text-[17px] sm:text-[19px] font-bold text-ink outline-none placeholder:text-muted/60 pr-4"
             />
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              {/* Priority Selector */}
+              <select
+                value={editPriority}
+                onChange={(e) => setEditPriority(e.target.value as KeepNotePriority)}
+                className="rounded-lg border border-black/10 bg-black/[0.04] px-2.5 py-1 text-[11px] font-semibold text-ink outline-none cursor-pointer"
+                title="Change Priority"
+              >
+                <option value="none">Normal</option>
+                <option value="high">🔴 High Priority</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="low">🟢 Low</option>
+              </select>
+
               {/* Tab Selector: Edit vs Preview */}
               <div className="flex items-center rounded-xl bg-black/5 p-0.5 border border-black/5 mr-1">
                 <button
@@ -1673,6 +2025,16 @@ export function NotesView({
                   <span>Preview</span>
                 </button>
               </div>
+
+              {/* Attach Image button */}
+              <button
+                type="button"
+                onClick={() => editFileInputRef.current?.click()}
+                className="p-1.5 rounded-lg text-muted hover:bg-black/5 hover:text-ink transition"
+                title="Attach or replace image"
+              >
+                <ImageIcon size={16} />
+              </button>
 
               {/* Encryption Toggle */}
               <button
@@ -1731,6 +2093,26 @@ export function NotesView({
 
           {/* Modal Body */}
           <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-4 flex flex-col sidebar-scroll">
+            {/* Attached Image in Edit Modal */}
+            {editImageUrl && (
+              <div className="relative mb-3 rounded-2xl overflow-hidden border border-black/10 shrink-0 group max-h-64">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={editImageUrl}
+                  alt="Attached illustration"
+                  className="w-full h-48 sm:h-56 object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setEditImageUrl(null)}
+                  className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
+                  title="Remove image"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            )}
+
             {activeTab === "edit" ? (
               <>
                 {/* Rich formatting toolbar */}

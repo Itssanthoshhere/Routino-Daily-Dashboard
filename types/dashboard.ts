@@ -70,14 +70,19 @@ export type KeepNoteChecklistItem = {
   done: boolean;
 };
 
+export type KeepNotePriority = "high" | "medium" | "low" | "none";
+
 export type KeepNote = {
   id: string;
   title: string;
   content: string;
   color?: "default" | "yellow" | "green" | "blue" | "peach" | "purple";
   pinned?: boolean;
+  priority?: KeepNotePriority;
+  imageUrl?: string;
   checklist?: KeepNoteChecklistItem[];
   isEncrypted?: boolean;
+  order?: number;
   updatedAt: number;
   createdAt?: number;
 };

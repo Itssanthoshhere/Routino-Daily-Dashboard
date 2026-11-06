@@ -135,9 +135,10 @@ const seedNotes: KeepNote[] = [
   {
     id: "note-1",
     title: "Welcome to Routino Notes 💡",
-    content: "Capture thoughts, quick snippets, and daily scratchpad notes just like Google Keep.\n\n• Pin your most important notes to the top\n• Color-code notes for fast visual organization\n• Toggle checklist items or freeform thoughts",
+    content: "Capture thoughts, quick snippets, and daily scratchpad notes just like Google Keep.\n\n• Pin your most important notes to the top\n• Color-code notes for fast visual organization\n• Drag and reorder notes seamlessly\n• Add priority tags (High, Med, Low) and images!",
     color: "peach",
     pinned: true,
+    priority: "high",
     updatedAt: Date.now(),
     createdAt: Date.now() - 3600000,
   },
@@ -147,6 +148,7 @@ const seedNotes: KeepNote[] = [
     content: "",
     color: "blue",
     pinned: false,
+    priority: "medium",
     checklist: [
       { id: "c-1", text: "Responsive layout optimization across all screens", done: true },
       { id: "c-2", text: "Focus audio engine cleanup on pause/close", done: true },
@@ -1033,6 +1035,12 @@ export default function Home() {
     toast("Note removed", "info");
   };
 
+  const handleReorderNotes = (reordered: KeepNote[]) => {
+    setNotes(reordered);
+    try { localStorage.setItem("routino_notes", JSON.stringify(reordered)); } catch {}
+    syncToDatabase({ notes: reordered });
+  };
+
   const handleImportData = (imported: {
     tasks?: Task[];
     customEvents?: DashboardEvent[];
@@ -1290,6 +1298,7 @@ export default function Home() {
               onAddNote={addNote}
               onUpdateNote={updateNote}
               onDeleteNote={deleteNote}
+              onReorderNotes={handleReorderNotes}
             />
           ) : (
             /* ─── OVERVIEW DASHBOARD VIEW ─── */
