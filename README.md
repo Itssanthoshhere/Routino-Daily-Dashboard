@@ -91,22 +91,35 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 - **Smart keyword inference**: Automatically recognizes project and travel tasks without manual tagging while safely filtering out Google Calendar email boilerplate.
 - **Dedicated filter pills**: Filter tasks and calendar events specifically by Projects or Travel.
 
-### 5. 📹 Context-Aware Meeting & Video Detection
+### 5. ⚠️ Schedule Overlap & Conflict Detection
+- **Automated double-booking alerts**: Automatically inspects scheduled start and end times to flag overlapping meetings or tight connections.
+- **Amber conflict pills & tags**: Warns users directly inside Today's Flow timeline banner and on conflicting event cards in the 7-day calendar.
+
+### 6. ✈️ Flight & Travel Status Card
+- **Automated itinerary detection**: When travel is scheduled for today (e.g. flight numbers like `6E 2336`), surfaces an airport card on the Overview dashboard.
+- **Visual flight tracker**: Visual departure and arrival tracks, live departure countdowns, and airline recognition (IndiGo, Air India, Vistara, Emirates, etc.).
+- **Interactive packing checklist**: Built-in travel essentials checklist (Boarding pass, ID/Passport, electronics, luggage tags) saved in local storage.
+
+### 7. 📅 Task Due Dates & Scratchpad Line Extractor
+- **Due dates with smart filters**: Assign due dates with quick presets (`Today`, `Tomorrow`) and filter tasks by *Due Today* and *Upcoming* with overdue indicators.
+- **1-Click line-by-line task conversion**: Convert any single line or all scratchpad lines into prioritized tasks in one click with automated category inference.
+
+### 8. 📹 Context-Aware Meeting & Video Detection
 - **Smart video conference detection**: Accurately recognizes genuine Google Meet, Zoom, Microsoft Teams, and Webex links.
 - **Direct action button**: Displays a prominent "Join Meeting" button only when a real video link exists; cleanly shows in-person or location details for flights and offline appointments.
 
-### 6. 📝 Google Keep-Style Notes & Zero-Knowledge Vault
+### 9. 📝 Google Keep-Style Notes & Zero-Knowledge Vault
 - **Live Markdown preview**: Rich text toolbar for bold, italic, code blocks, lists, quotes, and headings.
 - **Zero-knowledge client-side encryption**: Master PIN vault using PBKDF2 (100,000 iterations, SHA-256) and AES-256-GCM. Unencrypted note data is never sent to the server.
 - **Drag-and-drop reordering**: HTML5 draggable cards with visual insertion indicators.
 - **Lightweight image attachments**: Client-side canvas compression (max 1200px, 80% JPEG).
 
-### 7. 🎧 Deep Work Focus Timer & Ambient Audio
+### 10. 🎧 Deep Work Focus Timer & Ambient Audio
 - **Customizable focus blocks**: 25m, 45m, 60m, and 90m presets.
 - **Built-in ambient soundscapes**: Gentle Rain, Ocean Waves, Calming Brown Noise, White Noise, Forest, and Café ambiance.
 - **Volume control & synthesized audio**: Pure Web Audio API synthesis—zero external audio files or network streams needed.
 
-### 8. ⌨️ Comprehensive Keyboard Shortcuts (`?` Hotkey)
+### 11. ⌨️ Comprehensive Keyboard Shortcuts (`?` Hotkey)
 - `1` - Switch to Overview tab
 - `2` - Switch to Calendar tab
 - `3` - Switch to Inbox tab
@@ -219,7 +232,9 @@ Routino-Daily-Dashboard/
 │   └── globals.css                # Global styles, Tailwind layers & print media rules
 ├── components/                    # Interactive UI modules, modals, and views
 │   ├── DailyDeskSheetModal.tsx    # Single-page printable daily desk planner
+│   ├── FlightTravelCard.tsx       # Flight & travel status card with route and packing list
 │   ├── QuickCaptureModal.tsx      # Universal quick-capture modal (Q shortcut)
+│   ├── QuickScratchpadCard.tsx    # Scratchpad with 1-click line-to-task conversion
 │   ├── DayTimelineBar.tsx         # Today's Flow daytime progress bar & event blocks
 │   ├── KeyboardShortcutsModal.tsx # Full keyboard shortcuts cheat sheet (? shortcut)
 │   ├── FocusTimerModal.tsx        # Deep work timer with ambient audio soundscapes
