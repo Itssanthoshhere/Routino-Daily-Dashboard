@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, AlertCircle, CheckSquare, Trash2, Plane, Sparkles } from "lucide-react";
+import { Plus, X, AlertCircle, CheckSquare, Trash2, Plane, Sparkles, Calendar } from "lucide-react";
 import { Task, SubTask } from "@/types/dashboard";
 import { inferTaskCategory } from "@/lib/meeting";
 
@@ -16,6 +16,7 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
   const [meta, setMeta] = useState("");
   const [priority, setPriority] = useState(false);
   const [category, setCategory] = useState<"work" | "personal" | "meeting" | "urgent" | "project" | "travel">("work");
+  const [dueDate, setDueDate] = useState("");
   const [hasUserPickedCategory, setHasUserPickedCategory] = useState(false);
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [subtaskInput, setSubtaskInput] = useState("");
@@ -54,11 +55,19 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
     const finalCategory = category;
     const catLabel = finalCategory === "project" ? "Project" : finalCategory === "travel" ? "Travel" : finalCategory.charAt(0).toUpperCase() + finalCategory.slice(1);
 
+    const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
+    let defaultMeta = `Today · ${catLabel}`;
+    if (dueDate) {
+      if (dueDate === todayStr) defaultMeta = `Due Today · ${catLabel}`;
+      else defaultMeta = `Due ${dueDate} · ${catLabel}`;
+    }
+
     onAddTask({
       title: title.trim(),
-      meta: meta.trim() || `Today · ${catLabel}`,
+      meta: meta.trim() || defaultMeta,
       priority,
       category: finalCategory,
+      dueDate: dueDate || undefined,
       subtasks: subtasks.length > 0 ? subtasks : undefined,
     });
 
@@ -66,6 +75,7 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
     setMeta("");
     setPriority(false);
     setCategory("work");
+    setDueDate("");
     setHasUserPickedCategory(false);
     setSubtasks([]);
     setSubtaskInput("");
@@ -165,6 +175,63 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
                 <AlertCircle size={14} />
                 {priority ? "High Priority" : "Normal"}
               </button>
+            </div>
+          </div>
+
+          {/* Due Date & Presets */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="flex items-center gap-1 text-[11px] font-semibold text-ink">
+                <Calendar size={12} className="text-forest" />
+                <span>Due Date (Optional)</span>
+              </label>
+              {dueDate && (
+                <button
+                  type="button"
+                  onClick={() => setDueDate("")}
+                  className="text-[10px] text-muted hover:text-[#b91c1c] transition cursor-pointer"
+                >
+                  Clear date
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="flex-1 rounded-xl border border-line bg-white px-3 py-2 text-[12px] text-ink outline-none focus:border-forest"
+              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Intl.DateTimeFormat("en-CA").format(new Date());
+                    setDueDate(today);
+                  }}
+                  className={`rounded-lg px-2 py-1.5 text-[10.5px] font-semibold transition cursor-pointer ${
+                    dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
+                      ? "bg-forest text-white"
+                      : "border border-line bg-white text-muted hover:bg-[#f1f3ed]"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tomorrow = new Intl.DateTimeFormat("en-CA").format(new Date(Date.now() + 86400000));
+                    setDueDate(tomorrow);
+                  }}
+                  className={`rounded-lg px-2 py-1.5 text-[10.5px] font-semibold transition cursor-pointer ${
+                    dueDate === new Intl.DateTimeFormat("en-CA").format(new Date(Date.now() + 86400000))
+                      ? "bg-forest text-white"
+                      : "border border-line bg-white text-muted hover:bg-[#f1f3ed]"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+              </div>
             </div>
           </div>
 

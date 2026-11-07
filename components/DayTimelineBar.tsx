@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Clock, Video, Calendar, ChevronDown, ChevronUp, MapPin, Moon, Plane } from "lucide-react";
+import { Clock, Video, Calendar, ChevronDown, ChevronUp, MapPin, Moon, Plane, AlertTriangle } from "lucide-react";
 import type { DashboardEvent } from "@/types/dashboard";
-import { getMeetingUrl } from "@/lib/meeting";
+import { getMeetingUrl, findScheduleConflicts, ScheduleConflict } from "@/lib/meeting";
 
 interface DayTimelineBarProps {
   events: DashboardEvent[];
@@ -42,6 +42,11 @@ export function DayTimelineBar({
       return startStr.startsWith(todayDateStr);
     });
   }, [events, todayDateStr]);
+
+  // Detect schedule overlaps/conflicts for today
+  const conflicts: ScheduleConflict[] = useMemo(() => {
+    return findScheduleConflicts(rawTodayEvents, todayDateStr);
+  }, [rawTodayEvents, todayDateStr]);
 
   // Dynamically determine start and end hours
   const { startHour, endHour } = useMemo(() => {
@@ -200,6 +205,22 @@ export function DayTimelineBar({
           )}
         </div>
       </div>
+
+      {/* Schedule Conflicts / Overlap Alert */}
+      {conflicts.length > 0 && (
+        <div className="mt-2.5 flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-[#fffbeb] px-3 py-1.5 text-[11px] text-amber-900 animate-in fade-in duration-200">
+          <div className="flex items-center gap-1.5 min-w-0 truncate">
+            <AlertTriangle size={13} className="shrink-0 text-amber-600" />
+            <span className="font-bold shrink-0">Schedule Overlap ({conflicts.length}):</span>
+            <span className="truncate">
+              &quot;{conflicts[0].eventA.summary}&quot; &amp; &quot;{conflicts[0].eventB.summary}&quot; ({conflicts[0].startTimeStr} – {conflicts[0].endTimeStr})
+            </span>
+          </div>
+          <span className="shrink-0 font-extrabold text-[9.5px] uppercase bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded">
+            {conflicts[0].overlapMinutes}m Overlap
+          </span>
+        </div>
+      )}
 
       {/* Visual Timeline Bar Track Container */}
       <div className="relative mt-2.5 mb-1 pt-1 w-full">

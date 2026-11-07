@@ -13,10 +13,11 @@ import {
   Sparkles,
   MapPin,
   Plane,
+  AlertTriangle,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
-import { getMeetingUrl } from "@/lib/meeting";
+import { getMeetingUrl, findScheduleConflicts } from "@/lib/meeting";
 
 type CalendarViewProps = {
   events: DashboardEvent[];
@@ -68,6 +69,15 @@ export function CalendarView({
       : dayEvents.filter(
           (e) => (e.tag || "WORK").toUpperCase() === selectedTag.toUpperCase()
         );
+
+  // Compute schedule conflicts
+  const selectedDateStr = new Intl.DateTimeFormat("en-CA").format(selectedDate);
+  const dayConflicts = findScheduleConflicts(dayEvents, selectedDateStr);
+  const conflictingEventIds = new Set<string>();
+  dayConflicts.forEach((c) => {
+    conflictingEventIds.add(c.eventA.id);
+    conflictingEventIds.add(c.eventB.id);
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -187,6 +197,23 @@ export function CalendarView({
           </span>
         </div>
 
+        {/* Schedule Conflicts Alert Banner */}
+        {dayConflicts.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-[#fffbeb] p-3 text-[11px] text-amber-900 animate-in fade-in duration-200">
+            <div className="flex items-center gap-1.5 font-bold mb-1.5 text-amber-800">
+              <AlertTriangle size={13} className="text-amber-600" />
+              <span>{dayConflicts.length} Schedule Conflict{dayConflicts.length > 1 ? "s" : ""} on this day</span>
+            </div>
+            <div className="space-y-1 pl-4 text-[10.5px]">
+              {dayConflicts.map((c) => (
+                <div key={c.id}>
+                  &bull; <strong className="font-semibold">&quot;{c.eventA.summary}&quot;</strong> &amp; <strong className="font-semibold">&quot;{c.eventB.summary}&quot;</strong> ({c.startTimeStr} – {c.endTimeStr}, {c.overlapMinutes}m overlap)
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {filteredEvents.length === 0 ? (
           <div className="py-12 text-center">
             <CalendarDays size={32} className="mx-auto text-muted/40 mb-3" />
@@ -275,6 +302,11 @@ export function CalendarView({
                           >
                             {event.tag === "TRAVEL" && <Plane size={10} />}
                             {event.tag}
+                          </span>
+                        )}
+                        {conflictingEventIds.has(event.id) && (
+                          <span className="rounded bg-[#fef3c7] text-[#92400e] border border-[#fde68a] px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1">
+                            <AlertTriangle size={10} /> Overlap
                           </span>
                         )}
                       </div>

@@ -15,6 +15,8 @@ import {
   ChevronUp,
   CheckSquare,
   Plane,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import { Task } from "@/types/dashboard";
 import { inferTaskCategory } from "@/lib/meeting";
@@ -37,17 +39,21 @@ export function TasksView({
   onToggleSubTask,
 }: TasksViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "completed" | "priority" | "project" | "travel">("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "today" | "upcoming" | "priority" | "project" | "travel" | "completed">("all");
   const [quickTitle, setQuickTitle] = useState("");
   const [quickCategory, setQuickCategory] = useState<"work" | "personal" | "meeting" | "urgent" | "project" | "travel">("work");
   const [hasUserChangedCategory, setHasUserChangedCategory] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+
+  const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
 
   const toggleExpand = (id: string) => {
     setExpandedTasks((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const doneCount = tasks.filter((t) => t.checked).length;
+  const todayTasksCount = tasks.filter((t) => !t.checked && (t.dueDate === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")))).length;
+  const upcomingTasksCount = tasks.filter((t) => !t.checked && Boolean(t.dueDate && t.dueDate > todayStr)).length;
   const projectTasksCount = tasks.filter((t) => t.category === "project").length;
   const travelTasksCount = tasks.filter((t) => t.category === "travel").length;
   const progressPercent = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
@@ -89,6 +95,8 @@ export function TasksView({
     if (selectedFilter === "active") return !t.checked;
     if (selectedFilter === "completed") return t.checked;
     if (selectedFilter === "priority") return t.priority;
+    if (selectedFilter === "today") return !t.checked && (t.dueDate === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")));
+    if (selectedFilter === "upcoming") return !t.checked && Boolean(t.dueDate && t.dueDate > todayStr);
     if (selectedFilter === "project") return t.category === "project";
     if (selectedFilter === "travel") return t.category === "travel";
     return true;
@@ -199,6 +207,28 @@ export function TasksView({
           >
             Active ({tasks.length - doneCount})
           </button>
+          <button
+            onClick={() => setSelectedFilter("today")}
+            className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+              selectedFilter === "today"
+                ? "bg-forest text-white"
+                : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
+            }`}
+          >
+            Due Today ({todayTasksCount})
+          </button>
+          {upcomingTasksCount > 0 && (
+            <button
+              onClick={() => setSelectedFilter("upcoming")}
+              className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
+                selectedFilter === "upcoming"
+                  ? "bg-forest text-white"
+                  : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
+              }`}
+            >
+              Upcoming ({upcomingTasksCount})
+            </button>
+          )}
           {projectTasksCount > 0 && (
             <button
               onClick={() => setSelectedFilter("project")}
@@ -305,6 +335,24 @@ export function TasksView({
                             >
                               {task.category === "travel" && <Plane size={9} />}
                               {task.category}
+                            </span>
+                          )}
+                          {task.dueDate && (
+                            <span
+                              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${
+                                task.dueDate < todayStr && !task.checked
+                                  ? "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]"
+                                  : task.dueDate === todayStr
+                                  ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                                  : "bg-[#f8fafc] text-[#475569] border border-[#e2e8f0]"
+                              }`}
+                            >
+                              <Clock size={8} />
+                              {task.dueDate < todayStr && !task.checked
+                                ? `Overdue (${task.dueDate})`
+                                : task.dueDate === todayStr
+                                ? "Due Today"
+                                : `Due ${task.dueDate}`}
                             </span>
                           )}
                           {hasSubtasks && (

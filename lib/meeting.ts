@@ -182,3 +182,170 @@ export function inferTaskCategory(
 
   return explicitCategory || "work";
 }
+
+export type ScheduleConflict = {
+  id: string;
+  eventA: DashboardEvent;
+  eventB: DashboardEvent;
+  conflictStart: Date;
+  conflictEnd: Date;
+  startTimeStr: string;
+  endTimeStr: string;
+  overlapMinutes: number;
+};
+
+/**
+ * Detects overlapping or double-booked events for a given day.
+ */
+export function findScheduleConflicts(
+  events: DashboardEvent[],
+  targetDateStr?: string
+): ScheduleConflict[] {
+  const datePrefix = targetDateStr || new Intl.DateTimeFormat("en-CA").format(new Date());
+
+  const timedEvents = events
+    .filter((ev) => {
+      const s = ev.start?.dateTime;
+      const e = ev.end?.dateTime;
+      return s && e && s.startsWith(datePrefix);
+    })
+    .map((ev) => ({
+      event: ev,
+      start: new Date(ev.start!.dateTime!).getTime(),
+      end: new Date(ev.end!.dateTime!).getTime(),
+    }))
+    .filter((item) => !Number.isNaN(item.start) && !Number.isNaN(item.end) && item.end > item.start)
+    .sort((a, b) => a.start - b.start);
+
+  const conflicts: ScheduleConflict[] = [];
+
+  for (let i = 0; i < timedEvents.length; i++) {
+    for (let j = i + 1; j < timedEvents.length; j++) {
+      const a = timedEvents[i];
+      const b = timedEvents[j];
+
+      if (b.start >= a.end) break;
+
+      const overlapStart = Math.max(a.start, b.start);
+      const overlapEnd = Math.min(a.end, b.end);
+      const overlapMinutes = Math.round((overlapEnd - overlapStart) / (60 * 1000));
+
+      if (overlapMinutes > 0) {
+        const startDate = new Date(overlapStart);
+        const endDate = new Date(overlapEnd);
+        conflicts.push({
+          id: `conflict-${a.event.id}-${b.event.id}`,
+          eventA: a.event,
+          eventB: b.event,
+          conflictStart: startDate,
+          conflictEnd: endDate,
+          startTimeStr: startDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+          endTimeStr: endDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+          overlapMinutes,
+        });
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+export type TravelInfo = {
+  event: DashboardEvent;
+  flightCode?: string;
+  airline?: string;
+  destination?: string;
+  departureTimeStr: string;
+  arrivalTimeStr: string;
+  departureDate: Date;
+  arrivalDate: Date;
+  isDeparted: boolean;
+  isArrived: boolean;
+  minutesUntilDeparture: number;
+};
+
+const AIRLINE_CODES: Record<string, string> = {
+  "6E": "IndiGo",
+  AI: "Air India",
+  UK: "Vistara",
+  SG: "SpiceJet",
+  QP: "Akasa Air",
+  IX: "Air India Express",
+  G8: "Go First",
+  EK: "Emirates",
+  QR: "Qatar Airways",
+  BA: "British Airways",
+  DL: "Delta Air Lines",
+  UA: "United Airlines",
+  AA: "American Airlines",
+  LH: "Lufthansa",
+  AF: "Air France",
+  SQ: "Singapore Airlines",
+};
+
+/**
+ * Finds and extracts structured travel details (flights, trains, trips) for today.
+ */
+export function getTodayTravelInfo(
+  events: DashboardEvent[],
+  targetDateStr?: string
+): TravelInfo | null {
+  const datePrefix = targetDateStr || new Intl.DateTimeFormat("en-CA").format(new Date());
+
+  const travelEvent = events.find((ev) => {
+    const s = ev.start?.dateTime || ev.start?.date;
+    if (!s || !s.startsWith(datePrefix)) return false;
+    const cat = inferEventCategory(ev);
+    return cat.tag === "TRAVEL";
+  });
+
+  if (!travelEvent) return null;
+
+  const startStr = travelEvent.start?.dateTime || travelEvent.start?.date || "";
+  const endStr = travelEvent.end?.dateTime || travelEvent.end?.date || "";
+  const departureDate = new Date(startStr);
+  const arrivalDate = endStr ? new Date(endStr) : new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
+
+  const now = Date.now();
+  const minutesUntilDeparture = Math.round((departureDate.getTime() - now) / (60 * 1000));
+  const isDeparted = now >= departureDate.getTime();
+  const isArrived = now >= arrivalDate.getTime();
+
+  const summary = travelEvent.summary || "";
+  const description = travelEvent.description || "";
+  const fullText = `${summary} ${description}`;
+
+  // Extract Flight Code (e.g. 6E 2336, AI 102)
+  let flightCode: string | undefined;
+  let airline: string | undefined;
+  const flightMatch = fullText.match(/\b(6E|AI|UK|SG|QP|IX|G8|EK|QR|BA|DL|UA|AA|LH|AF|SQ)\s*(\d{2,4})\b/i);
+  if (flightMatch) {
+    const prefix = flightMatch[1].toUpperCase();
+    const number = flightMatch[2];
+    flightCode = `${prefix} ${number}`;
+    airline = AIRLINE_CODES[prefix] || prefix;
+  }
+
+  // Extract Destination
+  let destination: string | undefined;
+  const destMatch = summary.match(/(?:flight|trip|travel)\s+to\s+([a-zA-Z\s]+?)(?:\s*\(|\s*-|\s*$)/i);
+  if (destMatch && destMatch[1].trim()) {
+    destination = destMatch[1].trim();
+  } else if (travelEvent.location) {
+    destination = travelEvent.location;
+  }
+
+  return {
+    event: travelEvent,
+    flightCode,
+    airline,
+    destination,
+    departureTimeStr: departureDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    arrivalTimeStr: arrivalDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    departureDate,
+    arrivalDate,
+    isDeparted,
+    isArrived,
+    minutesUntilDeparture,
+  };
+}

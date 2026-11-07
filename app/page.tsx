@@ -24,6 +24,7 @@ import { MobileSidebar } from "@/components/MobileSidebar";
 import { GoogleSetupModal } from "@/components/GoogleSetupModal";
 import { GoogleDriveFilesCard } from "@/components/GoogleDriveFilesCard";
 import { UpNextMeetingBanner } from "@/components/UpNextMeetingBanner";
+import { FlightTravelCard } from "@/components/FlightTravelCard";
 import { DayTimelineBar } from "@/components/DayTimelineBar";
 import { DailyRoutineModal } from "@/components/DailyRoutineModal";
 import { DailyDeskSheetModal } from "@/components/DailyDeskSheetModal";
@@ -1376,9 +1377,10 @@ export default function Home() {
           ) : (
             /* ─── OVERVIEW DASHBOARD VIEW ─── */
             <>
-              {/* Up next meeting quick-join banner & Today's Flow Timeline */}
+              {/* Up next meeting quick-join banner, Travel status & Today's Flow Timeline */}
               <div className="mb-5 space-y-3">
                 <UpNextMeetingBanner events={allEvents} />
+                <FlightTravelCard events={allEvents} onViewEvent={(ev) => { setViewingEvent(ev); setShowEventModal(true); }} />
                 <DayTimelineBar events={allEvents} />
               </div>
 
@@ -1637,6 +1639,22 @@ export default function Home() {
                                     }`}>
                                       {task.category === "travel" && <Plane size={8} />}
                                       {task.category.toUpperCase()}
+                                    </span>
+                                  )}
+                                  {task.dueDate && (
+                                    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold ${
+                                      task.dueDate < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
+                                        ? "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]"
+                                        : task.dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
+                                        ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                                        : "bg-[#f8fafc] text-[#475569] border border-[#e2e8f0]"
+                                    }`}>
+                                      <Clock3 size={8} />
+                                      {task.dueDate < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
+                                        ? "OVERDUE"
+                                        : task.dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
+                                        ? "DUE TODAY"
+                                        : task.dueDate}
                                     </span>
                                   )}
                                   {hasSubtasks && (
