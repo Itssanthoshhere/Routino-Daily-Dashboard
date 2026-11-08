@@ -1534,7 +1534,9 @@ export default function Home() {
                               {item.tag && (
                                 <span
                                   className={`rounded-md px-2 py-0.5 text-[9px] font-bold tracking-wide flex items-center gap-1 ${
-                                    item.tag === "TRAVEL"
+                                    item.tag === "BANANA"
+                                      ? "bg-[#fef9c3] text-[#854d0e] border border-[#fef08a]"
+                                      : item.tag === "TRAVEL"
                                       ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
                                       : item.tag === "PROJECT"
                                       ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
@@ -1547,6 +1549,7 @@ export default function Home() {
                                       : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
                                   }`}
                                 >
+                                  {item.tag === "BANANA" && <span>🟡</span>}
                                   {item.tag === "TRAVEL" && <Plane size={9} />}
                                   {item.tag}
                                 </span>

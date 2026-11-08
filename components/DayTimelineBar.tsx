@@ -253,6 +253,8 @@ export function DayTimelineBar({
                     ? "bg-[#2563eb] ring-2 ring-[#2563eb]/40 animate-pulse"
                     : ev.isPast
                     ? "bg-[#cbd5e1]"
+                    : ev.tag === "BANANA"
+                    ? "bg-[#eab308]"
                     : ev.tag === "TRAVEL"
                     ? "bg-[#0284c7]"
                     : ev.tag === "PROJECT"
@@ -375,6 +377,10 @@ export function DayTimelineBar({
                   <Video size={11} />
                   <span>Join Meeting</span>
                 </a>
+              ) : ev.tag === "BANANA" ? (
+                <span className="inline-flex items-center gap-1 rounded-lg bg-[#fef9c3] border border-[#fef08a] px-2 py-1 text-[10px] font-semibold text-[#854d0e] shrink-0">
+                  <span>🟡 Banana</span>
+                </span>
               ) : ev.tag === "TRAVEL" ? (
                 <span className="inline-flex items-center gap-1 rounded-lg bg-[#f0f9ff] border border-[#bae6fd] px-2 py-1 text-[10px] font-semibold text-[#0284c7] shrink-0">
                   <Plane size={10} />

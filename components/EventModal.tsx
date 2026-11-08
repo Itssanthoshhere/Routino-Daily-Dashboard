@@ -38,7 +38,11 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
       tag,
       meetLink: meetLink.trim() || undefined,
       color:
-        tag === "PROJECT"
+        tag === "BANANA"
+          ? "#eab308"
+          : tag === "TRAVEL"
+          ? "#0284c7"
+          : tag === "PROJECT"
           ? "#7c3aed"
           : tag === "MEETING"
           ? "#2563eb"
@@ -91,7 +95,9 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
                 {eventToView.tag && (
                   <span
                     className={`rounded-md px-2.5 py-1 text-[10px] font-bold tracking-wide flex items-center gap-1 shrink-0 ${
-                      eventToView.tag === "TRAVEL"
+                      eventToView.tag === "BANANA"
+                        ? "bg-[#fef9c3] text-[#854d0e] border border-[#fef08a]"
+                        : eventToView.tag === "TRAVEL"
                         ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
                         : eventToView.tag === "PROJECT"
                         ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
@@ -104,6 +110,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
                         : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
                     }`}
                   >
+                    {eventToView.tag === "BANANA" && <span>🟡</span>}
                     {eventToView.tag === "TRAVEL" && <Plane size={11} />}
                     {eventToView.tag}
                   </span>
@@ -209,6 +216,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
                 {[
                   { id: "PROJECT", label: "Project", color: "bg-[#f5f3ff] text-[#7c3aed] border-[#ddd6fe]" },
                   { id: "TRAVEL", label: "Travel", color: "bg-[#f0f9ff] text-[#0284c7] border-[#bae6fd]" },
+                  { id: "BANANA", label: "Banana", color: "bg-[#fef9c3] text-[#854d0e] border-[#fef08a]" },
                   { id: "WORK", label: "Work", color: "bg-[#f0fdf4] text-[#16a34a] border-[#bbf7d0]" },
                   { id: "MEETING", label: "Meeting", color: "bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]" },
                   { id: "PERSONAL", label: "Personal", color: "bg-[#fffbeb] text-[#b45309] border-[#fde68a]" },

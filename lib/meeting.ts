@@ -41,10 +41,68 @@ export function getMeetingUrl(event: DashboardEvent): string | null {
 }
 
 /**
+ * Google Calendar official Event color palette.
+ * Color ID 5 is officially named "Banana" (Yellow).
+ */
+export const GOOGLE_EVENT_COLORS: Record<string, { name: string; hex: string }> = {
+  "1": { name: "Lavender", hex: "#7986cb" },
+  "2": { name: "Sage", hex: "#33b679" },
+  "3": { name: "Grape", hex: "#8e24aa" },
+  "4": { name: "Flamingo", hex: "#e67c73" },
+  "5": { name: "Banana", hex: "#eab308" }, // Official Banana / Yellow
+  "6": { name: "Tangerine", hex: "#f97316" },
+  "7": { name: "Peacock", hex: "#06b6d4" },
+  "8": { name: "Graphite", hex: "#64748b" },
+  "9": { name: "Blueberry", hex: "#3b82f6" },
+  "10": { name: "Basil", hex: "#16a34a" },
+  "11": { name: "Tomato", hex: "#ef4444" },
+};
+
+/**
+ * Checks if a Google Calendar event has the "Banana" color ID (5)
+ * or a yellow/banana hex background.
+ */
+export function isBananaYellowColor(colorId?: string, hexColor?: string): boolean {
+  if (colorId === "5") return true;
+  if (!hexColor) return false;
+  const clean = hexColor.toLowerCase().trim();
+  if (
+    [
+      "#fbd75b",
+      "#f6bf26",
+      "#fad165",
+      "#fbe983",
+      "#eab308",
+      "#facc15",
+      "#fde047",
+      "#fef08a",
+      "#e6c60d",
+      "#fef9c3",
+      "#ca8a04",
+      "#fbbf24",
+      "#e5a914",
+      "#d97706",
+    ].includes(clean)
+  ) {
+    return true;
+  }
+  if (/^#([0-9a-f]{6})$/i.test(clean)) {
+    const r = parseInt(clean.slice(1, 3), 16);
+    const g = parseInt(clean.slice(3, 5), 16);
+    const b = parseInt(clean.slice(5, 7), 16);
+    if (r > 180 && g > 150 && b < 130) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Automatically infers an event's category/tag and theme color from its title,
- * description, and properties.
+ * description, properties, and Google Calendar colorId.
  * Identifies:
  * - "TRAVEL": flights, trains, hotel bookings, airport, trips
+ * - "BANANA": yellow / banana colored events (Google Calendar colorId 5)
  * - "PROJECT": hands-on build sessions (project, website, building app, portfolio, dev, code)
  * - "MEETING": video calls, syncs, reviews, 1:1s
  * - "PERSONAL": doctor, dentist, gym, dinner, personal life
@@ -58,7 +116,9 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
       tag: t,
       color:
         event.color ||
-        (t === "TRAVEL"
+        (t === "BANANA" || t === "YELLOW"
+          ? "#eab308"
+          : t === "TRAVEL"
           ? "#0284c7"
           : t === "PROJECT"
           ? "#7c3aed"
@@ -73,6 +133,13 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
   if (event.source === "outlook") {
     return { tag: "OUTLOOK", color: "#0078d4" };
   }
+
+  // Check if event has Google colorId or calendarColor
+  const eventColor = event.colorId
+    ? GOOGLE_EVENT_COLORS[event.colorId]?.hex
+    : event.color || event.calendarColor;
+
+  const isBanana = isBananaYellowColor(event.colorId, eventColor);
 
   const summary = (event.summary || "").toLowerCase();
 
@@ -96,7 +163,12 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "TRAVEL", color: "#0284c7" };
   }
 
-  // 2. PROJECT / BUILD / PRODUCT (project, product, website, building app, portfolio, dev, coding)
+  // 2. BANANA / YELLOW (explicit Google Calendar Banana color)
+  if (isBanana) {
+    return { tag: "BANANA", color: "#eab308" };
+  }
+
+  // 3. PROJECT / BUILD / PRODUCT (project, product, website, building app, portfolio, dev, coding)
   if (
     /\b(project|projects|product|products|website|building|portfolio|coding|code|dev|develop|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo)\b/i.test(
       summary
@@ -108,7 +180,7 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "PROJECT", color: "#7c3aed" };
   }
 
-  // 3. MEETING (syncs, standups, 1:1, interviews, calls, video conferences)
+  // 4. MEETING (syncs, standups, 1:1, interviews, calls, video conferences)
   if (
     /\b(sync|standup|1:1|one-on-one|interview|review|sync-up|check-in|catch-up|huddle|debrief|meeting|demo|call)\b/i.test(
       summary
@@ -119,13 +191,17 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "MEETING", color: "#2563eb" };
   }
 
-  // 4. PERSONAL (doctor, dentist, gym, dinner, birthday, personal life)
+  // 5. PERSONAL (doctor, dentist, gym, dinner, birthday, personal life)
   if (
     /\b(doctor|dentist|gym|workout|personal|dinner|lunch|birthday|errand|family|movie|concert|spa|salon)\b/i.test(
       titleAndDesc
     )
   ) {
     return { tag: "PERSONAL", color: "#d97706" };
+  }
+
+  if (eventColor) {
+    return { tag: event.tag || "WORK", color: eventColor };
   }
 
   return { tag: event.tag || "WORK", color: event.color || "#16a34a" };

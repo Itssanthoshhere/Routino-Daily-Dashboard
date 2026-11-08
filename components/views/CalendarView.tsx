@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
-import { getMeetingUrl, findScheduleConflicts } from "@/lib/meeting";
+import { getMeetingUrl, findScheduleConflicts, isBananaYellowColor } from "@/lib/meeting";
 
 type CalendarViewProps = {
   events: DashboardEvent[];
@@ -66,6 +66,10 @@ export function CalendarView({
   const filteredEvents =
     selectedTag === "ALL"
       ? dayEvents
+      : selectedTag === "BANANA"
+      ? dayEvents.filter(
+          (e) => (e.tag || "").toUpperCase() === "BANANA" || isBananaYellowColor(e.colorId, e.color || e.calendarColor)
+        )
       : dayEvents.filter(
           (e) => (e.tag || "WORK").toUpperCase() === selectedTag.toUpperCase()
         );
@@ -167,17 +171,25 @@ export function CalendarView({
         <span className="text-[11px] font-semibold text-muted flex items-center gap-1 mr-1">
           <Filter size={12} /> Filter:
         </span>
-        {["ALL", "PROJECT", "TRAVEL", "WORK", "MEETING", "PERSONAL", "OUTLOOK"].map((tag) => (
+        {["ALL", "PROJECT", "TRAVEL", "BANANA", "WORK", "MEETING", "PERSONAL", "OUTLOOK"].map((tag) => (
           <button
             key={tag}
             onClick={() => setSelectedTag(tag)}
             className={`rounded-full px-3 py-1 text-[10px] font-semibold transition ${
               selectedTag === tag
-                ? "bg-forest text-white shadow-sm"
+                ? tag === "BANANA"
+                  ? "bg-[#eab308] text-white shadow-sm"
+                  : tag === "PROJECT"
+                  ? "bg-[#7c3aed] text-white shadow-sm"
+                  : tag === "TRAVEL"
+                  ? "bg-[#0284c7] text-white shadow-sm"
+                  : "bg-forest text-white shadow-sm"
+                : tag === "BANANA"
+                ? "bg-white border border-[#fef08a] text-[#854d0e] hover:bg-[#fef9c3]"
                 : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
             }`}
           >
-            {tag}
+            {tag === "BANANA" ? "🟡 BANANA" : tag}
           </button>
         ))}
       </div>
@@ -287,7 +299,9 @@ export function CalendarView({
                         {event.tag && (
                           <span
                             className={`rounded px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1 ${
-                              event.tag === "TRAVEL"
+                              event.tag === "BANANA"
+                                ? "bg-[#fef9c3] text-[#854d0e] border border-[#fef08a]"
+                                : event.tag === "TRAVEL"
                                 ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
                                 : event.tag === "PROJECT"
                                 ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
@@ -300,6 +314,7 @@ export function CalendarView({
                                 : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
                             }`}
                           >
+                            {event.tag === "BANANA" && <span>🟡</span>}
                             {event.tag === "TRAVEL" && <Plane size={10} />}
                             {event.tag}
                           </span>

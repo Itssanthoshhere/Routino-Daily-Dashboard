@@ -38,6 +38,10 @@ export type DashboardEvent = {
   attendees?: string[];
   tag?: string;
   color?: string;
+  colorId?: string;
+  calendarId?: string;
+  calendarSummary?: string;
+  calendarColor?: string;
   isCustom?: boolean;
   source?: "google" | "outlook" | "custom";
 };
