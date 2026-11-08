@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   CalendarDays,
   Clock,
@@ -14,6 +14,7 @@ import {
   MapPin,
   Plane,
   AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
@@ -35,29 +36,41 @@ export function CalendarView({
   isConnected,
 }: CalendarViewProps) {
   const [selectedTag, setSelectedTag] = useState<string>("ALL");
-  const [selectedDayOffset, setSelectedDayOffset] = useState<number>(0);
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
 
-  // Generate 7 rolling days
-  const days = Array.from({ length: 7 }, (_, i) => {
+  // Today base date
+  const todayDate = useMemo(() => {
     const d = new Date();
-    d.setDate(d.getDate() + i);
     d.setHours(0, 0, 0, 0);
-    return {
-      offset: i,
-      dateObj: d,
-      dayName: new Intl.DateTimeFormat("en", { weekday: "short" }).format(d),
-      dateNum: d.getDate(),
-      month: new Intl.DateTimeFormat("en", { month: "short" }).format(d),
-      isToday: i === 0,
-    };
-  });
+    return d;
+  }, []);
 
-  const selectedDate = days[selectedDayOffset].dateObj;
+  // Generate 7 days based on weekOffset (Default 0 = Main Focus: Today + 6 upcoming days)
+  const days = useMemo(() => {
+    const baseOffset = weekOffset * 7;
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(todayDate);
+      d.setDate(d.getDate() + baseOffset + i);
+      const isToday = d.toDateString() === todayDate.toDateString();
+      return {
+        index: i,
+        dateObj: d,
+        dayName: new Intl.DateTimeFormat("en", { weekday: "short" }).format(d),
+        dateNum: d.getDate(),
+        month: new Intl.DateTimeFormat("en", { month: "short" }).format(d),
+        year: d.getFullYear(),
+        isToday,
+      };
+    });
+  }, [weekOffset, todayDate]);
+
+  const selectedDate = days[selectedDayIndex]?.dateObj || todayDate;
 
   // Filter events for selected day
   const dayEvents = events.filter((ev) => {
     const startStr = ev.start?.dateTime ?? ev.start?.date;
-    if (!startStr) return selectedDayOffset === 0; // Default sample events to today
+    if (!startStr) return selectedDayIndex === 0 && weekOffset === 0;
     const d = new Date(startStr);
     return d.toDateString() === selectedDate.toDateString();
   });
@@ -68,11 +81,62 @@ export function CalendarView({
       ? dayEvents
       : selectedTag === "BANANA"
       ? dayEvents.filter(
-          (e) => (e.tag || "").toUpperCase() === "BANANA" || isBananaYellowColor(e.colorId, e.color || e.calendarColor)
+          (e) =>
+            (e.tag || "").toUpperCase() === "BANANA" ||
+            isBananaYellowColor(e.colorId, e.color || e.calendarColor)
+        )
+      : selectedTag === "PROJECT"
+      ? dayEvents.filter(
+          (e) =>
+            (e.tag || "").toUpperCase() === "PROJECT" ||
+            /\b(project|projects|product|products|website|building|portfolio|coding|dev|spendo|dashboard|app)\b/i.test(
+              `${e.summary || ""} ${e.description || ""}`
+            )
+        )
+      : selectedTag === "TRAVEL"
+      ? dayEvents.filter(
+          (e) =>
+            (e.tag || "").toUpperCase() === "TRAVEL" ||
+            /\b(flight|train|hotel|airport|airline|trip|travel|indigo|6e|ai|uk)\b/i.test(
+              `${e.summary || ""} ${e.description || ""}`
+            )
         )
       : dayEvents.filter(
           (e) => (e.tag || "WORK").toUpperCase() === selectedTag.toUpperCase()
         );
+
+  // Helper to inspect day events for dots
+  const getDayMeta = (d: Date) => {
+    const evs = events.filter((ev) => {
+      const s = ev.start?.dateTime ?? ev.start?.date;
+      return s && new Date(s).toDateString() === d.toDateString();
+    });
+    const hasBanana = evs.some(
+      (e) =>
+        (e.tag || "").toUpperCase() === "BANANA" ||
+        isBananaYellowColor(e.colorId, e.color || e.calendarColor)
+    );
+    const hasTravel = evs.some(
+      (e) =>
+        (e.tag || "").toUpperCase() === "TRAVEL" ||
+        /\b(flight|train|hotel|airport|airline|trip|travel|indigo|6e)\b/i.test(
+          `${e.summary || ""} ${e.description || ""}`
+        )
+    );
+    const hasProject = evs.some(
+      (e) =>
+        (e.tag || "").toUpperCase() === "PROJECT" ||
+        /\b(project|projects|product|products|website|building|portfolio|coding|dev|spendo|app)\b/i.test(
+          `${e.summary || ""} ${e.description || ""}`
+        )
+    );
+    return { count: evs.length, hasBanana, hasTravel, hasProject };
+  };
+
+  const handleResetToToday = () => {
+    setWeekOffset(0);
+    setSelectedDayIndex(0);
+  };
 
   // Compute schedule conflicts
   const selectedDateStr = new Intl.DateTimeFormat("en-CA").format(selectedDate);
@@ -123,16 +187,70 @@ export function CalendarView({
         </div>
       </div>
 
-      {/* Rolling 7-Day Picker */}
+      {/* 7-Day Navigation & Range Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-line bg-white/70 p-3 sm:px-4 sm:py-2.5 shadow-2xs backdrop-blur-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-bold text-ink">
+            {days[0]?.month} {days[0]?.dateNum} – {days[6]?.month} {days[6]?.dateNum}, {days[6]?.year}
+          </span>
+          {weekOffset === 0 ? (
+            <span className="rounded-md bg-forest/10 px-2 py-0.5 text-[10px] font-bold text-forest uppercase tracking-wide">
+              Main Focus · Next 7 Days
+            </span>
+          ) : weekOffset < 0 ? (
+            <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-800 uppercase tracking-wide">
+              Previous Days ({Math.abs(weekOffset)} {Math.abs(weekOffset) === 1 ? "week" : "weeks"} ago)
+            </span>
+          ) : (
+            <span className="rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-800 uppercase tracking-wide">
+              Upcoming (+{weekOffset} {weekOffset === 1 ? "week" : "weeks"})
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setWeekOffset((prev) => prev - 1)}
+            className="inline-flex items-center gap-1 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-muted hover:text-ink hover:bg-[#f1f3ed] transition cursor-pointer shadow-2xs"
+            title="View previous 7 days"
+          >
+            <ChevronLeft size={13} />
+            <span>Previous Days</span>
+          </button>
+          {weekOffset !== 0 && (
+            <button
+              type="button"
+              onClick={handleResetToToday}
+              className="inline-flex items-center gap-1 rounded-xl bg-forest px-2.5 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-[#8b1116] transition cursor-pointer"
+              title="Return to today & next 7 days"
+            >
+              <RotateCcw size={11} />
+              <span>Today (Main Focus)</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setWeekOffset((prev) => prev + 1)}
+            className="inline-flex items-center gap-1 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-muted hover:text-ink hover:bg-[#f1f3ed] transition cursor-pointer shadow-2xs"
+            title="View next 7 days"
+          >
+            <span>Next Days</span>
+            <ChevronRight size={13} />
+          </button>
+        </div>
+      </div>
+
+      {/* 7-Day Strip with Dots */}
       <div className="overflow-x-auto pb-1 -mx-1 px-1 sm:overflow-visible">
         <div className="grid grid-cols-7 gap-1.5 sm:gap-2 min-w-[340px] sm:min-w-0">
           {days.map((day) => {
-            const isSelected = selectedDayOffset === day.offset;
+            const isSelected = selectedDayIndex === day.index;
+            const meta = getDayMeta(day.dateObj);
             return (
               <button
-                key={day.offset}
-                onClick={() => setSelectedDayOffset(day.offset)}
-                className={`flex flex-col items-center rounded-2xl p-2 sm:p-3 transition-all ${
+                key={day.index}
+                onClick={() => setSelectedDayIndex(day.index)}
+                className={`flex flex-col items-center rounded-2xl p-2 sm:p-3 transition-all cursor-pointer ${
                   isSelected
                     ? "bg-forest text-white shadow-md scale-[1.02]"
                     : "bg-white border border-line text-ink hover:bg-[#f4f7ef]"
@@ -153,13 +271,36 @@ export function CalendarView({
                 >
                   {day.month}
                 </span>
-                {day.isToday && (
-                  <span
-                    className={`mt-1 sm:mt-1.5 h-1.5 w-1.5 rounded-full ${
-                      isSelected ? "bg-accent" : "bg-forest"
-                    }`}
-                  />
-                )}
+
+                {/* Event indicator dots: Yellow (Banana), Sky (Travel), Purple (Project) */}
+                <div className="mt-1.5 flex items-center justify-center gap-1 min-h-[6px]">
+                  {meta.hasBanana && (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${isSelected ? "bg-[#fef08a]" : "bg-[#eab308]"}`}
+                      title="Yellow/Banana Event"
+                    />
+                  )}
+                  {meta.hasTravel && (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${isSelected ? "bg-sky-200" : "bg-[#0284c7]"}`}
+                      title="Travel Event"
+                    />
+                  )}
+                  {meta.hasProject && (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${isSelected ? "bg-purple-200" : "bg-[#7c3aed]"}`}
+                      title="Project Event"
+                    />
+                  )}
+                  {!meta.hasBanana && !meta.hasTravel && !meta.hasProject && day.isToday && (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        isSelected ? "bg-accent" : "bg-forest"
+                      }`}
+                      title="Today"
+                    />
+                  )}
+                </div>
               </button>
             );
           })}
@@ -296,29 +437,36 @@ export function CalendarView({
                           {startFormatted}
                           {endFormatted ? ` – ${endFormatted}` : ""}
                         </span>
-                        {event.tag && (
-                          <span
-                            className={`rounded px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1 ${
-                              event.tag === "BANANA"
-                                ? "bg-[#fef9c3] text-[#854d0e] border border-[#fef08a]"
-                                : event.tag === "TRAVEL"
-                                ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
-                                : event.tag === "PROJECT"
-                                ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
-                                : event.tag === "MEETING"
-                                ? "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
-                                : event.tag === "PERSONAL"
-                                ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
-                                : event.tag === "OUTLOOK"
-                                ? "bg-[#ebf3fc] text-[#0078d4] border border-[#c7e0f4]"
-                                : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
-                            }`}
-                          >
-                            {event.tag === "BANANA" && <span>🟡</span>}
-                            {event.tag === "TRAVEL" && <Plane size={10} />}
-                            {event.tag}
-                          </span>
-                        )}
+                        {(() => {
+                          const isBanana =
+                            (event.tag || "").toUpperCase() === "BANANA" ||
+                            isBananaYellowColor(event.colorId, event.color || event.calendarColor);
+                          const tagToDisplay = isBanana ? "BANANA" : event.tag;
+                          if (!tagToDisplay) return null;
+                          return (
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1 ${
+                                isBanana
+                                  ? "bg-[#fef9c3] text-[#854d0e] border border-[#fef08a]"
+                                  : tagToDisplay === "TRAVEL"
+                                  ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]"
+                                  : tagToDisplay === "PROJECT"
+                                  ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
+                                  : tagToDisplay === "MEETING"
+                                  ? "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
+                                  : tagToDisplay === "PERSONAL"
+                                  ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                                  : tagToDisplay === "OUTLOOK"
+                                  ? "bg-[#ebf3fc] text-[#0078d4] border border-[#c7e0f4]"
+                                  : "bg-[#f0fdf4] text-[#16a34a] border border-[#bbf7d0]"
+                              }`}
+                            >
+                              {isBanana && <span>🟡</span>}
+                              {tagToDisplay === "TRAVEL" && <Plane size={10} />}
+                              {tagToDisplay}
+                            </span>
+                          );
+                        })()}
                         {conflictingEventIds.has(event.id) && (
                           <span className="rounded bg-[#fef3c7] text-[#92400e] border border-[#fde68a] px-1.5 py-0.5 text-[9px] font-bold flex items-center gap-1">
                             <AlertTriangle size={10} /> Overlap

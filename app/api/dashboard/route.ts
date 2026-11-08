@@ -9,10 +9,17 @@ export async function GET() {
   if (!session) return NextResponse.json({ connected: false }, { status: 401 });
   try {
     const now = new Date();
-    const week = new Date(now);
-    week.setDate(week.getDate() + 7);
-    const timeMin = encodeURIComponent(now.toISOString());
-    const timeMax = encodeURIComponent(week.toISOString());
+    // Allow viewing previous days (past 14 days) and upcoming days (next 14 days)
+    const pastWindow = new Date(now);
+    pastWindow.setDate(pastWindow.getDate() - 14);
+    pastWindow.setHours(0, 0, 0, 0);
+
+    const futureWindow = new Date(now);
+    futureWindow.setDate(futureWindow.getDate() + 14);
+    futureWindow.setHours(23, 59, 59, 999);
+
+    const timeMin = encodeURIComponent(pastWindow.toISOString());
+    const timeMax = encodeURIComponent(futureWindow.toISOString());
     const [calendarListRes, mail] = await Promise.all([
       googleFetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader"),
       googleFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+-category:promotions+-category:social&maxResults=8"),
@@ -39,7 +46,7 @@ export async function GET() {
           targetCals.map(async (cal: any) => {
             try {
               const res = await googleFetch(
-                `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=50`
+                `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=100`
               );
               if (!res.ok) return [];
               const data = await res.json();
@@ -63,7 +70,7 @@ export async function GET() {
     // Fallback to primary if calendarList returned no events or failed
     if (calendarEvents.length === 0) {
       const primaryRes = await googleFetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=50`
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=100`
       );
       if (primaryRes.ok) {
         const primaryData = await primaryRes.json();
