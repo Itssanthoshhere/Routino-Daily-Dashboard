@@ -84,12 +84,14 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 - **Clamped current-time marker**: Pulsing orange indicator showing real-time progress through the day.
 - **Interactive event markers**: Color-coded meeting and travel blocks with remaining time count-downs (`Day starts at...` / `In 45m`).
 
-### 4. 🏷️ First-Class Project & Travel Categorization
+### 4. 🏷️ First-Class Project, Travel & Banana (Yellow) Categorization
 - **Universal categorization**: Tasks and calendar events share unified, intelligent categories:
   - 🟣 **`PROJECT`** (`#7c3aed`): Dedicated for build sessions, websites, apps, products, portfolio, coding, and dev sprints.
   - ✈️ **`TRAVEL`** (`#0284c7`): Dedicated for flights (e.g. `6E 2336`), trains, hotel bookings, airport transits, and trips.
-- **Smart keyword inference**: Automatically recognizes project and travel tasks without manual tagging while safely filtering out Google Calendar email boilerplate.
-- **Dedicated filter pills**: Filter tasks and calendar events specifically by Projects or Travel.
+  - 🟡 **`BANANA`** (`#eab308`): Dedicated for yellow / banana events (Google Calendar official color `colorId: 5` and custom yellow sub-calendars).
+- **Multi-calendar synchronization**: Automatically pulls events across all active Google Calendars (`users/me/calendarList`), ensuring secondary and custom yellow calendars appear with their full fidelity.
+- **Smart keyword & color inference**: Automatically recognizes project, travel, and banana-colored tasks/events.
+- **Dedicated filter pills**: Filter calendar events specifically by Projects, Travel, or Banana (Yellow).
 
 ### 5. ⚠️ Schedule Overlap & Conflict Detection
 - **Automated double-booking alerts**: Automatically inspects scheduled start and end times to flag overlapping meetings or tight connections.
