@@ -84,6 +84,7 @@ export type KeepNote = {
   pinned?: boolean;
   priority?: KeepNotePriority;
   imageUrl?: string;
+  images?: string[];
   checklist?: KeepNoteChecklistItem[];
   isEncrypted?: boolean;
   order?: number;

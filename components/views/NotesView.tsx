@@ -125,7 +125,15 @@ type DecryptedPayload = {
   text: string;
   checklist?: KeepNoteChecklistItem[];
   imageUrl?: string;
+  images?: string[];
 };
+
+function getNoteImages(item?: { imageUrl?: string; images?: string[] } | null): string[] {
+  if (!item) return [];
+  if (Array.isArray(item.images) && item.images.length > 0) return item.images;
+  if (item.imageUrl) return [item.imageUrl];
+  return [];
+}
 
 type NotesViewProps = {
   notes: KeepNote[];
@@ -352,7 +360,7 @@ export function NotesView({
   const [composeColor, setComposeColor] = useState<NonNullable<KeepNote["color"]>>("default");
   const [composePinned, setComposePinned] = useState(false);
   const [composePriority, setComposePriority] = useState<KeepNotePriority>("none");
-  const [composeImageUrl, setComposeImageUrl] = useState<string | null>(null);
+  const [composeImages, setComposeImages] = useState<string[]>([]);
   const [composeEncrypted, setComposeEncrypted] = useState(false);
   const [composeChecklist, setComposeChecklist] = useState<KeepNoteChecklistItem[]>([]);
   const [newChecklistText, setNewChecklistText] = useState("");
@@ -381,11 +389,12 @@ export function NotesView({
   const [editingNote, setEditingNote] = useState<KeepNote | null>(null);
   const [editDecryptedContent, setEditDecryptedContent] = useState("");
   const [editDecryptedChecklist, setEditDecryptedChecklist] = useState<KeepNoteChecklistItem[]>([]);
-  const [editImageUrl, setEditImageUrl] = useState<string | null>(null);
+  const [editImages, setEditImages] = useState<string[]>([]);
   const [editPriority, setEditPriority] = useState<KeepNotePriority>("none");
   const [editIsEncrypted, setEditIsEncrypted] = useState(false);
   const [isModalExpanded, setIsModalExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   // Auto-save State & Refs
   const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -579,19 +588,21 @@ export function NotesView({
     }
   };
 
-  // Image upload handler
-  const handleImageFileChange = async (
+  // Multiple image upload handler
+  const handleImageFilesChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    setImage: (url: string | null) => void
+    appendImages: (newImages: string[]) => void
   ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     try {
-      const compressedDataUrl = await compressImageFile(file);
-      setImage(compressedDataUrl);
+      const compressedList = await Promise.all(
+        files.map((file) => compressImageFile(file))
+      );
+      appendImages(compressedList);
     } catch {
-      alert("Failed to process image file. Please try another image.");
+      alert("Failed to process some image files. Please try again.");
     }
     e.target.value = "";
   };
@@ -634,20 +645,24 @@ export function NotesView({
           try {
             const parsed = JSON.parse(decryptedString);
             if (typeof parsed === "object" && parsed !== null && "text" in parsed) {
+              const imgs = getNoteImages(parsed);
               nextCache[note.id] = {
                 text: parsed.text || "",
                 checklist: parsed.checklist || note.checklist,
-                imageUrl: parsed.imageUrl || note.imageUrl,
+                imageUrl: imgs[0] || note.imageUrl,
+                images: imgs.length > 0 ? imgs : getNoteImages(note),
               };
               continue;
             }
           } catch {
             // Plaintext fallback
           }
+          const noteImgs = getNoteImages(note);
           nextCache[note.id] = {
             text: decryptedString,
             checklist: note.checklist,
-            imageUrl: note.imageUrl,
+            imageUrl: noteImgs[0] || note.imageUrl,
+            images: noteImgs,
           };
         } catch {
           // If decryption fails, ignore
@@ -745,10 +760,12 @@ export function NotesView({
         if (note.isEncrypted || isEncryptedPayload(note.content)) {
           const cached = decryptedCache[note.id];
           if (cached) {
+            const imgs = getNoteImages(cached);
             const bundle = JSON.stringify({
               text: cached.text,
               checklist: cached.checklist,
-              imageUrl: cached.imageUrl,
+              imageUrl: imgs[0],
+              images: imgs,
             });
             const reEncrypted = await encryptPayload(bundle, pinInput);
             onUpdateNote(note.id, { content: reEncrypted });
@@ -790,7 +807,7 @@ export function NotesView({
       !composeTitle.trim() &&
       !composeContent.trim() &&
       composeChecklist.length === 0 &&
-      !composeImageUrl
+      composeImages.length === 0
     ) {
       setIsComposing(false);
       return;
@@ -799,7 +816,9 @@ export function NotesView({
     let finalContent = composeContent.trim();
     let finalChecklist: KeepNoteChecklistItem[] | undefined =
       composeChecklist.length > 0 ? composeChecklist : undefined;
-    let finalImageUrl = composeImageUrl || undefined;
+    let finalImages: string[] | undefined =
+      composeImages.length > 0 ? composeImages : undefined;
+    let finalImageUrl: string | undefined = finalImages?.[0] || undefined;
 
     if (composeEncrypted) {
       if (!sessionPin) {
@@ -811,11 +830,13 @@ export function NotesView({
         text: finalContent,
         checklist: finalChecklist,
         imageUrl: finalImageUrl,
+        images: finalImages,
       });
 
       finalContent = await encryptPayload(payloadString, sessionPin);
       finalChecklist = undefined;
       finalImageUrl = undefined; // Safely protected inside encrypted envelope
+      finalImages = undefined;
     }
 
     onAddNote({
@@ -825,6 +846,7 @@ export function NotesView({
       pinned: composePinned,
       priority: composePriority !== "none" ? composePriority : undefined,
       imageUrl: finalImageUrl,
+      images: finalImages,
       isEncrypted: composeEncrypted,
       checklist: finalChecklist,
     });
@@ -834,7 +856,8 @@ export function NotesView({
     setComposeColor("default");
     setComposePinned(false);
     setComposePriority("none");
-    setComposeImageUrl(null);
+    setComposeImages([]);
+    setComposeEncrypted(false);
     setComposeChecklist([]);
     setIsComposing(false);
   };
@@ -877,11 +900,13 @@ export function NotesView({
       const updatedChecklist = cached.checklist?.map((item) =>
         item.id === itemId ? { ...item, done: !item.done } : item
       );
+      const imgs = getNoteImages(cached);
 
       const bundle = JSON.stringify({
         text: cached.text,
         checklist: updatedChecklist,
-        imageUrl: cached.imageUrl,
+        imageUrl: imgs[0],
+        images: imgs,
       });
       const reEncrypted = await encryptPayload(bundle, sessionPin);
 
@@ -915,11 +940,11 @@ export function NotesView({
     if (note.isEncrypted && decryptedCache[note.id]) {
       setEditDecryptedContent(decryptedCache[note.id].text);
       setEditDecryptedChecklist(decryptedCache[note.id].checklist || []);
-      setEditImageUrl(decryptedCache[note.id].imageUrl || null);
+      setEditImages(getNoteImages(decryptedCache[note.id]));
     } else {
       setEditDecryptedContent(note.content);
       setEditDecryptedChecklist(note.checklist || []);
-      setEditImageUrl(note.imageUrl || null);
+      setEditImages(getNoteImages(note));
     }
 
     // Default to Preview mode so user sees clean rendered view; switch to edit when needed
@@ -949,19 +974,19 @@ export function NotesView({
 
     let plainText = note.content;
     let plainChecklist = note.checklist;
-    let plainImageUrl = note.imageUrl;
+    let plainImages = getNoteImages(note);
 
     if (decryptedCache[note.id]) {
       plainText = decryptedCache[note.id].text;
       plainChecklist = decryptedCache[note.id].checklist;
-      plainImageUrl = decryptedCache[note.id].imageUrl;
+      plainImages = getNoteImages(decryptedCache[note.id]);
     } else {
       try {
         const decryptedJson = await decryptPayload(note.content, sessionPin);
         const parsed = JSON.parse(decryptedJson);
         plainText = parsed.text || "";
         plainChecklist = parsed.checklist;
-        plainImageUrl = parsed.imageUrl;
+        plainImages = getNoteImages(parsed);
       } catch (e) {
         console.error("Could not decrypt to remove lock:", e);
         return;
@@ -971,7 +996,8 @@ export function NotesView({
     onUpdateNote(note.id, {
       content: plainText,
       checklist: plainChecklist,
-      imageUrl: plainImageUrl,
+      imageUrl: plainImages[0] || undefined,
+      images: plainImages.length > 0 ? plainImages : undefined,
       isEncrypted: false,
     });
 
@@ -979,7 +1005,7 @@ export function NotesView({
       setEditIsEncrypted(false);
       setEditDecryptedContent(plainText);
       setEditDecryptedChecklist(plainChecklist || []);
-      setEditImageUrl(plainImageUrl || null);
+      setEditImages(plainImages);
     }
   };
 
@@ -988,7 +1014,7 @@ export function NotesView({
     note: editingNote,
     content: editDecryptedContent,
     checklist: editDecryptedChecklist,
-    imageUrl: editImageUrl,
+    images: editImages,
     priority: editPriority,
     isEncrypted: editIsEncrypted,
   });
@@ -998,7 +1024,7 @@ export function NotesView({
       note: editingNote,
       content: editDecryptedContent,
       checklist: editDecryptedChecklist,
-      imageUrl: editImageUrl,
+      images: editImages,
       priority: editPriority,
       isEncrypted: editIsEncrypted,
     };
@@ -1006,21 +1032,23 @@ export function NotesView({
     editingNote,
     editDecryptedContent,
     editDecryptedChecklist,
-    editImageUrl,
+    editImages,
     editPriority,
     editIsEncrypted,
   ]);
 
   // Core save function (optionally closes modal)
   const saveCurrentNoteChanges = async (closeModal = false) => {
-    const { note, content, checklist, imageUrl, priority, isEncrypted } =
+    const { note, content, checklist, images, priority, isEncrypted } =
       latestEditStateRef.current;
     if (!note) return;
 
     let finalContent = content.trim();
     let finalChecklist: KeepNoteChecklistItem[] | undefined =
       checklist.length > 0 ? checklist : undefined;
-    let finalImageUrl = imageUrl || undefined;
+    let finalImages: string[] | undefined =
+      images.length > 0 ? images : undefined;
+    let finalImageUrl: string | undefined = finalImages?.[0] || undefined;
 
     if (isEncrypted) {
       if (!sessionPin) {
@@ -1028,21 +1056,26 @@ export function NotesView({
         return;
       }
       try {
+        const payloadImages = images.length > 0 ? images : undefined;
+        const payloadImageUrl = payloadImages?.[0] || undefined;
         const payloadString = JSON.stringify({
           text: finalContent,
           checklist: finalChecklist,
-          imageUrl: finalImageUrl,
+          imageUrl: payloadImageUrl,
+          images: payloadImages,
         });
         finalContent = await encryptPayload(payloadString, sessionPin);
         finalChecklist = undefined;
         finalImageUrl = undefined;
+        finalImages = undefined;
 
         setDecryptedCache((prev) => ({
           ...prev,
           [note.id]: {
             text: content.trim(),
             checklist,
-            imageUrl: imageUrl || undefined,
+            imageUrl: payloadImageUrl,
+            images,
           },
         }));
       } catch (err) {
@@ -1058,6 +1091,7 @@ export function NotesView({
       pinned: note.pinned,
       priority: priority !== "none" ? priority : undefined,
       imageUrl: finalImageUrl,
+      images: finalImages,
       isEncrypted,
       checklist: finalChecklist,
     });
@@ -1099,7 +1133,7 @@ export function NotesView({
     editingNote?.color,
     editingNote?.pinned,
     editPriority,
-    editImageUrl,
+    editImages,
     editDecryptedChecklist,
     editIsEncrypted,
   ]);
@@ -1308,20 +1342,30 @@ export function NotesView({
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Hidden file inputs for image attachment */}
+      {/* Hidden file inputs for multiple image attachment */}
       <input
         ref={composeFileInputRef}
         type="file"
+        multiple
         accept="image/*"
         className="hidden"
-        onChange={(e) => handleImageFileChange(e, setComposeImageUrl)}
+        onChange={(e) =>
+          handleImageFilesChange(e, (newImgs) =>
+            setComposeImages((prev) => [...prev, ...newImgs])
+          )
+        }
       />
       <input
         ref={editFileInputRef}
         type="file"
+        multiple
         accept="image/*"
         className="hidden"
-        onChange={(e) => handleImageFileChange(e, setEditImageUrl)}
+        onChange={(e) =>
+          handleImageFilesChange(e, (newImgs) =>
+            setEditImages((prev) => [...prev, ...newImgs])
+          )
+        }
       />
 
       {/* View Header with Filters and Security Controls */}
@@ -1535,19 +1579,43 @@ export function NotesView({
             </div>
           ) : (
             <div className="p-4 space-y-3">
-              {/* Attached Image Preview */}
-              {composeImageUrl && (
-                <div className="relative rounded-xl overflow-hidden max-h-48 border border-black/10 group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={composeImageUrl} alt="Attachment" className="w-full h-40 object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => setComposeImageUrl(null)}
-                    className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
-                    title="Remove image"
-                  >
-                    <X size={14} />
-                  </button>
+              {/* Attached Images Preview Gallery */}
+              {composeImages.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-muted">
+                    <span className="flex items-center gap-1.5 text-ink">
+                      <ImageIcon size={13} className="text-forest" />
+                      <span>{composeImages.length} image{composeImages.length > 1 ? "s" : ""} attached</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => composeFileInputRef.current?.click()}
+                      className="text-forest hover:underline font-bold text-[10.5px] cursor-pointer"
+                    >
+                      + Add more
+                    </button>
+                  </div>
+                  <div className={`grid gap-2 ${composeImages.length === 1 ? "grid-cols-1" : composeImages.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"}`}>
+                    {composeImages.map((img, idx) => (
+                      <div key={idx} className="relative rounded-xl overflow-hidden border border-black/10 group aspect-video bg-black/5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img}
+                          alt={`Attachment ${idx + 1}`}
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition"
+                          onClick={() => setLightboxImage(img)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setComposeImages((prev) => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-1.5 right-1.5 rounded-full bg-black/70 p-1 text-white hover:bg-black/90 transition shadow-sm cursor-pointer"
+                          title="Remove this image"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -1707,7 +1775,7 @@ export function NotesView({
                       setComposeTitle("");
                       setComposeContent("");
                       setComposeChecklist([]);
-                      setComposeImageUrl(null);
+                      setComposeImages([]);
                       setComposePriority("none");
                       setComposeEncrypted(false);
                     }}
@@ -2011,6 +2079,31 @@ export function NotesView({
           </div>
         </div>
       )}
+      {/* Fullscreen Lightbox Modal */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="relative max-w-5xl max-h-[90vh] flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-12 right-0 rounded-full bg-white/20 p-2 text-white hover:bg-white/40 transition cursor-pointer"
+              title="Close (Esc)"
+            >
+              <X size={20} />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightboxImage}
+              alt="Fullscreen preview"
+              className="max-h-[85vh] max-w-[92vw] rounded-2xl object-contain shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -2032,11 +2125,11 @@ export function NotesView({
         : null
       : note.checklist;
 
-    const displayImage = isNoteEncrypted
+    const displayImages = isNoteEncrypted
       ? isDecrypted
-        ? decryptedCache[note.id].imageUrl
-        : null
-      : note.imageUrl;
+        ? getNoteImages(decryptedCache[note.id])
+        : []
+      : getNoteImages(note);
 
     const priorityInfo = note.priority && note.priority !== "none" ? PRIORITY_BADGES[note.priority] : null;
     const isDraggingThis = draggedNoteId === note.id;
@@ -2075,15 +2168,68 @@ export function NotesView({
           isDragOverThis ? "ring-2 ring-forest scale-[1.02]" : ""
         }`}
       >
-        {/* Attached Image Thumbnail */}
-        {displayImage && (
-          <div className="-mx-4 -mt-4 mb-3 overflow-hidden border-b border-black/5 bg-black/5">
+        {/* Attached Image(s) Thumbnail Gallery */}
+        {displayImages.length === 1 && (
+          <div
+            className="-mx-4 -mt-4 mb-3 overflow-hidden border-b border-black/5 bg-black/5"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightboxImage(displayImages[0]);
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={displayImage}
+              src={displayImages[0]}
               alt={note.title || "Note image"}
               className="h-36 sm:h-40 w-full object-cover transition-transform duration-300 group-hover:scale-105"
             />
+          </div>
+        )}
+        {displayImages.length === 2 && (
+          <div className="-mx-4 -mt-4 mb-3 grid grid-cols-2 gap-0.5 overflow-hidden border-b border-black/5 bg-black/10">
+            {displayImages.map((img, idx) => (
+              <div
+                key={idx}
+                className="relative h-28 sm:h-32 overflow-hidden"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxImage(img);
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img}
+                  alt={note.title || `Note image ${idx + 1}`}
+                  className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        {displayImages.length >= 3 && (
+          <div className="-mx-4 -mt-4 mb-3 grid grid-cols-3 gap-0.5 overflow-hidden border-b border-black/5 bg-black/10">
+            {displayImages.slice(0, 3).map((img, idx) => (
+              <div
+                key={idx}
+                className="relative h-24 sm:h-28 overflow-hidden"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxImage(img);
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img}
+                  alt={note.title || `Note image ${idx + 1}`}
+                  className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+                {idx === 2 && displayImages.length > 3 && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-xs">
+                    +{displayImages.length - 2}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -2470,25 +2616,56 @@ export function NotesView({
 
           {/* Modal Body */}
           <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-4 flex flex-col sidebar-scroll">
-            {/* Attached Image in Edit Modal */}
-            {editImageUrl && (
-              <div className="relative mb-3 rounded-2xl overflow-hidden border border-black/10 shrink-0 group max-h-64">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={editImageUrl}
-                  alt="Attached illustration"
-                  className="w-full h-48 sm:h-56 object-cover"
-                />
-                {activeTab === "edit" && (
-                  <button
-                    type="button"
-                    onClick={() => setEditImageUrl(null)}
-                    className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition"
-                    title="Remove image"
-                  >
-                    <X size={15} />
-                  </button>
-                )}
+            {/* Attached Images Gallery in Edit Modal */}
+            {editImages.length > 0 && (
+              <div className="mb-4 space-y-2 shrink-0">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-muted">
+                  <span className="flex items-center gap-1.5 text-ink">
+                    <ImageIcon size={13} className="text-forest" />
+                    <span>{editImages.length} image{editImages.length > 1 ? "s" : ""} attached</span>
+                  </span>
+                  {activeTab === "edit" && (
+                    <button
+                      type="button"
+                      onClick={() => editFileInputRef.current?.click()}
+                      className="text-forest hover:underline font-bold text-[10.5px] cursor-pointer"
+                    >
+                      + Add more images
+                    </button>
+                  )}
+                </div>
+                <div className={`grid gap-2 ${
+                  editImages.length === 1
+                    ? "grid-cols-1"
+                    : editImages.length === 2
+                    ? "grid-cols-2"
+                    : "grid-cols-2 sm:grid-cols-3"
+                }`}>
+                  {editImages.map((img, idx) => (
+                    <div
+                      key={idx}
+                      className="relative rounded-2xl overflow-hidden border border-black/10 group aspect-video bg-black/5"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img}
+                        alt={`Attachment ${idx + 1}`}
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-95 transition"
+                        onClick={() => setLightboxImage(img)}
+                      />
+                      {activeTab === "edit" && (
+                        <button
+                          type="button"
+                          onClick={() => setEditImages((prev) => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-2 right-2 rounded-full bg-black/70 p-1 text-white hover:bg-black/90 transition shadow-sm cursor-pointer"
+                          title="Remove this image"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
