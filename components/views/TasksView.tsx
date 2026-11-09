@@ -70,17 +70,37 @@ export function TasksView({
 
   const handleQuickAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quickTitle.trim()) return;
+    if (!quickTitle.trim()) {
+      // If user clicks "+ Add" without entering a quick title, open the detailed task modal
+      onOpenTaskModal();
+      return;
+    }
 
     const finalCat = quickCategory;
-    const catLabel = finalCat === "project" ? "Project" : finalCat === "travel" ? "Travel" : finalCat.charAt(0).toUpperCase() + finalCat.slice(1);
+    const catLabel =
+      finalCat === "project"
+        ? "Project"
+        : finalCat === "travel"
+        ? "Travel"
+        : finalCat.charAt(0).toUpperCase() + finalCat.slice(1);
 
     onAddTask({
       title: quickTitle.trim(),
       meta: `Today · ${catLabel}`,
       priority: finalCat === "urgent",
       category: finalCat,
+      dueDate: todayStr,
     });
+
+    // Ensure the newly added task is visible in the filtered list
+    if (
+      selectedFilter === "completed" ||
+      (selectedFilter === "priority" && finalCat !== "urgent") ||
+      (selectedFilter === "project" && finalCat !== "project") ||
+      (selectedFilter === "travel" && finalCat !== "travel")
+    ) {
+      setSelectedFilter("all");
+    }
 
     setQuickTitle("");
     setQuickCategory("work");
@@ -140,7 +160,10 @@ export function TasksView({
       </div>
 
       {/* Quick Add Bar */}
-      <form onSubmit={handleQuickAdd} className="flex flex-col sm:flex-row gap-2 rounded-2xl border border-line bg-white p-2 shadow-sm">
+      <form
+        onSubmit={handleQuickAdd}
+        className="flex flex-col sm:flex-row gap-2 rounded-2xl border border-line bg-white p-2 shadow-sm focus-within:border-forest/50 focus-within:ring-2 focus-within:ring-forest/10 transition-all"
+      >
         <input
           type="text"
           value={quickTitle}
@@ -155,7 +178,7 @@ export function TasksView({
               setQuickCategory(e.target.value as "work" | "personal" | "meeting" | "urgent" | "project" | "travel");
               setHasUserChangedCategory(true);
             }}
-            className="flex-1 sm:flex-initial rounded-xl border border-line bg-[#fbfcf8] px-2.5 py-1.5 text-[11px] text-ink outline-none"
+            className="flex-1 sm:flex-initial rounded-xl border border-line bg-[#fbfcf8] px-2.5 py-1.5 text-[11px] text-ink outline-none cursor-pointer hover:bg-[#f1f3ed] transition"
           >
             <option value="work">Work</option>
             <option value="project">Project / Product</option>
@@ -166,7 +189,8 @@ export function TasksView({
           </select>
           <button
             type="submit"
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition cursor-pointer"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition cursor-pointer shadow-2xs active:scale-95"
+            title={quickTitle.trim() ? "Add task" : "Click to open task creation modal"}
           >
             <Plus size={13} /> Add
           </button>
