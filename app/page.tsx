@@ -603,7 +603,12 @@ export default function Home() {
     return {
       day: new Intl.DateTimeFormat("en", { weekday: "short" }).format(date).toUpperCase(),
       date: String(date.getDate()),
-      items: events.map((ev, i) => ({ time: formatTime(ev.start?.dateTime), title: ev.summary || "Untitled event", hue: hues[i % hues.length] })),
+      items: events.map((ev, i) => ({
+        id: ev.id ? `${ev.id}-${i}` : `ev-${offset}-${i}`,
+        time: formatTime(ev.start?.dateTime),
+        title: ev.summary || "Untitled event",
+        hue: hues[i % hues.length],
+      })),
     };
   }), [allEvents]);
 
@@ -1745,8 +1750,11 @@ export default function Home() {
                           <p className={"text-center text-[8px] font-bold tracking-wide " + (index === 0 ? "text-forest" : "text-[#9da79e]")}>{day.day}</p>
                           <p className={"mx-auto mt-1 grid h-6 w-6 place-items-center rounded-full text-[10px] " + (index === 0 ? "bg-forest font-semibold text-white" : "text-[#68766c]")}>{day.date}</p>
                           <div className="mt-2 space-y-1">
-                            {day.items.map(item => (
-                              <div key={item.title} className={"truncate rounded px-1 py-1 text-[8px] font-medium leading-tight hover:opacity-80 transition " + hueClasses[item.hue]}>
+                            {day.items.map((item, itemIdx) => (
+                              <div
+                                key={item.id ? `${item.id}-${itemIdx}` : `${item.title}-${item.time}-${itemIdx}`}
+                                className={"truncate rounded px-1 py-1 text-[8px] font-medium leading-tight hover:opacity-80 transition " + hueClasses[item.hue]}
+                              >
                                 <span className="hidden 2xl:inline">{item.time} </span>{item.title}
                               </div>
                             ))}
