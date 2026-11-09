@@ -9,13 +9,13 @@ export async function GET() {
   if (!session) return NextResponse.json({ connected: false }, { status: 401 });
   try {
     const now = new Date();
-    // Allow viewing previous days (past 14 days) and upcoming days (next 14 days)
+    // Allow viewing previous days (past 60 days) and upcoming days (next 60 days)
     const pastWindow = new Date(now);
-    pastWindow.setDate(pastWindow.getDate() - 14);
+    pastWindow.setDate(pastWindow.getDate() - 60);
     pastWindow.setHours(0, 0, 0, 0);
 
     const futureWindow = new Date(now);
-    futureWindow.setDate(futureWindow.getDate() + 14);
+    futureWindow.setDate(futureWindow.getDate() + 60);
     futureWindow.setHours(23, 59, 59, 999);
 
     const timeMin = encodeURIComponent(pastWindow.toISOString());
@@ -32,45 +32,58 @@ export async function GET() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let calendarEvents: any[] = [];
 
+    // Build unique list of calendars to query. Always include "primary" calendar!
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calendarMap = new Map<string, { id: string; summary?: string; backgroundColor?: string }>();
+    calendarMap.set("primary", { id: "primary", summary: "Primary Calendar" });
+
     if (calendarListRes.ok) {
       const calListData = await calendarListRes.json();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allCals: any[] = Array.isArray(calListData.items) ? calListData.items : [];
-      // Pick selected or primary calendars (up to 8 calendars)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const targetCals = allCals.filter((c: any) => c.selected !== false).slice(0, 8);
+      allCals.forEach((cal: any) => {
+        if (cal && cal.id) {
+          calendarMap.set(cal.id, {
+            id: cal.id,
+            summary: cal.summary,
+            backgroundColor: cal.backgroundColor,
+          });
+        }
+      });
+    }
 
-      if (targetCals.length > 0) {
-        const eventsPerCal = await Promise.all(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          targetCals.map(async (cal: any) => {
-            try {
-              const res = await googleFetch(
-                `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=100`
-              );
-              if (!res.ok) return [];
-              const data = await res.json();
-              const items = Array.isArray(data.items) ? data.items : [];
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              return items.map((item: any) => ({
-                ...item,
-                calendarId: cal.id,
-                calendarSummary: cal.summary,
-                calendarColor: cal.backgroundColor,
-              }));
-            } catch {
-              return [];
-            }
-          })
-        );
-        calendarEvents = eventsPerCal.flat();
-      }
+    const targetCals = Array.from(calendarMap.values()).slice(0, 20);
+
+    if (targetCals.length > 0) {
+      const eventsPerCal = await Promise.all(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        targetCals.map(async (cal: any) => {
+          try {
+            const res = await googleFetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500`
+            );
+            if (!res.ok) return [];
+            const data = await res.json();
+            const items = Array.isArray(data.items) ? data.items : [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return items.map((item: any) => ({
+              ...item,
+              calendarId: cal.id,
+              calendarSummary: cal.summary,
+              calendarColor: cal.backgroundColor,
+            }));
+          } catch {
+            return [];
+          }
+        })
+      );
+      calendarEvents = eventsPerCal.flat();
     }
 
     // Fallback to primary if calendarList returned no events or failed
     if (calendarEvents.length === 0) {
       const primaryRes = await googleFetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=100`
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500`
       );
       if (primaryRes.ok) {
         const primaryData = await primaryRes.json();

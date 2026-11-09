@@ -62,8 +62,11 @@ export const GOOGLE_EVENT_COLORS: Record<string, { name: string; hex: string }> 
  * Checks if a Google Calendar event has the "Banana" color ID (5)
  * or a yellow/banana hex background.
  */
-export function isBananaYellowColor(colorId?: string, hexColor?: string): boolean {
-  if (colorId === "5") return true;
+export function isBananaYellowColor(colorId?: string | number, hexColor?: string): boolean {
+  if (colorId !== undefined && colorId !== null) {
+    const cid = String(colorId).trim();
+    if (cid === "5") return true; // Google Calendar official "Banana" color
+  }
   if (!hexColor) return false;
   const clean = hexColor.toLowerCase().trim();
   if (
@@ -82,6 +85,20 @@ export function isBananaYellowColor(colorId?: string, hexColor?: string): boolea
       "#fbbf24",
       "#e5a914",
       "#d97706",
+      "#ffad46",
+      "#b3dc6c",
+      "#ffd600",
+      "#e4c441",
+      "#fbc02d",
+      "#ffeb3b",
+      "#fff176",
+      "#fff59d",
+      "#ffee58",
+      "#e0be00",
+      "#f09300",
+      "#ffca28",
+      "#ffe082",
+      "#fff9c4",
     ].includes(clean)
   ) {
     return true;
@@ -90,7 +107,8 @@ export function isBananaYellowColor(colorId?: string, hexColor?: string): boolea
     const r = parseInt(clean.slice(1, 3), 16);
     const g = parseInt(clean.slice(3, 5), 16);
     const b = parseInt(clean.slice(5, 7), 16);
-    if (r > 180 && g > 150 && b < 130) {
+    // Yellow/amber in RGB: high red, high green, low blue
+    if (r > 150 && g > 130 && b < 160 && g > b + 20) {
       return true;
     }
   }
@@ -163,8 +181,11 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "TRAVEL", color: "#0284c7" };
   }
 
-  // 2. BANANA / YELLOW (explicit Google Calendar Banana color)
-  if (isBanana) {
+  // 2. BANANA / YELLOW (explicit Google Calendar Banana color or user's banana project sessions)
+  if (
+    isBanana ||
+    /\b(mf360|fund disclosure|cs400|instaa|buddy ai agent|chatgpt work|report prep)\b/i.test(summary)
+  ) {
     return { tag: "BANANA", color: "#eab308" };
   }
 
