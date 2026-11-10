@@ -6,7 +6,7 @@ import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
   Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
-  StickyNote, Target, Timer, TriangleAlert, Video, X,
+  StickyNote, Target, Timer, TriangleAlert, Video, X, PieChart,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
 
@@ -40,6 +40,7 @@ import { CalendarView } from "@/components/views/CalendarView";
 import { InboxView } from "@/components/views/InboxView";
 import { TasksView } from "@/components/views/TasksView";
 import { NotesView } from "@/components/views/NotesView";
+import { TimeAuditView } from "@/components/views/TimeAuditView";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
@@ -61,6 +62,7 @@ type ScheduleItem = {
 const nav = [
   { icon: Target, label: "Overview" },
   { icon: CalendarDays, label: "Calendar" },
+  { icon: PieChart, label: "Time Audit" },
   { icon: Inbox, label: "Inbox" },
   { icon: ListTodo, label: "Tasks" },
   { icon: StickyNote, label: "Notes" },
@@ -1352,6 +1354,11 @@ export default function Home() {
               events={allEvents}
               onOpenAddEvent={() => { setViewingEvent(null); setShowEventModal(true); }}
               onSelectEvent={(ev) => { setViewingEvent(ev); setShowEventModal(true); }}
+              isConnected={isConnected}
+            />
+          ) : activeNav === "Time Audit" ? (
+            <TimeAuditView
+              events={allEvents}
               isConnected={isConnected}
             />
           ) : activeNav === "Inbox" ? (

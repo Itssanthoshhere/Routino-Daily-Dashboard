@@ -13,6 +13,7 @@ import {
   Keyboard,
   StickyNote,
   FolderOpen,
+  PieChart,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 
@@ -31,6 +32,7 @@ type MobileSidebarProps = {
 const navItems = [
   { icon: Target, label: "Overview" },
   { icon: CalendarDays, label: "Calendar" },
+  { icon: PieChart, label: "Time Audit" },
   { icon: Inbox, label: "Inbox" },
   { icon: ListTodo, label: "Tasks" },
   { icon: StickyNote, label: "Notes" },

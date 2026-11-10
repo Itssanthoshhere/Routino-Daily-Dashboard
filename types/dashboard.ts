@@ -113,7 +113,25 @@ export type NotificationItem = {
   type: "calendar" | "task" | "mail" | "system";
   read: boolean;
   actionText?: string;
-  navTarget?: "Overview" | "Calendar" | "Inbox" | "Tasks" | "Notes";
+  navTarget?: "Overview" | "Calendar" | "Inbox" | "Tasks" | "Notes" | "Time Audit";
+};
+
+export type TimeAuditCategory = {
+  id: string;
+  name: string;
+  color: string;
+  keys: string[];
+};
+
+export type AuditedEvent = {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  durationMinutes: number;
+  category: TimeAuditCategory;
+  calendarName?: string;
+  isAllDay?: boolean;
 };
 
 export type DashboardData = {
