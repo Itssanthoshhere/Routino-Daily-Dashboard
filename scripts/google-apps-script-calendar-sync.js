@@ -78,6 +78,22 @@ function runAll() {
         if (diff <= 0) return;
 
         const title = e.getTitle() || "Untitled";
+        const calName = cal.getName() || "";
+        const lowerTitle = title.toLowerCase();
+        const lowerCal = calName.toLowerCase();
+
+        // Skip holidays and birthdays
+        if (
+          lowerTitle.includes("birthday") ||
+          lowerTitle.includes("b'day") ||
+          lowerTitle.includes("bday") ||
+          lowerTitle.includes("holiday") ||
+          lowerCal.includes("birthday") ||
+          lowerCal.includes("holiday")
+        ) {
+          return;
+        }
+
         const cat = matchCategory(title);
 
         rows.push([

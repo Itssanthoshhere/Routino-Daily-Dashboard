@@ -180,6 +180,48 @@ export function categorizeEventTitle(
   );
 }
 
+export function isHolidayOrBirthday(
+  title: string,
+  calendarSummary?: string,
+  isAllDay?: boolean
+): boolean {
+  // All-day events are reminders/holidays/birthdays, not tracked duration
+  if (isAllDay) return true;
+
+  const t = (title || "").toLowerCase();
+  const c = (calendarSummary || "").toLowerCase();
+
+  // Exclude birthday keywords
+  if (
+    t.includes("birthday") ||
+    t.includes("b'day") ||
+    t.includes("bday") ||
+    t.includes("anniversary")
+  ) {
+    return true;
+  }
+
+  // Exclude holiday keywords
+  if (
+    t.includes("holiday") ||
+    t.includes("public holiday") ||
+    t.includes("bank holiday")
+  ) {
+    return true;
+  }
+
+  // Exclude dedicated Google Birthday / Holiday calendar sources
+  if (
+    c.includes("holiday") ||
+    c.includes("birthday") ||
+    c.includes("anniversar")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export function processEventForAudit(
   event: DashboardEvent,
   categories: TimeAuditCategory[]
@@ -188,20 +230,23 @@ export function processEventForAudit(
   const endRaw = event.end?.dateTime ?? event.end?.date;
   if (!startRaw || !endRaw) return null;
 
+  const isAllDay = !event.start?.dateTime && Boolean(event.start?.date);
+  const title = event.summary?.trim() || "Untitled Event";
+  const calendarName = event.calendarSummary || "Google Calendar";
+
+  // Filter out holidays, birthdays, and all-day non-activity events
+  if (isHolidayOrBirthday(title, calendarName, isAllDay)) {
+    return null;
+  }
+
   const startDate = new Date(startRaw);
   const endDate = new Date(endRaw);
 
-  const isAllDay = !event.start?.dateTime && Boolean(event.start?.date);
   const diffMs = endDate.getTime() - startDate.getTime();
-  let durationMinutes = Math.round(diffMs / (1000 * 60));
+  const durationMinutes = Math.round(diffMs / (1000 * 60));
 
   if (durationMinutes <= 0) return null;
-  // All day event capping at 24 hours (1440 mins)
-  if (isAllDay && durationMinutes > 1440) {
-    durationMinutes = 1440;
-  }
 
-  const title = event.summary?.trim() || "Untitled Event";
   const category = categorizeEventTitle(title, categories);
 
   return {
@@ -211,8 +256,8 @@ export function processEventForAudit(
     end: endDate,
     durationMinutes,
     category,
-    calendarName: event.calendarSummary || "Google Calendar",
-    isAllDay,
+    calendarName,
+    isAllDay: false,
   };
 }
 
@@ -349,6 +394,22 @@ function runAll() {
         if (diff <= 0) return;
 
         const title = e.getTitle() || "Untitled";
+        const calName = cal.getName() || "";
+        const lowerTitle = title.toLowerCase();
+        const lowerCal = calName.toLowerCase();
+
+        // Skip holidays and birthdays
+        if (
+          lowerTitle.includes("birthday") ||
+          lowerTitle.includes("b'day") ||
+          lowerTitle.includes("bday") ||
+          lowerTitle.includes("holiday") ||
+          lowerCal.includes("birthday") ||
+          lowerCal.includes("holiday")
+        ) {
+          return;
+        }
+
         const cat = matchCategory(title);
 
         rows.push([
