@@ -184,24 +184,47 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
   // 2. BANANA / YELLOW (explicit Google Calendar Banana color or user's banana project sessions)
   if (
     isBanana ||
-    /\b(mf360|fund disclosure|cs400|instaa|buddy ai agent|chatgpt work|report prep)\b/i.test(summary)
+    /\b(mf360|fund disclosure|cs400|buddy ai agent|chatgpt work|report prep|spendo|routino)\b/i.test(summary)
   ) {
     return { tag: "BANANA", color: "#eab308" };
   }
 
-  // 3. PROJECT / BUILD / PRODUCT (project, product, website, building app, portfolio, dev, coding)
+  // 3. MEALS (Pale Green / Sage: breakfast, lunch, dinner, cooking, snacks)
+  if (
+    /\b(breakfast|lunch|dinner|maggi|yippee|biryani|soup|snacks|snack|cooking|food|chai|coffee)\b/i.test(
+      summary
+    )
+  ) {
+    return { tag: "MEAL", color: "#33b679" };
+  }
+
+  // 4. ROUTINE & SOCIAL (Blueberry / Blue: sleep, instaa, bath, freshup, youtube, chit chat)
+  if (
+    /\b(sleep|instaa|insta|bath|freshup|fresh up|youtube|chit|chit chat)\b/i.test(
+      summary
+    )
+  ) {
+    return { tag: "ROUTINE", color: "#3b82f6" };
+  }
+
+  // 5. TYPING (Graphite / Gray: typing, journal, notes)
+  if (/\b(typing|journal|journaling)\b/i.test(summary)) {
+    return { tag: "TYPING", color: "#64748b" };
+  }
+
+  // 6. PROJECT / BUILD / PRODUCT (project, product, website, building app, portfolio, dev, coding)
   if (
     /\b(project|projects|product|products|website|building|portfolio|coding|code|dev|develop|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo)\b/i.test(
       summary
     ) ||
-    /\b([a-z0-9_-]+\s+app|app\s+dev|build|spendo|ios\s+app|android\s+app|web\s+app)\b/i.test(summary) ||
+    /\b([a-z0-9_-]+\s+app|app\s+dev|build|ios\s+app|android\s+app|web\s+app)\b/i.test(summary) ||
     (/\b(project|projects|product|products|website|building|portfolio|coding|dev|dashboard|api)\b/i.test(cleanDesc) &&
       !/\bcalendar\b/i.test(cleanDesc))
   ) {
     return { tag: "PROJECT", color: "#7c3aed" };
   }
 
-  // 4. MEETING (syncs, standups, 1:1, interviews, calls, video conferences)
+  // 7. MEETING (syncs, standups, 1:1, interviews, calls, video conferences)
   if (
     /\b(sync|standup|1:1|one-on-one|interview|review|sync-up|check-in|catch-up|huddle|debrief|meeting|demo|call)\b/i.test(
       summary
@@ -212,9 +235,9 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "MEETING", color: "#2563eb" };
   }
 
-  // 5. PERSONAL (doctor, dentist, gym, dinner, birthday, personal life)
+  // 8. PERSONAL (doctor, dentist, gym, errand, family, movie, concert, spa, salon)
   if (
-    /\b(doctor|dentist|gym|workout|personal|dinner|lunch|birthday|errand|family|movie|concert|spa|salon)\b/i.test(
+    /\b(doctor|dentist|gym|workout|personal|errand|family|movie|concert|spa|salon)\b/i.test(
       titleAndDesc
     )
   ) {

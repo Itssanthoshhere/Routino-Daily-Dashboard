@@ -31,7 +31,9 @@ async function getGoogleToken() {
   return result.access_token as string;
 }
 
-export async function googleFetch(url: string) {
+export async function googleFetch(url: string, init?: RequestInit) {
   const accessToken = await getGoogleToken();
-  return fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store" });
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  return fetch(url, { ...init, headers, cache: "no-store" });
 }

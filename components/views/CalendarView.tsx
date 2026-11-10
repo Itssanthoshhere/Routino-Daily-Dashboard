@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   CalendarDays,
   Clock,
@@ -15,6 +15,9 @@ import {
   AlertTriangle,
   RotateCcw,
   Sparkles,
+  Palette,
+  Check,
+  X,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
@@ -39,6 +42,41 @@ export function CalendarView({
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
+  const [isColorizing, setIsColorizing] = useState(false);
+  const [colorizeMessage, setColorizeMessage] = useState<string | null>(null);
+
+  // Background auto-colorize once per browser session
+  useEffect(() => {
+    if (!isConnected) return;
+    const key = "routino_auto_colorized_session";
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, "true");
+      void fetch("/api/calendar/auto-colorize", { method: "POST" }).catch(() => {});
+    }
+  }, [isConnected]);
+
+  const handleAutoColorize = async () => {
+    setIsColorizing(true);
+    setColorizeMessage(null);
+    try {
+      const res = await fetch("/api/calendar/auto-colorize", { method: "POST" });
+      const data = await res.json();
+      if (data.needsReauth) {
+        alert(
+          "To sync colors directly into Google Calendar, click 'Connect Google Account' to grant Calendar edit permission."
+        );
+      } else if (data.success) {
+        setColorizeMessage(data.message);
+        setTimeout(() => setColorizeMessage(null), 6000);
+      } else {
+        alert(data.error || "Could not colorize events.");
+      }
+    } catch {
+      alert("Failed to connect to colorize service.");
+    } finally {
+      setIsColorizing(false);
+    }
+  };
 
   // Today base date (midnight)
   const todayDate = useMemo(() => {
@@ -340,6 +378,18 @@ export function CalendarView({
           >
             <Plus size={14} /> Schedule Event
           </button>
+          {isConnected && (
+            <button
+              type="button"
+              onClick={handleAutoColorize}
+              disabled={isColorizing}
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[12px] font-semibold text-ink shadow-2xs hover:bg-[#f1f3ed] transition disabled:opacity-50 cursor-pointer"
+              title="Automatically color meals pale green, routine blueberry, typing graphite, and work yellow on Google Calendar"
+            >
+              <Sparkles size={14} className={isColorizing ? "animate-spin text-forest" : "text-amber-500"} />
+              <span>{isColorizing ? "Colorizing..." : "Auto-Colorize"}</span>
+            </button>
+          )}
           <a
             href="https://calendar.google.com"
             target="_blank"
@@ -350,6 +400,23 @@ export function CalendarView({
           </a>
         </div>
       </div>
+
+      {/* Auto-colorize status banner */}
+      {colorizeMessage && (
+        <div className="flex items-center justify-between rounded-xl bg-forest/10 border border-forest/20 px-4 py-2.5 text-[12px] font-semibold text-forest animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            <Check size={15} />
+            <span>{colorizeMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setColorizeMessage(null)}
+            className="text-forest/70 hover:text-forest cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* 7-Day Navigation & Range Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-line bg-white/70 p-3 sm:px-4 sm:py-2.5 shadow-2xs backdrop-blur-xs">
