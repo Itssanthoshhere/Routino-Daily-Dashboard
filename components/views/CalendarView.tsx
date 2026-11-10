@@ -18,6 +18,7 @@ import {
   Palette,
   Check,
   X,
+  ArrowRight,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
@@ -44,6 +45,7 @@ export function CalendarView({
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
   const [isColorizing, setIsColorizing] = useState(false);
   const [colorizeMessage, setColorizeMessage] = useState<string | null>(null);
+  const [colorizeError, setColorizeError] = useState<string | null>(null);
   const [showReauthPrompt, setShowReauthPrompt] = useState(false);
 
   // Background auto-colorize once per browser session
@@ -66,6 +68,7 @@ export function CalendarView({
   const handleAutoColorize = async () => {
     setIsColorizing(true);
     setColorizeMessage(null);
+    setColorizeError(null);
     setShowReauthPrompt(false);
     try {
       const res = await fetch("/api/calendar/auto-colorize", { method: "POST" });
@@ -76,10 +79,10 @@ export function CalendarView({
         setColorizeMessage(data.message);
         setTimeout(() => setColorizeMessage(null), 6000);
       } else {
-        alert(data.error || "Could not colorize events.");
+        setColorizeError(data.error || "Could not auto-colorize calendar events.");
       }
     } catch {
-      alert("Failed to connect to colorize service.");
+      setColorizeError("Failed to connect to the auto-colorize service.");
     } finally {
       setIsColorizing(false);
     }
@@ -410,15 +413,38 @@ export function CalendarView({
 
       {/* Auto-colorize status banner */}
       {colorizeMessage && (
-        <div className="flex items-center justify-between rounded-xl bg-forest/10 border border-forest/20 px-4 py-2.5 text-[12px] font-semibold text-forest animate-in fade-in duration-150">
-          <div className="flex items-center gap-2">
-            <Check size={15} />
+        <div className="flex items-center justify-between rounded-2xl bg-forest/10 border border-forest/20 px-4 py-3 text-[12px] font-semibold text-forest shadow-2xs animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-6 w-6 place-items-center rounded-lg bg-forest/20 text-forest shrink-0">
+              <Check size={13} className="stroke-[3]" />
+            </span>
             <span>{colorizeMessage}</span>
           </div>
           <button
             type="button"
             onClick={() => setColorizeMessage(null)}
-            className="text-forest/70 hover:text-forest cursor-pointer"
+            className="text-forest/70 hover:text-forest p-1 cursor-pointer transition"
+            aria-label="Dismiss"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Auto-colorize error banner */}
+      {colorizeError && (
+        <div className="flex items-center justify-between rounded-2xl bg-red-50 border border-red-200/80 px-4 py-3 text-[12px] font-medium text-red-900 shadow-2xs animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="flex items-center gap-2.5">
+            <span className="grid h-6 w-6 place-items-center rounded-lg bg-red-100 text-red-700 shrink-0">
+              <AlertTriangle size={13} />
+            </span>
+            <span>{colorizeError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setColorizeError(null)}
+            className="text-red-700 hover:text-red-900 p-1 cursor-pointer transition"
+            aria-label="Dismiss"
           >
             <X size={14} />
           </button>
@@ -427,34 +453,35 @@ export function CalendarView({
 
       {/* Permission Re-auth Banner */}
       {showReauthPrompt && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 p-4 text-amber-900 shadow-2xs animate-in fade-in duration-150">
-          <div className="flex items-start sm:items-center gap-3">
-            <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-100 text-amber-800 shrink-0">
-              <Sparkles size={16} />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-[#fffcf2] via-[#fffbeb] to-[#fffdf5] p-4 sm:p-5 text-amber-950 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-100 text-amber-800 shrink-0 shadow-2xs ring-1 ring-amber-200">
+              <Sparkles size={18} />
             </span>
-            <div>
-              <h4 className="text-[13px] font-bold text-amber-950">
-                Google Calendar Edit Permission Needed
+            <div className="min-w-0">
+              <h4 className="text-[13.5px] font-bold text-amber-950">
+                Google Calendar Edit Permission Required
               </h4>
-              <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
-                Your account is currently authorized with <em>read-only</em> access. Click the button to grant Calendar edit permission so Routino can colorize your events directly in Google Calendar.
+              <p className="text-[11.5px] text-amber-900/90 mt-0.5 leading-relaxed">
+                Your account is currently connected with <strong>read-only</strong> access. To allow Routino to colorize events directly on Google Calendar, click below to authorize calendar edit permission.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 sm:self-center">
             <button
               type="button"
               onClick={() => setShowReauthPrompt(false)}
-              className="rounded-xl px-3 py-1.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100/60 cursor-pointer"
+              className="rounded-xl px-3.5 py-2 text-[11.5px] font-medium text-amber-900/80 hover:bg-amber-100/70 transition cursor-pointer"
             >
               Dismiss
             </button>
             <form action={connectGoogle}>
               <button
                 type="submit"
-                className="rounded-xl bg-forest px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer whitespace-nowrap"
+                className="flex items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-[12px] font-bold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer whitespace-nowrap"
               >
-                Grant Edit Permission
+                <span>Grant Edit Permission</span>
+                <ArrowRight size={13} />
               </button>
             </form>
           </div>
