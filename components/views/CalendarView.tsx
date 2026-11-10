@@ -44,6 +44,7 @@ export function CalendarView({
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
   const [isColorizing, setIsColorizing] = useState(false);
   const [colorizeMessage, setColorizeMessage] = useState<string | null>(null);
+  const [showReauthPrompt, setShowReauthPrompt] = useState(false);
 
   // Background auto-colorize once per browser session
   useEffect(() => {
@@ -51,20 +52,26 @@ export function CalendarView({
     const key = "routino_auto_colorized_session";
     if (!sessionStorage.getItem(key)) {
       sessionStorage.setItem(key, "true");
-      void fetch("/api/calendar/auto-colorize", { method: "POST" }).catch(() => {});
+      void fetch("/api/calendar/auto-colorize", { method: "POST" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.needsReauth) {
+            setShowReauthPrompt(true);
+          }
+        })
+        .catch(() => {});
     }
   }, [isConnected]);
 
   const handleAutoColorize = async () => {
     setIsColorizing(true);
     setColorizeMessage(null);
+    setShowReauthPrompt(false);
     try {
       const res = await fetch("/api/calendar/auto-colorize", { method: "POST" });
       const data = await res.json();
       if (data.needsReauth) {
-        alert(
-          "To sync colors directly into Google Calendar, click 'Connect Google Account' to grant Calendar edit permission."
-        );
+        setShowReauthPrompt(true);
       } else if (data.success) {
         setColorizeMessage(data.message);
         setTimeout(() => setColorizeMessage(null), 6000);
@@ -415,6 +422,42 @@ export function CalendarView({
           >
             <X size={14} />
           </button>
+        </div>
+      )}
+
+      {/* Permission Re-auth Banner */}
+      {showReauthPrompt && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 p-4 text-amber-900 shadow-2xs animate-in fade-in duration-150">
+          <div className="flex items-start sm:items-center gap-3">
+            <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-100 text-amber-800 shrink-0">
+              <Sparkles size={16} />
+            </span>
+            <div>
+              <h4 className="text-[13px] font-bold text-amber-950">
+                Google Calendar Edit Permission Needed
+              </h4>
+              <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                Your account is currently authorized with <em>read-only</em> access. Click the button to grant Calendar edit permission so Routino can colorize your events directly in Google Calendar.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowReauthPrompt(false)}
+              className="rounded-xl px-3 py-1.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100/60 cursor-pointer"
+            >
+              Dismiss
+            </button>
+            <form action={connectGoogle}>
+              <button
+                type="submit"
+                className="rounded-xl bg-forest px-4 py-2 text-[11px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer whitespace-nowrap"
+              >
+                Grant Edit Permission
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
