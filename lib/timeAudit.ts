@@ -21,15 +21,39 @@ export const DEFAULT_TIME_AUDIT_CATEGORIES: TimeAuditCategory[] = [
       "instaa",
       "instagram",
       "youtube",
-      "candy crush",
-      "coc",
-      "bgmi",
-      "gaming",
       "chit chat",
       "bakchodi",
       "roaming",
       "timepass",
       "time pass",
+      "reels",
+      "twitter",
+      "reddit",
+    ],
+  },
+  {
+    id: "gaming",
+    name: "Games / Gaming",
+    color: "#E11D48",
+    keys: [
+      "coc",
+      "clash of clans",
+      "bgmi",
+      "pubg",
+      "games",
+      "game",
+      "gaming",
+      "candy crush",
+      "chess",
+      "valorant",
+      "fifa",
+      "gta",
+      "minecraft",
+      "free fire",
+      "call of duty",
+      "cod",
+      "steam",
+      "playstation",
     ],
   },
   {
@@ -131,15 +155,34 @@ export const DEFAULT_TIME_AUDIT_CATEGORIES: TimeAuditCategory[] = [
   },
 ];
 
-export const TIME_AUDIT_STORAGE_KEY = "routino_time_audit_categories_v1";
+export const TIME_AUDIT_STORAGE_KEY = "routino_time_audit_categories_v2";
 
 export function loadSavedCategories(): TimeAuditCategory[] {
   if (typeof window === "undefined") return DEFAULT_TIME_AUDIT_CATEGORIES;
   try {
-    const raw = localStorage.getItem(TIME_AUDIT_STORAGE_KEY);
+    let raw = localStorage.getItem(TIME_AUDIT_STORAGE_KEY);
+    if (!raw) {
+      raw = localStorage.getItem("routino_time_audit_categories_v1");
+    }
     if (!raw) return DEFAULT_TIME_AUDIT_CATEGORIES;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      // Ensure gaming category is included even if user previously saved v1
+      if (!parsed.some((c: TimeAuditCategory) => c.id === "gaming")) {
+        const gamingCat = DEFAULT_TIME_AUDIT_CATEGORIES.find((c) => c.id === "gaming")!;
+        const otherCat =
+          parsed.find((c: TimeAuditCategory) => c.id === "other") ||
+          DEFAULT_TIME_AUDIT_CATEGORIES[DEFAULT_TIME_AUDIT_CATEGORIES.length - 1];
+        const updated = [
+          ...parsed.filter((c: TimeAuditCategory) => c.id !== "other"),
+          gamingCat,
+          otherCat,
+        ];
+        saveCategories(updated);
+        return updated;
+      }
+      return parsed;
+    }
   } catch {
     // fallback
   }
@@ -162,7 +205,18 @@ export function categorizeEventTitle(
   const t = (title || "").toLowerCase();
   for (const cat of categories) {
     if (cat.id === "other" || cat.name === "Other") continue;
-    if (cat.keys.some((k) => k && t.includes(k.toLowerCase()))) {
+    if (
+      cat.keys.some((k) => {
+        if (!k) return false;
+        const lk = k.toLowerCase().trim();
+        // If keyword is 3 chars or fewer (e.g. 'coc', 'sle', 'cod', 'gta', 'bus'), match with word boundary
+        if (lk.length <= 3) {
+          const regex = new RegExp(`(^|[^a-z0-9])${lk}([^a-z0-9]|$)`, "i");
+          return regex.test(t);
+        }
+        return t.includes(lk);
+      })
+    ) {
       return cat;
     }
   }
@@ -345,7 +399,11 @@ const CATEGORY_CONFIG = {
   },
   "Social Media": {
     color: "#D85A30",
-    keys: ["instaa", "instagram", "youtube", "candy crush", "coc", "bgmi", "gaming", "chit chat", "bakchodi", "roaming", "timepass", "time pass"]
+    keys: ["instaa", "instagram", "youtube", "chit chat", "bakchodi", "roaming", "timepass", "time pass", "reels"]
+  },
+  "Games / Gaming": {
+    color: "#E11D48",
+    keys: ["coc", "clash of clans", "bgmi", "pubg", "games", "game", "gaming", "candy crush", "chess", "valorant", "fifa", "gta", "minecraft", "free fire", "cod", "steam"]
   },
   "Study / Work": {
     color: "#1D9E75",

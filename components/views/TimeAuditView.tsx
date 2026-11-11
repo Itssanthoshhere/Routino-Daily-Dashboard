@@ -27,6 +27,7 @@ import {
   Compass,
   FileText,
   HelpCircle,
+  Gamepad2,
 } from "lucide-react";
 import { DashboardEvent, TimeAuditCategory, AuditedEvent } from "@/types/dashboard";
 import {
@@ -277,6 +278,9 @@ export function TimeAuditView({ events, isConnected }: TimeAuditViewProps) {
         return <Briefcase size={14} />;
       case "social":
         return <Smartphone size={14} />;
+      case "gaming":
+      case "games":
+        return <Gamepad2 size={14} />;
       case "routine":
         return <Coffee size={14} />;
       case "entertainment":

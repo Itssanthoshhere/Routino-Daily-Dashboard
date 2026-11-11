@@ -207,12 +207,21 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "ROUTINE", color: "#3b82f6" };
   }
 
-  // 5. TYPING (Graphite / Gray: typing, journal, notes)
+  // 5. GAMING / GAMES (Rose / Crimson: coc, bgmi, pubg, games, gaming, candy crush, chess, valorant, fifa, gta)
+  if (
+    /\b(coc|clash of clans|bgmi|pubg|games|game|gaming|candy crush|chess|valorant|fifa|gta|minecraft|free fire|cod)\b/i.test(
+      summary
+    )
+  ) {
+    return { tag: "GAMING", color: "#e11d48" };
+  }
+
+  // 6. TYPING (Graphite / Gray: typing, journal, notes)
   if (/\b(typing|journal|journaling)\b/i.test(summary)) {
     return { tag: "TYPING", color: "#64748b" };
   }
 
-  // 6. PROJECT / BUILD / PRODUCT (project, product, website, building app, portfolio, dev, coding)
+  // 7. PROJECT / BUILD / PRODUCT (project, product, website, building app, portfolio, dev, coding)
   if (
     /\b(project|projects|product|products|website|building|portfolio|coding|code|dev|develop|design|redesign|dashboard|api|feature|prototype|mvp|frontend|backend|fullstack|github|repo)\b/i.test(
       summary

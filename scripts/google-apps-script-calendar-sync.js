@@ -29,7 +29,11 @@ const CATEGORY_CONFIG = {
   },
   "Social Media": {
     color: "#D85A30",
-    keys: ["instaa", "instagram", "youtube", "candy crush", "coc", "bgmi", "gaming", "chit chat", "bakchodi", "roaming", "timepass", "time pass"]
+    keys: ["instaa", "instagram", "youtube", "chit chat", "bakchodi", "roaming", "timepass", "time pass", "reels"]
+  },
+  "Games / Gaming": {
+    color: "#E11D48",
+    keys: ["coc", "clash of clans", "bgmi", "pubg", "games", "game", "gaming", "candy crush", "chess", "valorant", "fifa", "gta", "minecraft", "free fire", "cod", "steam"]
   },
   "Study / Work": {
     color: "#1D9E75",

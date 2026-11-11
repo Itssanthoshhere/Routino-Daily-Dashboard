@@ -38,6 +38,27 @@ const COLOR_RULES = [
     ],
   },
   {
+    name: "Games / Gaming",
+    colorId: "4", // Flamingo / Rose
+    keywords: [
+      "coc",
+      "clash of clans",
+      "bgmi",
+      "pubg",
+      "games",
+      "game",
+      "gaming",
+      "candy crush",
+      "chess",
+      "valorant",
+      "fifa",
+      "gta",
+      "minecraft",
+      "free fire",
+      "cod",
+    ],
+  },
+  {
     name: "Typing & Notes",
     colorId: "8", // Graphite / Gray
     keywords: ["typing", "journal", "notes"],
