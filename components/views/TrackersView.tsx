@@ -33,6 +33,8 @@ import {
   Copy,
   Activity,
   Download,
+  FileText,
+  CheckSquare,
 } from "lucide-react";
 import type {
   TrackersData,
@@ -61,6 +63,191 @@ function formatPlacementDate(dateStr?: string): string {
     return `${d} ${months[m - 1]} ${y}`;
   }
   return trimmed;
+}
+
+export type ExtractedActionLink = {
+  url: string;
+  label: string;
+  type: "drive" | "form" | "test" | "meeting" | "github" | "generic";
+};
+
+export function extractActionLinks(text?: string): ExtractedActionLink[] {
+  if (!text || !text.trim()) return [];
+
+  const urlRegex = /(https?:\/\/[^\s,;)"'>]+)/gi;
+  const matches = text.match(urlRegex);
+  if (!matches) return [];
+
+  const seen = new Set<string>();
+  const links: ExtractedActionLink[] = [];
+
+  for (const rawUrl of matches) {
+    const url = rawUrl.replace(/[.,;!?)]+$/, "");
+    if (seen.has(url)) continue;
+    seen.add(url);
+
+    const urlLower = url.toLowerCase();
+    const urlIndex = text.indexOf(rawUrl);
+    const precedingText = urlIndex > 0 ? text.substring(Math.max(0, urlIndex - 50), urlIndex).toLowerCase() : "";
+
+    let label = "Open Link";
+    let type: ExtractedActionLink["type"] = "generic";
+
+    if (precedingText.includes("confirmation form") || precedingText.includes("confirm form")) {
+      label = "Confirmation Form";
+      type = "form";
+    } else if (precedingText.includes("submission form") || precedingText.includes("submit form") || precedingText.includes("submit here")) {
+      label = "Submission Form";
+      type = "form";
+    } else if (precedingText.includes("task brief") || precedingText.includes("assignment brief") || precedingText.includes("problem statement")) {
+      label = "Open Task Brief";
+      type = "drive";
+    } else if (precedingText.includes("test link") || precedingText.includes("oa link") || precedingText.includes("assessment")) {
+      label = "Test Link";
+      type = "test";
+    } else if (urlLower.includes("drive.google.com") || urlLower.includes("docs.google.com/document")) {
+      label = "Open Task Brief";
+      type = "drive";
+    } else if (urlLower.includes("forms.gle") || urlLower.includes("docs.google.com/forms")) {
+      label = "Submission Form";
+      type = "form";
+    } else if (urlLower.includes("hackerrank.com") || urlLower.includes("hackerearth.com") || urlLower.includes("unstop.com") || urlLower.includes("codility.com")) {
+      label = "Test Portal";
+      type = "test";
+    } else if (urlLower.includes("meet.google.com") || urlLower.includes("zoom.us") || urlLower.includes("teams.microsoft.com")) {
+      label = "Meeting Link";
+      type = "meeting";
+    } else if (urlLower.includes("github.com")) {
+      label = "GitHub Repo";
+      type = "github";
+    } else {
+      try {
+        const host = new URL(url).hostname.replace(/^www\./, "");
+        label = `Open ${host}`;
+      } catch {
+        label = "Open Link";
+      }
+    }
+
+    links.push({ url, label, type });
+  }
+
+  return links;
+}
+
+function renderLinkIcon(type: ExtractedActionLink["type"]) {
+  switch (type) {
+    case "drive":
+      return <FileText size={11} className="text-[#0284c7]" />;
+    case "form":
+      return <CheckSquare size={11} className="text-[#7c3aed]" />;
+    case "test":
+      return <Sparkles size={11} className="text-[#ea580c]" />;
+    case "meeting":
+      return <ExternalLink size={11} className="text-[#16a34a]" />;
+    case "github":
+      return <ExternalLink size={11} className="text-[#18181b]" />;
+    default:
+      return <ExternalLink size={11} className="text-forest" />;
+  }
+}
+
+function getPlacementTimelineFreshness(appliedDateStr?: string, status = ""): {
+  label: string;
+  badgeClass: string;
+  daysAgo: number;
+} {
+  const isRejected = status.toLowerCase().includes("reject");
+  const isOffer = status.toLowerCase().includes("offer");
+
+  if (!appliedDateStr || !appliedDateStr.trim()) {
+    return {
+      label: "Date N/A",
+      badgeClass: "bg-[#f1f3ed] text-[#475248] border border-[#e2e5dc]",
+      daysAgo: 0,
+    };
+  }
+
+  const trimmed = appliedDateStr.trim();
+  let appDate: Date | null = null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const [y, m, d] = trimmed.split("-").map(Number);
+    appDate = new Date(y, m - 1, d);
+  } else {
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) appDate = parsed;
+  }
+
+  if (!appDate) {
+    return {
+      label: formatPlacementDate(appliedDateStr),
+      badgeClass: "bg-[#f1f3ed] text-[#475248] border border-[#e2e5dc]",
+      daysAgo: 0,
+    };
+  }
+
+  const now = new Date();
+  const d1 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const d2 = new Date(appDate.getFullYear(), appDate.getMonth(), appDate.getDate());
+  const diffMs = d1.getTime() - d2.getTime();
+  const daysAgo = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (isOffer) {
+    return {
+      label: daysAgo <= 0 ? "Offer Today" : `Offer · ${daysAgo}d ago`,
+      badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
+      daysAgo,
+    };
+  }
+
+  if (isRejected) {
+    return {
+      label: daysAgo <= 0 ? "Closed Today" : `Closed · ${daysAgo}d ago`,
+      badgeClass: "bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]",
+      daysAgo,
+    };
+  }
+
+  if (daysAgo <= 0) {
+    return {
+      label: "Applied Today · Active",
+      badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
+      daysAgo,
+    };
+  }
+  if (daysAgo === 1) {
+    return {
+      label: "Applied 1d ago · Active",
+      badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
+      daysAgo,
+    };
+  }
+  if (daysAgo <= 7) {
+    return {
+      label: `Applied ${daysAgo}d ago · Active`,
+      badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
+      daysAgo,
+    };
+  }
+  if (daysAgo <= 21) {
+    return {
+      label: `Applied ${daysAgo}d ago · In Progress`,
+      badgeClass: "bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe]",
+      daysAgo,
+    };
+  }
+  if (daysAgo <= 45) {
+    return {
+      label: `Applied ${daysAgo}d ago · Aging`,
+      badgeClass: "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]",
+      daysAgo,
+    };
+  }
+  return {
+    label: `Applied ${daysAgo}d ago · Stale`,
+    badgeClass: "bg-[#fdf2f2] text-[#991b1b] border border-[#fecaca]",
+    daysAgo,
+  };
 }
 
 function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): { label: string; badgeClass: string } {
@@ -123,6 +310,36 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
   const [placementSearch, setPlacementSearch] = useState("");
   const [placementStatusFilter, setPlacementStatusFilter] = useState("all");
   const [placementSourceFilter, setPlacementSourceFilter] = useState("all");
+  const [copiedJobId, setCopiedJobId] = useState<string | null>(null);
+
+  const handleCopyJobDetails = useCallback((job: TrackerJobApplication) => {
+    const lines = [
+      `🏢 Company: ${job.company}`,
+      `💼 Role: ${job.role}`,
+      `📍 Location: ${job.location || "Remote / Co-located"}`,
+      `🏷️ Status: ${job.status}`,
+      `📅 Applied: ${formatPlacementDate(job.appliedDate)}`,
+    ];
+    if (job.recruiter) lines.push(`👤 Recruiter: ${job.recruiter}`);
+    if (job.interviewStage) lines.push(`🎯 Stage: ${job.interviewStage}`);
+    if (job.nextAction) lines.push(`⚡ Action Item: ${job.nextAction}`);
+    if (job.lastUpdate) lines.push(`📝 Update: ${job.lastUpdate}`);
+    if (job.notes) lines.push(`📌 Notes: ${job.notes}`);
+
+    const extracted = extractActionLinks(`${job.notes || ""} ${job.lastUpdate || ""}`);
+    if (extracted.length > 0) {
+      lines.push("");
+      lines.push("🔗 Action Links:");
+      extracted.forEach((l) => lines.push(`- ${l.label}: ${l.url}`));
+    }
+
+    const textToCopy = lines.join("\n");
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedJobId(job.id);
+    setTimeout(() => {
+      setCopiedJobId(null);
+    }, 2000);
+  }, []);
 
   // Purchases filters
   const [purchaseSearch, setPurchaseSearch] = useState("");
@@ -1996,25 +2213,76 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {activeApplications.map((app) => (
-                  <div key={app.id} className="rounded-xl border border-line/70 bg-white p-3 shadow-2xs flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="font-bold text-[13px] text-ink truncate">{app.company}</span>
-                        <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[#eff6ff] text-[#1d4ed8]">
-                          {app.status}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-muted truncate mt-0.5">{app.role}</p>
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {activeApplications.map((app) => {
+                  const freshness = getPlacementTimelineFreshness(app.appliedDate, app.status);
+                  const links = extractActionLinks(`${app.notes || ""} ${app.lastUpdate || ""}`);
+                  return (
+                    <div key={app.id} className="rounded-xl border border-line/80 bg-white p-3.5 shadow-2xs flex flex-col justify-between hover:border-forest/40 transition">
+                      <div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-bold text-[13px] text-ink truncate">{app.company}</span>
+                          <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[#eff6ff] text-[#1d4ed8]">
+                            {app.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-muted truncate mt-0.5">{app.role}</p>
 
-                    <div className="mt-2.5 pt-2 border-t border-[#f0f2eb] flex items-center justify-between text-[10px] text-muted">
-                      <span className="font-medium text-forest">{app.source}</span>
-                      <span className="font-medium text-ink">Applied: {formatPlacementDate(app.appliedDate)}</span>
+                        {/* Timeline Freshness Pill */}
+                        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                          <span className={`inline-block rounded-md px-2 py-0.5 text-[9.5px] font-bold ${freshness.badgeClass}`}>
+                            {freshness.label}
+                          </span>
+                          {app.interviewStage && (
+                            <span className="rounded-md bg-[#faf5ff] border border-[#e9d5ff] px-2 py-0.5 text-[9.5px] font-semibold text-[#7e22ce] truncate">
+                              {app.interviewStage}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Smart Action Links */}
+                        {links.length > 0 && (
+                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                            {links.map((link) => (
+                              <a
+                                key={link.url}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-[#cbd5e1] bg-[#f8fafc] px-2.5 py-1 text-[10.5px] font-bold text-[#1e293b] hover:bg-forest hover:text-white hover:border-forest transition shadow-2xs group"
+                              >
+                                {renderLinkIcon(link.type)}
+                                <span>{link.label}</span>
+                                <ExternalLink size={10} className="opacity-70 group-hover:opacity-100" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-3 pt-2.5 border-t border-[#f0f2eb] flex items-center justify-between text-[10.5px]">
+                        <span className="font-medium text-forest truncate max-w-[130px]">{app.source}</span>
+                        <button
+                          onClick={() => handleCopyJobDetails(app)}
+                          className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold text-muted hover:text-ink hover:bg-[#f1f3ed] transition cursor-pointer"
+                          title="Copy candidate summary"
+                        >
+                          {copiedJobId === app.id ? (
+                            <>
+                              <Check size={11} className="text-[#059669]" />
+                              <span className="text-[#059669] font-bold">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} />
+                              <span>Copy Details</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -2093,54 +2361,124 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
 
           {/* Job Applications List / Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredPlacements.map((job) => (
-              <div key={job.id} className="rounded-2xl border border-line bg-white p-5 shadow-card flex flex-col justify-between hover:border-forest/40 transition">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#f0f2eb] text-[#3e483f] font-bold text-[13px]">
-                          {job.company.charAt(0)}
-                        </span>
-                        <div>
-                          <h4 className="text-[14px] font-bold text-ink leading-tight truncate">{job.company}</h4>
-                          <span className="text-[11px] text-muted flex items-center gap-1 mt-0.5">
-                            <MapPin size={10} /> {job.location || "Remote / Co-located"}
+            {filteredPlacements.map((job) => {
+              const freshness = getPlacementTimelineFreshness(job.appliedDate, job.status);
+              const links = extractActionLinks(`${job.notes || ""} ${job.lastUpdate || ""}`);
+              return (
+                <div key={job.id} className="rounded-2xl border border-line bg-white p-5 shadow-card flex flex-col justify-between hover:border-forest/40 transition">
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#f0f2eb] text-[#3e483f] font-bold text-[13px]">
+                            {job.company.charAt(0)}
                           </span>
+                          <div>
+                            <h4 className="text-[14px] font-bold text-ink leading-tight truncate">{job.company}</h4>
+                            <span className="text-[11px] text-muted flex items-center gap-1 mt-0.5">
+                              <MapPin size={10} /> {job.location || "Remote / Co-located"}
+                            </span>
+                          </div>
                         </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        {/* Timeline Freshness Pill */}
+                        <span className={`rounded-full px-2.5 py-0.5 text-[9.5px] font-bold shrink-0 ${freshness.badgeClass}`}>
+                          {freshness.label}
+                        </span>
+
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                            job.status.toLowerCase().includes("reject")
+                              ? "bg-[#fee2e2] text-[#991b1b]"
+                              : job.status.toLowerCase().includes("offer")
+                              ? "bg-[#ecfdf5] text-[#047857]"
+                              : "bg-[#eff6ff] text-[#1d4ed8]"
+                          }`}
+                        >
+                          {job.status}
+                        </span>
                       </div>
                     </div>
 
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 ${
-                        job.status.toLowerCase().includes("reject")
-                          ? "bg-[#fee2e2] text-[#991b1b]"
-                          : job.status.toLowerCase().includes("offer")
-                          ? "bg-[#ecfdf5] text-[#047857]"
-                          : "bg-[#eff6ff] text-[#1d4ed8]"
-                      }`}
-                    >
-                      {job.status}
-                    </span>
+                    <p className="mt-3 text-[12.5px] font-semibold text-ink">{job.role}</p>
+
+                    {/* Recruiter / Stage / Next Action pills */}
+                    {(job.recruiter || job.interviewStage || job.nextAction) && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10.5px]">
+                        {job.interviewStage && (
+                          <span className="rounded-md bg-[#eff6ff] border border-[#dbeafe] px-2 py-0.5 font-bold text-[#1d4ed8]">
+                            Stage: {job.interviewStage}
+                          </span>
+                        )}
+                        {job.recruiter && (
+                          <span className="rounded-md bg-[#f4f5f0] border border-[#e5e7eb] px-2 py-0.5 font-medium text-[#4b5563]">
+                            Recruiter: <strong>{job.recruiter}</strong>
+                          </span>
+                        )}
+                        {job.nextAction && (
+                          <span className="rounded-md bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 font-bold text-[#047857]">
+                            Action: {job.nextAction}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {job.notes && (
+                      <p className="mt-2.5 text-[11px] text-[#4d564e] bg-[#fbfcf9] p-3 rounded-xl border border-[#eff1ec] leading-relaxed">
+                        {job.notes}
+                      </p>
+                    )}
+
+                    {/* Smart Action Links Extractor */}
+                    {links.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {links.map((link) => (
+                          <a
+                            key={link.url}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#cbd5e1] bg-[#f8fafc] px-2.5 py-1 text-[11px] font-bold text-[#1e293b] hover:bg-forest hover:text-white hover:border-forest transition shadow-2xs group"
+                          >
+                            {renderLinkIcon(link.type)}
+                            <span>{link.label}</span>
+                            <ExternalLink size={10} className="opacity-70 group-hover:opacity-100" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  <p className="mt-3 text-[12.5px] font-medium text-ink">{job.role}</p>
-
-                  {job.notes && (
-                    <p className="mt-2 text-[11px] text-[#4d564e] bg-[#fbfcf9] p-2.5 rounded-xl border border-[#eff1ec] leading-relaxed">
-                      {job.notes}
-                    </p>
-                  )}
+                  <div className="mt-4 pt-3 border-t border-[#f0f2eb] flex items-center justify-between text-[11px] text-muted">
+                    <span className="flex items-center gap-1">
+                      <Building2 size={12} /> {job.source}
+                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-semibold text-ink">Applied: {formatPlacementDate(job.appliedDate)}</span>
+                      <button
+                        onClick={() => handleCopyJobDetails(job)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-2.5 py-1 text-[10.5px] font-semibold text-ink hover:bg-[#f1f3ed] transition shadow-2xs cursor-pointer"
+                        title="Copy formatted candidate brief"
+                      >
+                        {copiedJobId === job.id ? (
+                          <>
+                            <Check size={11} className="text-[#059669]" />
+                            <span className="text-[#059669] font-bold">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={11} className="text-muted" />
+                            <span>Copy Details</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="mt-4 pt-3 border-t border-[#f0f2eb] flex items-center justify-between text-[11px] text-muted">
-                  <span className="flex items-center gap-1">
-                    <Building2 size={12} /> {job.source}
-                  </span>
-                  <span className="font-semibold text-ink">Applied: {formatPlacementDate(job.appliedDate)}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
