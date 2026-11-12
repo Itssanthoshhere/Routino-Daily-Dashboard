@@ -148,6 +148,26 @@ export type TrackerExpenseJournal = {
   expenses: TrackerExpense[];
 };
 
+export type TrackerAntigravityToken = {
+  id: string;
+  email: string;
+  lastUsed: string;
+  cooldownDays: number;
+  availableAgain: string;
+  daysLeft: number;
+  status: string;
+  chromeProfile: string;
+  isAvailable: boolean;
+};
+
+export type TrackerAntigravityTokenSummary = {
+  total: number;
+  available: number;
+  inCooldown: number;
+  nextAvailableDate?: string;
+  profiles: { profile: string; count: number }[];
+};
+
 export type TrackersData = {
   spreadsheetId: string;
   spreadsheetUrl: string;
@@ -165,4 +185,6 @@ export type TrackersData = {
   lifeStats: TrackerLifeStats;
   purchases: TrackerPurchase[];
   investments: TrackerInvestmentJournal;
+  antigravityTokens: TrackerAntigravityToken[];
+  antigravityTokenSummary: TrackerAntigravityTokenSummary;
 };

@@ -10,6 +10,8 @@ import type {
   TrackerPurchase,
   TrackerInvestmentJournal,
   TrackerExpenseJournal,
+  TrackerAntigravityToken,
+  TrackerAntigravityTokenSummary,
   UniversityYearFee,
   EducationLevelSummary,
   InvestmentContributor,
@@ -181,6 +183,59 @@ const SEED_2026_EXPENSES: TrackerExpense[] = [
     balance: 4697,
   },
 ];
+
+export const SEED_ANTIGRAVITY_TOKENS: TrackerAntigravityToken[] = [
+  { id: "token-0", email: "doctormutualfund@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Dr MF", isAvailable: false },
+  { id: "token-1", email: "ipadphotobackup03@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Feasto Admin", isAvailable: false },
+  { id: "token-2", email: "minecraftbackup07@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Feasto Admin", isAvailable: false },
+  { id: "token-3", email: "myashika2005@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Santhosh", isAvailable: false },
+  { id: "token-4", email: "aptiwings08@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknown", isAvailable: false },
+  { id: "token-5", email: "hereunknown07@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknow", isAvailable: false },
+  { id: "token-6", email: "aptiwings03@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Github", isAvailable: false },
+  { id: "token-7", email: "aptiwings05@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknown", isAvailable: false },
+  { id: "token-8", email: "aptiwings04@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Github", isAvailable: false },
+  { id: "token-9", email: "aptiwings02@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-10", email: "iamsanthu02@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-11", email: "iamsanthu07@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-12", email: "iamsanthu08@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-13", email: "kvigbuspass@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-14", email: "itssanthoo@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-15", email: "sundarjanane@gmail.com", lastUsed: "4/11/26", cooldownDays: 7, availableAgain: "11-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-16", email: "cpl.codechef@gmail.com", lastUsed: "3/11/26", cooldownDays: 6, availableAgain: "09-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-17", email: "githubmanger@gmail.com", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-18", email: "santhosh02vs@gmail.com", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-19", email: "vaniphonephotobackup@gmail.com", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-20", email: "itssanthoshhere02@gmail.com", lastUsed: "12/10/26", cooldownDays: 7, availableAgain: "19-Oct-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-21", email: "ipadphotobackup04@gmail.com", lastUsed: "25/9/26", cooldownDays: 7, availableAgain: "02-Oct-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-22", email: "ranthuranthu66@gmail.com", lastUsed: "19/9/26", cooldownDays: 7, availableAgain: "26-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-23", email: "jananesundar09@gmail.com", lastUsed: "18/9/26", cooldownDays: 7, availableAgain: "25-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-24", email: "vani78678ssr@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-25", email: "aptiwings01@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-26", email: "aptiwings07@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-27", email: "iamsanthoshvs2005@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-28", email: "iphonephotobackupstorage@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-29", email: "photosaving07@gmail.com", lastUsed: "16/9/26", cooldownDays: 7, availableAgain: "23-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-30", email: "whatsapobackupaccstorage@gmail.com", lastUsed: "30/6/26", cooldownDays: 7, availableAgain: "07-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-31", email: "aptiwings09@gmail.com", lastUsed: "7/7/26", cooldownDays: 7, availableAgain: "14-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknow", isAvailable: true },
+  { id: "token-32", email: "aptiwings03@gmail.com", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-33", email: "whatsappbackstorage@gmail.com", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-34", email: "vaniwhatsappback@gmail.com", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-35", email: "vaniphonephotos@gmail.com", lastUsed: "28/6/26", cooldownDays: 7, availableAgain: "05-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+];
+
+export const SEED_ANTIGRAVITY_TOKEN_SUMMARY: TrackerAntigravityTokenSummary = {
+  total: 36,
+  available: 27,
+  inCooldown: 9,
+  nextAvailableDate: "13-Nov-2026",
+  profiles: [
+    { profile: "Dr MF", count: 1 },
+    { profile: "Feasto Admin", count: 10 },
+    { profile: "Santhosh", count: 7 },
+    { profile: "Github", count: 10 },
+    { profile: "Unknown", count: 8 },
+  ],
+};
 
 /* ── Fallback Seed Data (from user's real sheet) ── */
 export const SEED_TRACKERS_DATA: TrackersData = {
@@ -577,6 +632,8 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       { name: "Jayan", amount: 30000, status: "Pending" },
     ],
   },
+  antigravityTokens: SEED_ANTIGRAVITY_TOKENS,
+  antigravityTokenSummary: SEED_ANTIGRAVITY_TOKEN_SUMMARY,
 };
 
 /* ── Live Syncer ── */
@@ -598,6 +655,7 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       purchaseData,
       timeData,
       investmentData,
+      tokenExpiryData,
     ] = await Promise.all([
       fetchGVizSheet("Category Budget"),
       fetchGVizSheet("2026 Expense Journal"),
@@ -614,6 +672,7 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       fetchGVizSheet("Purchase Summary"),
       fetchGVizSheet("Time Spent on Earth"),
       fetchGVizSheet("Investment Journal"),
+      fetchGVizSheet("Antigravity Token Expiry"),
     ]);
 
     // Parse Category Budget
@@ -902,6 +961,59 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       });
     }
 
+    // Parse Antigravity Token Expiry
+    const antigravityTokens: TrackerAntigravityToken[] = [];
+    if (tokenExpiryData?.table?.rows) {
+      tokenExpiryData.table.rows.forEach((row, idx) => {
+        let email = parseString(row.c[0]);
+        if (!email) return;
+        email = email.replace(/^[-\s]+/, "").trim();
+        if (!email.includes("@")) return;
+
+        const lastUsed = parseString(row.c[1]) || parseGVizDate(row.c[1]);
+        const cooldownDays = parseNumber(row.c[2]?.v ?? row.c[2]?.f) || 7;
+        const availableAgain = parseString(row.c[3]) || parseGVizDate(row.c[3]);
+        const daysLeft = parseNumber(row.c[4]?.v ?? row.c[4]?.f);
+        const status = parseString(row.c[5]) || (daysLeft <= 0 ? "✅ Available" : `⏳ ${daysLeft} days left`);
+        const chromeProfile = parseString(row.c[6]) || "Unknown";
+        const isAvailable = daysLeft <= 0 || status.toLowerCase().includes("available");
+
+        antigravityTokens.push({
+          id: `token-${idx}`,
+          email,
+          lastUsed,
+          cooldownDays,
+          availableAgain,
+          daysLeft,
+          status,
+          chromeProfile,
+          isAvailable,
+        });
+      });
+    }
+
+    const tokensList = antigravityTokens.length > 0 ? antigravityTokens : SEED_ANTIGRAVITY_TOKENS;
+    const availableCount = tokensList.filter((t) => t.isAvailable).length;
+    const inCooldownCount = tokensList.length - availableCount;
+
+    const profileMap = new Map<string, number>();
+    tokensList.forEach((t) => {
+      const p = t.chromeProfile || "Unknown";
+      profileMap.set(p, (profileMap.get(p) || 0) + 1);
+    });
+    const profileDist = Array.from(profileMap.entries()).map(([profile, count]) => ({ profile, count }));
+
+    const cooldownTokens = tokensList.filter((t) => !t.isAvailable && t.availableAgain);
+    const nextAvailableDate = cooldownTokens.length > 0 ? cooldownTokens[0].availableAgain : undefined;
+
+    const antigravityTokenSummary: TrackerAntigravityTokenSummary = {
+      total: tokensList.length,
+      available: availableCount,
+      inCooldown: inCooldownCount,
+      nextAvailableDate,
+      profiles: profileDist,
+    };
+
     return {
       spreadsheetId: GOOGLE_SHEET_ID,
       spreadsheetUrl: GOOGLE_SHEET_URL,
@@ -918,6 +1030,8 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       lifeStats,
       purchases: purchases.length > 0 ? purchases : SEED_TRACKERS_DATA.purchases,
       investments,
+      antigravityTokens: tokensList,
+      antigravityTokenSummary,
     };
   } catch (err) {
     console.error("Error syncing spreadsheet trackers:", err);

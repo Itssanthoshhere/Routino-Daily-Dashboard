@@ -28,16 +28,20 @@ import {
   GraduationCap,
   Award,
   Landmark,
+  Key,
+  ShieldCheck,
+  Copy,
 } from "lucide-react";
 import type {
   TrackersData,
   TrackerEBReading,
   TrackerExpense,
   TrackerJobApplication,
+  TrackerAntigravityToken,
 } from "@/types/dashboard";
 import { SEED_TRACKERS_DATA } from "@/lib/trackersSync";
 
-type TabKey = "eb" | "expenses" | "investments" | "placements" | "life" | "purchases";
+type TabKey = "eb" | "expenses" | "tokens" | "investments" | "placements" | "life" | "purchases";
 
 export function TrackersView() {
   const [activeTab, setActiveTab] = useState<TabKey>("eb");
@@ -55,6 +59,19 @@ export function TrackersView() {
   const [ebReadingsVisibleCount, setEbReadingsVisibleCount] = useState<number>(20);
   const [placementSearch, setPlacementSearch] = useState("");
   const [placementStatusFilter, setPlacementStatusFilter] = useState("all");
+
+  // Antigravity Tokens filters
+  const [tokenSearch, setTokenSearch] = useState("");
+  const [tokenStatusFilter, setTokenStatusFilter] = useState("all");
+  const [tokenProfileFilter, setTokenProfileFilter] = useState("all");
+  const [tokenSort, setTokenSort] = useState<"cooldown-first" | "available-first" | "days-asc" | "email">("cooldown-first");
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+
+  const handleCopyEmail = (email: string) => {
+    navigator.clipboard.writeText(email);
+    setCopiedEmail(email);
+    setTimeout(() => setCopiedEmail(null), 1800);
+  };
 
   // Modals
   const [showAddReadingModal, setShowAddReadingModal] = useState(false);
@@ -322,6 +339,50 @@ export function TrackersView() {
     });
   }, [data.jobApplications, placementSearch, placementStatusFilter]);
 
+  // Antigravity Tokens filtered & sorted
+  const filteredTokens = useMemo(() => {
+    const list = data.antigravityTokens || [];
+    return list
+      .filter((t) => {
+        const matchesSearch =
+          t.email.toLowerCase().includes(tokenSearch.toLowerCase()) ||
+          t.chromeProfile.toLowerCase().includes(tokenSearch.toLowerCase());
+        if (!matchesSearch) return false;
+
+        if (tokenStatusFilter === "available" && !t.isAvailable) return false;
+        if (tokenStatusFilter === "cooldown" && t.isAvailable) return false;
+
+        if (tokenProfileFilter !== "all" && t.chromeProfile.toLowerCase() !== tokenProfileFilter.toLowerCase()) {
+          return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (tokenSort === "cooldown-first") {
+          if (a.isAvailable !== b.isAvailable) return a.isAvailable ? 1 : -1;
+          return a.daysLeft - b.daysLeft;
+        }
+        if (tokenSort === "available-first") {
+          if (a.isAvailable !== b.isAvailable) return a.isAvailable ? -1 : 1;
+          return a.daysLeft - b.daysLeft;
+        }
+        if (tokenSort === "days-asc") {
+          return a.daysLeft - b.daysLeft;
+        }
+        return a.email.localeCompare(b.email);
+      });
+  }, [data.antigravityTokens, tokenSearch, tokenStatusFilter, tokenProfileFilter, tokenSort]);
+
+  // Unique Chrome Profiles for tokens filter
+  const tokenProfiles = useMemo(() => {
+    const set = new Set<string>();
+    (data.antigravityTokens || []).forEach((t) => {
+      if (t.chromeProfile) set.add(t.chromeProfile);
+    });
+    return Array.from(set).sort();
+  }, [data.antigravityTokens]);
+
   // Total purchases value
   const totalPurchaseValue = useMemo(() => {
     return data.purchases.reduce((acc, curr) => acc + (curr.price || 0), 0);
@@ -377,6 +438,7 @@ export function TrackersView() {
         {[
           { key: "eb", label: "PG Electricity (EB)", icon: Zap, count: `${displayLatestReading} units` },
           { key: "expenses", label: "Expense & Budget", icon: Wallet, count: `₹${data.totalMonthlyBudget.toLocaleString()}` },
+          { key: "tokens", label: "Antigravity Tokens", icon: Key, count: `${data.antigravityTokenSummary?.available ?? 27} ready` },
           { key: "investments", label: "Investment Journal", icon: TrendingUp, count: `${data.investments?.grandTotalFormatted || "₹22.76L"}` },
           { key: "placements", label: "Placements & Career", icon: Briefcase, count: `${data.jobApplications.length}` },
           { key: "life", label: "Time on Earth", icon: Hourglass, count: `${data.lifeStats.ageYears} yrs` },
@@ -971,6 +1033,272 @@ export function TrackersView() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          TAB: ANTIGRAVITY TOKEN EXPIRY & COOLDOWN TRACKER
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "tokens" && (
+        <div className="space-y-6">
+          {/* Top KPI Summary Cards */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Total Accounts</span>
+              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">
+                {data.antigravityTokenSummary?.total ?? (data.antigravityTokens?.length || 0)}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">Across {tokenProfiles.length} Chrome profiles</p>
+            </div>
+
+            <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Ready to Use</span>
+              <p className="mt-1 text-[22px] font-bold text-[#059669] tracking-tight flex items-center gap-1.5">
+                <CheckCircle2 size={18} className="text-[#059669]" />
+                {data.antigravityTokenSummary?.available ?? 0}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">Cooldown complete · Active</p>
+            </div>
+
+            <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">In Cooldown</span>
+              <p className="mt-1 text-[22px] font-bold text-[#b45309] tracking-tight flex items-center gap-1.5">
+                <Clock size={18} className="text-[#b45309]" />
+                {data.antigravityTokenSummary?.inCooldown ?? 0}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">7-day cooldown cycle</p>
+            </div>
+
+            <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Next Unlock Batch</span>
+              <p className="mt-1 text-[16px] sm:text-[18px] font-bold text-forest tracking-tight">
+                {data.antigravityTokenSummary?.nextAvailableDate || "13-Nov-2026"}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">
+                {data.antigravityTokenSummary?.inCooldown ?? 9} accounts unlocking
+              </p>
+            </div>
+          </div>
+
+          {/* Chrome Profiles Quick Filter Chips */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-[11px] font-semibold text-muted">Profiles:</span>
+            <button
+              onClick={() => setTokenProfileFilter("all")}
+              className={`rounded-xl px-3 py-1 text-[11px] font-semibold transition ${
+                tokenProfileFilter === "all"
+                  ? "bg-forest text-white shadow-xs"
+                  : "bg-white border border-line text-muted hover:bg-[#f1f3ed] hover:text-ink"
+              }`}
+            >
+              All Profiles ({data.antigravityTokens?.length || 0})
+            </button>
+            {tokenProfiles.map((prof) => {
+              const count = (data.antigravityTokens || []).filter((t) => t.chromeProfile === prof).length;
+              return (
+                <button
+                  key={prof}
+                  onClick={() => setTokenProfileFilter(prof)}
+                  className={`rounded-xl px-3 py-1 text-[11px] font-semibold transition ${
+                    tokenProfileFilter === prof
+                      ? "bg-forest text-white shadow-xs"
+                      : "bg-white border border-line text-muted hover:bg-[#f1f3ed] hover:text-ink"
+                  }`}
+                >
+                  {prof} ({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search, Status & Sort Controls */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="relative flex-1 w-full sm:w-auto">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                placeholder="Search email or profile..."
+                value={tokenSearch}
+                onChange={(e) => setTokenSearch(e.target.value)}
+                className="w-full h-9 rounded-xl border border-line bg-white pl-9 pr-3 text-[12px] text-ink placeholder:text-muted/60 focus:border-forest focus:outline-none shadow-xs"
+              />
+              {tokenSearch && (
+                <button
+                  onClick={() => setTokenSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {/* Status Filter */}
+              <div className="flex items-center gap-1 bg-white border border-line rounded-xl p-1 text-[11px]">
+                <button
+                  onClick={() => setTokenStatusFilter("all")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                    tokenStatusFilter === "all" ? "bg-forest text-white" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  All ({data.antigravityTokens?.length || 0})
+                </button>
+                <button
+                  onClick={() => setTokenStatusFilter("available")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                    tokenStatusFilter === "available" ? "bg-[#ecfdf5] text-[#047857]" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  Ready ({data.antigravityTokenSummary?.available ?? 0})
+                </button>
+                <button
+                  onClick={() => setTokenStatusFilter("cooldown")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition ${
+                    tokenStatusFilter === "cooldown" ? "bg-[#fffbeb] text-[#b45309]" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  Cooldown ({data.antigravityTokenSummary?.inCooldown ?? 0})
+                </button>
+              </div>
+
+              {/* Sort Dropdown */}
+              <select
+                value={tokenSort}
+                onChange={(e) => setTokenSort(e.target.value as any)}
+                className="h-9 rounded-xl border border-line bg-white px-3 text-[11px] font-semibold text-ink focus:border-forest focus:outline-none"
+              >
+                <option value="cooldown-first">In Cooldown First</option>
+                <option value="available-first">Ready / Available First</option>
+                <option value="days-asc">Least Days Left</option>
+                <option value="email">Email (A-Z)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Tokens Table */}
+          <div className="rounded-2xl border border-line bg-white shadow-card overflow-hidden">
+            <div className="p-4 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#fbfcf8]">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-[13px] font-bold text-ink">Antigravity Token Expiry Ledger</h4>
+                  <span className="rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 text-[9.5px] font-bold text-[#047857]">
+                    Google Cooldown Tracker
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted">
+                  Showing {filteredTokens.length} of {data.antigravityTokens?.length || 0} accounts
+                </p>
+              </div>
+
+              {copiedEmail && (
+                <span className="inline-flex items-center gap-1 rounded-lg bg-[#ecfdf5] border border-[#a7f3d0] px-2.5 py-1 text-[11px] font-semibold text-[#047857] animate-in fade-in">
+                  <Check size={12} /> Copied {copiedEmail} to clipboard
+                </span>
+              )}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-[12px]">
+                <thead>
+                  <tr className="border-b border-line bg-[#fafbf7] text-[10.5px] font-bold uppercase tracking-wider text-muted">
+                    <th className="py-2.5 px-4">Email Account</th>
+                    <th className="py-2.5 px-4">Chrome Profile</th>
+                    <th className="py-2.5 px-4 text-center">Status</th>
+                    <th className="py-2.5 px-4 text-center">Days Left</th>
+                    <th className="py-2.5 px-4 text-right">Last Used</th>
+                    <th className="py-2.5 px-4 text-right">Cooldown</th>
+                    <th className="py-2.5 px-4 text-right">Available Again</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f0f2eb]">
+                  {filteredTokens.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-muted">
+                        No accounts match the current filter or search criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredTokens.map((t) => (
+                      <tr key={t.id} className="hover:bg-[#fafbf7] transition">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-ink">{t.email}</span>
+                            <button
+                              onClick={() => handleCopyEmail(t.email)}
+                              title="Copy email"
+                              className="text-muted/60 hover:text-ink transition p-1 rounded-md hover:bg-[#eff1eb]"
+                            >
+                              <Copy size={12} />
+                            </button>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center rounded-lg bg-[#f0f2eb] px-2.5 py-0.5 text-[11px] font-semibold text-ink">
+                            {t.chromeProfile}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${
+                              t.isAvailable
+                                ? "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]"
+                                : "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                            }`}
+                          >
+                            {t.isAvailable ? (
+                              <>
+                                <Check size={11} /> Ready
+                              </>
+                            ) : (
+                              <>
+                                <Clock size={11} /> {t.daysLeft}d cooldown
+                              </>
+                            )}
+                          </span>
+                        </td>
+
+                        <td className="py-3 px-4 text-center">
+                          {t.isAvailable ? (
+                            <span className="text-[11px] font-bold text-[#059669]">0 days</span>
+                          ) : (
+                            <div className="inline-flex flex-col items-center">
+                              <span className="text-[12px] font-extrabold text-[#b45309]">{t.daysLeft} day</span>
+                              <div className="w-12 h-1.5 bg-[#f0f2eb] rounded-full overflow-hidden mt-1">
+                                <div
+                                  className="h-full bg-[#f59e0b] rounded-full"
+                                  style={{ width: `${Math.max(10, ((7 - t.daysLeft) / 7) * 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-4 text-right text-muted text-[11.5px] font-mono">
+                          {t.lastUsed || "—"}
+                        </td>
+
+                        <td className="py-3 px-4 text-right text-muted text-[11.5px]">
+                          {t.cooldownDays} days
+                        </td>
+
+                        <td className="py-3 px-4 text-right">
+                          <span
+                            className={`text-[12px] font-semibold ${
+                              t.isAvailable ? "text-ink" : "text-[#b45309] font-bold"
+                            }`}
+                          >
+                            {t.availableAgain || "Available"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
