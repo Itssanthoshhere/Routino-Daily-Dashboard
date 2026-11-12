@@ -42,7 +42,7 @@ import { InboxView } from "@/components/views/InboxView";
 import { TasksView } from "@/components/views/TasksView";
 import { NotesView } from "@/components/views/NotesView";
 import { TimeAuditView } from "@/components/views/TimeAuditView";
-import { TrackersView } from "@/components/views/TrackersView";
+import { TrackersView, type TrackersTabKey } from "@/components/views/TrackersView";
 import { SEED_TRACKERS_DATA } from "@/lib/trackersSync";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
@@ -318,6 +318,8 @@ export default function Home() {
   /* ── Trackers Snapshot state ── */
   const [trackersData, setTrackersData] = useState<TrackersData>(SEED_TRACKERS_DATA);
   const [copiedOverviewEmail, setCopiedOverviewEmail] = useState<string | null>(null);
+  const [trackersTab, setTrackersTab] = useState<TrackersTabKey>("eb");
+  const [trackersTabKey, setTrackersTabKey] = useState<number>(0);
 
   const fetchTrackersData = useCallback(async () => {
     try {
@@ -1193,6 +1195,12 @@ export default function Home() {
     try { localStorage.setItem("routino_active_nav", tab); } catch {}
   };
 
+  const handleOpenTrackersTab = useCallback((tab: TrackersTabKey) => {
+    setTrackersTab(tab);
+    setTrackersTabKey((k) => k + 1);
+    handleSelectNav("Trackers");
+  }, []);
+
   const handleFocusComplete = (mins: number) => {
     setFocusMinutes(prev => {
       const next = prev + mins;
@@ -1509,7 +1517,11 @@ export default function Home() {
               isConnected={isConnected}
             />
           ) : activeNav === "Trackers" ? (
-            <TrackersView />
+            <TrackersView
+              initialTab={trackersTab}
+              tabChangeKey={trackersTabKey}
+              onTabChange={(tab) => setTrackersTab(tab)}
+            />
           ) : activeNav === "Inbox" ? (
             <InboxView
               mailList={mailItems}
@@ -1670,7 +1682,11 @@ export default function Home() {
 
                 <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-4">
                   {/* 1. Antigravity Tokens */}
-                  <div className="rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition">
+                  <div
+                    onClick={() => handleOpenTrackersTab("tokens")}
+                    className="cursor-pointer rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition group"
+                    title="Open Antigravity Tokens Tracker"
+                  >
                     <div>
                       <div className="flex items-center justify-between">
                         <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider">Antigravity Tokens</span>
@@ -1694,7 +1710,7 @@ export default function Home() {
                       <button
                         onClick={handleCopyNextReadyOverview}
                         disabled={overviewTrackersSummary.readyCount === 0}
-                        className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-forest/30 bg-[#ecfdf5] px-2.5 py-1.5 text-[11px] font-bold text-forest hover:bg-forest hover:text-white disabled:opacity-50 transition"
+                        className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-forest/30 bg-[#ecfdf5] px-2.5 py-1.5 text-[11px] font-bold text-forest hover:bg-forest hover:text-white disabled:opacity-50 transition cursor-pointer"
                       >
                         {copiedOverviewEmail ? (
                           <>
@@ -1713,8 +1729,9 @@ export default function Home() {
 
                   {/* 2. EB Electricity Meter */}
                   <div
-                    onClick={() => handleSelectNav("Trackers")}
+                    onClick={() => handleOpenTrackersTab("eb")}
                     className="cursor-pointer rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition group"
+                    title="Open PG Electricity (EB) Tracker"
                   >
                     <div>
                       <div className="flex items-center justify-between">
@@ -1747,8 +1764,9 @@ export default function Home() {
 
                   {/* 3. Monthly Budget Burn-Down */}
                   <div
-                    onClick={() => handleSelectNav("Trackers")}
-                    className="cursor-pointer rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition"
+                    onClick={() => handleOpenTrackersTab("expenses")}
+                    className="cursor-pointer rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition group"
+                    title="Open Expense & Budget Ledger"
                   >
                     <div>
                       <div className="flex items-center justify-between">
@@ -1800,8 +1818,9 @@ export default function Home() {
 
                   {/* 4. Active Career Pipelines */}
                   <div
-                    onClick={() => handleSelectNav("Trackers")}
+                    onClick={() => handleOpenTrackersTab("placements")}
                     className="cursor-pointer rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition group"
+                    title="Open Placement & Career Tracker"
                   >
                     <div>
                       <div className="flex items-center justify-between">
@@ -1831,7 +1850,7 @@ export default function Home() {
                     <div className="mt-2.5 pt-2 border-t border-[#f0f2eb] flex items-center justify-between text-[10.5px] text-muted">
                       <span>{overviewTrackersSummary.activeAppsCount} active in pipeline</span>
                       <span className="font-semibold text-forest group-hover:underline">
-                        View Hub →
+                        View Pipeline →
                       </span>
                     </div>
                   </div>
@@ -2369,6 +2388,7 @@ export default function Home() {
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
         onNavigate={handleSelectNav}
+        onOpenTrackerTab={handleOpenTrackersTab}
         onOpenFocusTimer={() => setShowFocusTimer(true)}
         onOpenAddTask={() => setShowTaskModal(true)}
         onOpenAddEvent={() => setShowEventModal(true)}

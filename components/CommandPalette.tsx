@@ -18,13 +18,19 @@ import {
   Flame,
   StickyNote,
   Gauge,
+  Key,
+  Zap,
+  Wallet,
+  Briefcase,
 } from "lucide-react";
 import { Task, DashboardEvent } from "@/types/dashboard";
+import type { TrackersTabKey } from "@/components/views/TrackersView";
 
 type CommandPaletteProps = {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (tab: string) => void;
+  onOpenTrackerTab?: (tab: TrackersTabKey) => void;
   onOpenFocusTimer: () => void;
   onOpenAddTask: () => void;
   onOpenAddEvent: () => void;
@@ -40,6 +46,7 @@ export function CommandPalette({
   isOpen,
   onClose,
   onNavigate,
+  onOpenTrackerTab,
   onOpenFocusTimer,
   onOpenAddTask,
   onOpenAddEvent,
@@ -93,6 +100,170 @@ export function CommandPalette({
     onClose();
   };
 
+  const navActions = [
+    {
+      id: "overview",
+      label: "Go to Overview",
+      icon: Target,
+      iconColor: "text-forest",
+      action: () => onNavigate("Overview"),
+      keywords: ["overview", "home", "dashboard"],
+    },
+    {
+      id: "calendar",
+      label: "Open Calendar View",
+      icon: CalendarDays,
+      iconColor: "text-[#6088d1]",
+      action: () => onNavigate("Calendar"),
+      keywords: ["calendar", "schedule", "events", "meetings"],
+    },
+    {
+      id: "inbox",
+      label: "Open Inbox View",
+      icon: Inbox,
+      iconColor: "text-[#d16b5b]",
+      action: () => onNavigate("Inbox"),
+      keywords: ["inbox", "email", "mail"],
+    },
+    {
+      id: "tasks",
+      label: "Open Tasks Manager",
+      icon: ListTodo,
+      iconColor: "text-forest",
+      action: () => onNavigate("Tasks"),
+      keywords: ["tasks", "todo", "manager"],
+    },
+    {
+      id: "notes",
+      label: "Open Notes & Scratchpad",
+      icon: StickyNote,
+      iconColor: "text-[#eab308]",
+      action: () => onNavigate("Notes"),
+      keywords: ["notes", "scratchpad", "keep"],
+    },
+    {
+      id: "trackers",
+      label: "Open Trackers Hub",
+      icon: Gauge,
+      iconColor: "text-[#059669]",
+      action: () => onNavigate("Trackers"),
+      keywords: ["trackers", "hub", "operations"],
+    },
+    {
+      id: "trackers-tokens",
+      label: "Trackers → Antigravity Tokens",
+      icon: Key,
+      iconColor: "text-[#059669]",
+      action: () => (onOpenTrackerTab ? onOpenTrackerTab("tokens") : onNavigate("Trackers")),
+      keywords: ["tokens", "antigravity", "profiles", "accounts", "cooldown"],
+    },
+    {
+      id: "trackers-eb",
+      label: "Trackers → PG Electricity (EB)",
+      icon: Zap,
+      iconColor: "text-[#b45309]",
+      action: () => (onOpenTrackerTab ? onOpenTrackerTab("eb") : onNavigate("Trackers")),
+      keywords: ["eb", "electricity", "meter", "power", "bill", "units"],
+    },
+    {
+      id: "trackers-expenses",
+      label: "Trackers → Expense & Budget",
+      icon: Wallet,
+      iconColor: "text-[#059669]",
+      action: () => (onOpenTrackerTab ? onOpenTrackerTab("expenses") : onNavigate("Trackers")),
+      keywords: ["expenses", "budget", "spend", "finance", "ledger"],
+    },
+    {
+      id: "trackers-placements",
+      label: "Trackers → Placement & Career",
+      icon: Briefcase,
+      iconColor: "text-[#1d4ed8]",
+      action: () => (onOpenTrackerTab ? onOpenTrackerTab("placements") : onNavigate("Trackers")),
+      keywords: ["career", "placements", "jobs", "applications", "interviews"],
+    },
+    {
+      id: "focus",
+      label: "Start Focus Mode / Timer",
+      icon: Focus,
+      iconColor: "text-forest",
+      action: onOpenFocusTimer,
+      keywords: ["focus", "timer", "pomodoro", "deep work"],
+    },
+    {
+      id: "new-task",
+      label: "Create New Task",
+      icon: Plus,
+      iconColor: "text-muted",
+      action: onOpenAddTask,
+      keywords: ["task", "add", "new", "create"],
+    },
+    {
+      id: "new-event",
+      label: "Schedule Calendar Event",
+      icon: Plus,
+      iconColor: "text-[#6088d1]",
+      action: onOpenAddEvent,
+      keywords: ["event", "schedule", "calendar", "meeting", "create"],
+    },
+    ...(onOpenDailyRoutine
+      ? [
+          {
+            id: "daily-routine",
+            label: "Daily Routine: Morning Plan / Evening Wrap-up",
+            icon: Sparkles,
+            iconColor: "text-forest",
+            action: onOpenDailyRoutine,
+            keywords: ["routine", "morning", "evening", "wrapup", "plan"],
+          },
+        ]
+      : []),
+    ...(onOpenHabits
+      ? [
+          {
+            id: "habits",
+            label: "Manage Daily Micro-Habits (H)",
+            icon: Flame,
+            iconColor: "text-[#c2410c]",
+            action: onOpenHabits,
+            keywords: ["habits", "microhabits", "streak"],
+          },
+        ]
+      : []),
+    ...(onOpenPreferences
+      ? [
+          {
+            id: "preferences",
+            label: "Open Preferences & Settings",
+            icon: Settings,
+            iconColor: "text-forest",
+            action: onOpenPreferences,
+            keywords: ["settings", "preferences", "config"],
+          },
+        ]
+      : []),
+    ...(onOpenShortcuts
+      ? [
+          {
+            id: "shortcuts",
+            label: "Keyboard Shortcuts Guide (?)",
+            icon: Keyboard,
+            iconColor: "text-[#6d76b1]",
+            action: onOpenShortcuts,
+            keywords: ["keyboard", "shortcuts", "hotkeys", "help"],
+          },
+        ]
+      : []),
+  ];
+
+  const q = query.trim().toLowerCase();
+  const filteredActions = q
+    ? navActions.filter(
+        (a) =>
+          a.label.toLowerCase().includes(q) ||
+          a.keywords.some((k) => k.includes(q))
+      )
+    : navActions;
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-20 sm:pt-28">
       <div className="relative w-full max-w-xl rounded-2xl border border-line bg-[#fbfcf8] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -113,110 +284,28 @@ export function CommandPalette({
 
         <div className="max-h-80 overflow-y-auto p-2">
           {/* Quick Actions */}
-          <div className="mb-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
-            Navigation & Actions
-          </div>
-          <div className="space-y-1">
-            <button
-              onClick={() => handleAction(() => onNavigate("Overview"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <Target size={15} className="text-forest" />
-              <span>Go to Overview</span>
-            </button>
-            <button
-              onClick={() => handleAction(() => onNavigate("Calendar"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <CalendarDays size={15} className="text-[#6088d1]" />
-              <span>Open Calendar View</span>
-            </button>
-            <button
-              onClick={() => handleAction(() => onNavigate("Inbox"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <Inbox size={15} className="text-[#d16b5b]" />
-              <span>Open Inbox View</span>
-            </button>
-            <button
-              onClick={() => handleAction(() => onNavigate("Tasks"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <ListTodo size={15} className="text-forest" />
-              <span>Open Tasks Manager</span>
-            </button>
-            <button
-              onClick={() => handleAction(() => onNavigate("Notes"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <StickyNote size={15} className="text-[#eab308]" />
-              <span>Open Notes & Scratchpad</span>
-            </button>
-            <button
-              onClick={() => handleAction(() => onNavigate("Trackers"))}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <Gauge size={15} className="text-[#059669]" />
-              <span>Open Trackers Hub</span>
-            </button>
-            <button
-              onClick={() => handleAction(onOpenFocusTimer)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <Focus size={15} className="text-forest" />
-              <span>Start Focus Mode / Timer</span>
-            </button>
-            <button
-              onClick={() => handleAction(onOpenAddTask)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <Plus size={15} className="text-muted" />
-              <span>Create New Task</span>
-            </button>
-            <button
-              onClick={() => handleAction(onOpenAddEvent)}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-            >
-              <Plus size={15} className="text-[#6088d1]" />
-              <span>Schedule Calendar Event</span>
-            </button>
-            {onOpenDailyRoutine && (
-              <button
-                onClick={() => handleAction(onOpenDailyRoutine)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition cursor-pointer"
-              >
-                <Sparkles size={15} className="text-forest" />
-                <span>Daily Routine: Morning Plan / Evening Wrap-up</span>
-              </button>
-            )}
-            {onOpenHabits && (
-              <button
-                onClick={() => handleAction(onOpenHabits)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-              >
-                <Flame size={15} className="text-[#c2410c]" />
-                <span>Manage Daily Micro-Habits (H)</span>
-              </button>
-            )}
-            {onOpenPreferences && (
-              <button
-                onClick={() => handleAction(onOpenPreferences)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-              >
-                <Settings size={15} className="text-forest" />
-                <span>Open Preferences & Settings</span>
-              </button>
-            )}
-            {onOpenShortcuts && (
-              <button
-                onClick={() => handleAction(onOpenShortcuts)}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
-              >
-                <Keyboard size={15} className="text-[#6d76b1]" />
-                <span>Keyboard Shortcuts Guide (?)</span>
-              </button>
-            )}
-          </div>
+          {filteredActions.length > 0 && (
+            <div className="mb-3">
+              <div className="mb-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                Navigation & Actions {q ? `(${filteredActions.length})` : ""}
+              </div>
+              <div className="space-y-1">
+                {filteredActions.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleAction(item.action)}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition cursor-pointer"
+                    >
+                      <Icon size={15} className={item.iconColor} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Matched Tasks */}
           {filteredTasks.length > 0 && (

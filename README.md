@@ -154,13 +154,13 @@ Routino integrates a high-performance **Trackers Hub** providing unified visibil
 - **Gadgets & Hardware Assets Inventory**: Complete device registry with live search across products and model numbers, brand filter chips (`Apple`, `Dell`, `LG`, `UGREEN`, `DailyObjects`, `Green Soul`), price and date sorting, and dynamic **Lifecycle / Warranty Badges** (`< 1 Yr · Active Warranty`, `1–3 Yrs · Mid Lifecycle`, `3+ Yrs · Mature`, `AppleCare+ Protected`). Accurate pricing including Green Soul Surface 2.0 Desk (₹23,009.00) and Free Furniture Assembly.
 - **Time on Earth (Life Stats Odometer)**: Real-time biological age counter (years, months, days, hours, seconds) paired with an interplanetary age odometer for Mercury, Venus, Mars, Jupiter, and Saturn.
 
-### 13. ⚡ Overview Dashboard: "Trackers Quick Snapshot" Widget
-An executive summary card placed directly on your main **Overview** home screen:
-- **Tokens Pulse**: Shows live ready count (`27 Ready / 9 Cooldown`) with a one-click **"Copy Next Ready"** button.
-- **EB Meter**: Latest reading (`323 units`) and daily burn rate (`~1.92 u/day`) with projected bill and 50/50 roommate share.
-- **Monthly Budget**: Spend velocity (`₹3,420 / ₹7,500`) with a mini burn-down progress bar and remaining limit.
-- **Active Career Pipelines**: Direct alert chips for urgent rounds (`Digiryte Round 3`, `Josh Talks Task`).
-- **Direct Navigation**: 1-click "Open Trackers Hub" link.
+### 13. ⚡ Overview Dashboard: "Trackers Quick Snapshot" Widget & Direct Deep-Linking
+An executive summary card placed directly on your main **Overview** home screen with **instant 1-click deep linking to exact tracker views**:
+- **Tokens Pulse**: Shows live ready count (`27 Ready / 9 Cooldown`) with a one-click **"Copy Next Ready"** button (which copies without navigating) or clicking the card to deep link directly to `Trackers → Antigravity Tokens`.
+- **EB Meter**: Latest reading (`323 units`) and daily burn rate (`~1.92 u/day`) with projected bill and 50/50 roommate share. Clicking deep links directly to `Trackers → PG Electricity (EB)`.
+- **Monthly Budget**: Spend velocity (`₹3,420 / ₹7,500`) with a mini burn-down progress bar and remaining limit. Clicking deep links directly to `Trackers → Expense & Budget`.
+- **Active Career Pipelines**: Direct alert chips for urgent rounds (`Digiryte Round 3`, `Josh Talks Task`). Clicking deep links directly to `Trackers → Placement Tracker`.
+- **Command Palette Deep Links (`Cmd + K`)**: Search and jump directly to any sub-tracker (e.g. typing `tokens`, `eb`, `budget`, or `career`) from anywhere across the app.
 
 ### 14. 🔄 Zero-Refresh Live Synchronization Engine
 - **Tab & Window Focus Sync**: Automatically polls and updates Google Sheets data when switching back to the dashboard or focusing the browser tab—no manual page refresh required.

@@ -43,7 +43,14 @@ import type {
 } from "@/types/dashboard";
 import { SEED_TRACKERS_DATA } from "@/lib/trackersSync";
 
-type TabKey = "eb" | "expenses" | "tokens" | "investments" | "placements" | "life" | "purchases";
+export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "placements" | "life" | "purchases";
+type TabKey = TrackersTabKey;
+
+export type TrackersViewProps = {
+  initialTab?: TrackersTabKey;
+  tabChangeKey?: number;
+  onTabChange?: (tab: TrackersTabKey) => void;
+};
 
 function formatPlacementDate(dateStr?: string): string {
   if (!dateStr || !dateStr.trim()) return "Recently";
@@ -88,8 +95,19 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   };
 }
 
-export function TrackersView() {
-  const [activeTab, setActiveTab] = useState<TabKey>("eb");
+export function TrackersView({ initialTab, tabChangeKey, onTabChange }: TrackersViewProps = {}) {
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab || "eb");
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, tabChangeKey]);
+
+  const handleTabSelect = (tab: TabKey) => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
   const [data, setData] = useState<TrackersData>(SEED_TRACKERS_DATA);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -802,7 +820,7 @@ export function TrackersView() {
         ].map(({ key, label, icon: Icon, count }) => (
           <button
             key={key}
-            onClick={() => setActiveTab(key as TabKey)}
+            onClick={() => handleTabSelect(key as TabKey)}
             className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-[12px] font-semibold transition ${
               activeTab === key
                 ? "bg-forest text-white shadow-xs"
