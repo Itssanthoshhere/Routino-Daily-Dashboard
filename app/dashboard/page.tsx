@@ -178,8 +178,8 @@ const seedLinks: QuickLink[] = [
   { id: "ql-1", title: "Google Calendar", subtitle: "Your schedule", url: appConfig.links.calendar, iconName: "calendar", available: true },
   { id: "ql-2", title: "Gmail", subtitle: "Your inbox", url: appConfig.links.mail, iconName: "mail", available: true },
   { id: "ql-3", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.live.com/mail", iconName: "outlook", available: true },
-  { id: "ql-5", title: "GitHub", subtitle: "Itssanthoshhere", url: appConfig.links.github, iconName: "github", available: true },
-  { id: "ql-6", title: "Portfolio", subtitle: "santhosh-vs-portfolio", url: appConfig.links.portfolio, iconName: "globe", available: true },
+  { id: "ql-5", title: "GitHub", subtitle: "Developer profile", url: appConfig.links.github, iconName: "github", available: true },
+  { id: "ql-6", title: "Portfolio", subtitle: "Personal website", url: appConfig.links.portfolio, iconName: "globe", available: true },
   { id: "ql-7", title: "Google Drive", subtitle: "Recent files", url: appConfig.links.drive, iconName: "drive", available: true },
 ];
 
@@ -358,6 +358,10 @@ export default function Home() {
   const [trackersTabKey, setTrackersTabKey] = useState<number>(0);
 
   const fetchTrackersData = useCallback(async () => {
+    if (!liveData?.connected) {
+      setTrackersData(SEED_TRACKERS_DATA);
+      return;
+    }
     try {
       const res = await fetch("/api/trackers/sync", { cache: "no-store" });
       const json = await res.json();
@@ -367,7 +371,7 @@ export default function Home() {
     } catch {
       // Keep seeded fallback
     }
-  }, []);
+  }, [liveData?.connected]);
 
   useEffect(() => {
     fetchTrackersData();
@@ -1520,10 +1524,10 @@ export default function Home() {
                 <img src={liveData.user.image} alt={liveData.user.name || "User"} className="h-6 w-6 rounded-full object-cover" />
               ) : (
                 <div className="grid h-6 w-6 place-items-center rounded-full bg-[#f0c6ae] text-[10px] font-bold text-[#614d3f]">
-                  {liveData?.user?.name ? liveData.user.name.charAt(0).toUpperCase() : appConfig.user.initial}
+                  {liveData?.user?.name ? liveData.user.name.charAt(0).toUpperCase() : (liveData?.connected ? "U" : "D")}
                 </div>
               )}
-              <span className="text-[10px] xl:text-[11px] text-white/85 truncate">{liveData?.user?.name || appConfig.user.name}&apos;s workspace</span>
+              <span className="text-[10px] xl:text-[11px] text-white/85 truncate">{liveData?.user?.name ? `${liveData.user.name}'s workspace` : (liveData?.connected ? "My workspace" : "Demo workspace")}</span>
               <button
                 type="button"
                 onClick={() => setShowPreferences(true)}

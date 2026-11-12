@@ -28,8 +28,8 @@ export function UserMenuPopover({
 }: UserMenuPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  const displayName = isConnected && userName ? userName : appConfig.user.name;
-  const displayInitial = isConnected && userName ? userName.charAt(0).toUpperCase() : appConfig.user.initial;
+  const displayName = isConnected && userName ? userName : (isConnected ? "User" : "Demo Guest");
+  const displayInitial = isConnected && userName ? userName.charAt(0).toUpperCase() : (isConnected ? "U" : "D");
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -63,7 +63,7 @@ export function UserMenuPopover({
           <p className="text-[13px] font-semibold text-ink leading-tight truncate">{displayName}</p>
           <span className="text-[10px] text-muted flex items-center gap-1 mt-0.5 truncate">
             <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${isConnected ? "bg-forest" : "bg-[#efbd60]"}`} />
-            <span className="truncate">{isConnected ? (userEmail || "Google Connected") : "Not connected"}</span>
+            <span className="truncate">{isConnected ? (userEmail || "Google Connected") : "Demo Preview Mode"}</span>
           </span>
         </div>
       </div>

@@ -2,8 +2,8 @@ export const appConfig = {
   name: process.env.NEXT_PUBLIC_APP_NAME || "Routino",
   tagline: process.env.NEXT_PUBLIC_APP_TAGLINE || "Your daily routine, schedule, and focus in one",
   user: {
-    name: process.env.NEXT_PUBLIC_USER_NAME || "Santhosh",
-    initial: process.env.NEXT_PUBLIC_USER_INITIAL || "S",
+    name: process.env.NEXT_PUBLIC_USER_NAME || "Demo Guest",
+    initial: process.env.NEXT_PUBLIC_USER_INITIAL || "D",
   },
   defaults: {
     focusMinutes: parseInt(process.env.NEXT_PUBLIC_DEFAULT_FOCUS_MINUTES || "90", 10),
@@ -11,8 +11,8 @@ export const appConfig = {
   links: {
     calendar: process.env.NEXT_PUBLIC_CALENDAR_URL || "https://calendar.google.com",
     mail: process.env.NEXT_PUBLIC_MAIL_URL || "https://mail.google.com",
-    github: process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com/Itssanthoshhere",
-    portfolio: process.env.NEXT_PUBLIC_PORTFOLIO_URL || "https://santhosh-vs-portfolio.vercel.app/",
+    github: process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com",
+    portfolio: process.env.NEXT_PUBLIC_PORTFOLIO_URL || "https://example.com",
     drive: process.env.NEXT_PUBLIC_DRIVE_URL || "https://drive.google.com/drive/my-drive",
   },
 };

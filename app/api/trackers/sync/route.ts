@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import { syncSpreadsheetTrackers, SEED_TRACKERS_DATA } from "@/lib/trackersSync";
 import type { TrackersData } from "@/types/dashboard";
 
@@ -8,6 +9,17 @@ const CACHE_TTL_MS = 15 * 1000; // 15 seconds cache for fast live updates
 
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    // When not logged in, NEVER fetch or expose private live Google Sheets!
+    // Return completely anonymized, privacy-safe demo sample data.
+    if (!session?.user?.email) {
+      return NextResponse.json({
+        success: true,
+        source: "demo-sample",
+        data: SEED_TRACKERS_DATA,
+      });
+    }
+
     const { searchParams } = new URL(request.url);
     const force = searchParams.get("force") === "true";
     const now = Date.now();
@@ -44,6 +56,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in to update trackers." },
+        { status: 401 }
+      );
+    }
     const body = await request.json();
     const { action, payload } = body;
 
