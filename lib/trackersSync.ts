@@ -1177,14 +1177,14 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       sNo: 19,
       product: "Furniture Installation Service",
       brand: "Green Soul",
-      model: "Professional On-site Assembly",
-      orderDate: "05-Oct-2026",
+      model: "Furniture Installation Service for Green Soul Surface 2.0 Electric Sit Stand Desk",
+      orderDate: "23-Sep-2026",
       deliveryDate: "06-Oct-2026",
-      seller: "Green Soul Online",
-      price: 999,
-      priceFormatted: "₹999.00",
-      paymentMode: "Card",
-      location: "Green Soul Store",
+      seller: "Amazon",
+      price: 0,
+      priceFormatted: "Free (Included)",
+      paymentMode: "Free",
+      location: "Amazon",
       daysSinceDelivery: 37,
       timeSinceDelivery: "0 Years 1 Months 6 Days",
     },
@@ -1553,8 +1553,11 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
             model = "Electric height-adjustable desk, Digital Display, Memory Preset, Sedentary Alarm, Carbon Fibre, Black, 3 Yr Warranty + Desk Mat";
           }
         } else if ((price === 0 || !price) && prodLower.includes("furniture installation")) {
-          price = 999;
-          priceFormatted = "₹999.00";
+          price = 0;
+          priceFormatted = "Free (Included)";
+          if (!model) {
+            model = "Furniture Installation Service for Green Soul Surface 2.0 Electric Sit Stand Desk";
+          }
         } else if ((price === 0 || !price) && prodLower.includes("multipurpose runner")) {
           price = 899;
           priceFormatted = "₹899.00";
