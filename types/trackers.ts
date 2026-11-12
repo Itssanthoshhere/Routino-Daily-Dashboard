@@ -136,6 +136,18 @@ export type TrackerInvestmentJournal = {
   contributors: InvestmentContributor[];
 };
 
+export type TrackerExpenseJournal = {
+  key: string;
+  title: string;
+  year: number;
+  isFamPay?: boolean;
+  isPG?: boolean;
+  totalSpent: number;
+  totalIncome: number;
+  latestBalance?: number | null;
+  expenses: TrackerExpense[];
+};
+
 export type TrackersData = {
   spreadsheetId: string;
   spreadsheetUrl: string;
@@ -145,6 +157,7 @@ export type TrackersData = {
   categoryBudgets: TrackerCategoryBudget[];
   totalMonthlyBudget: number;
   expenses: TrackerExpense[];
+  journals: Record<string, TrackerExpenseJournal>;
   ebMeta: TrackerEBMeta;
   ebReadings: TrackerEBReading[];
   ebCycles: TrackerEBCycleSummary[];

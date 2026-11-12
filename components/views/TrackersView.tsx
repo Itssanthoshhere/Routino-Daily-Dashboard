@@ -47,6 +47,7 @@ export function TrackersView() {
   const [lastSyncStr, setLastSyncStr] = useState<string>("Just now");
 
   // Filtering states
+  const [selectedJournalKey, setSelectedJournalKey] = useState<string>("2026");
   const [expenseSearch, setExpenseSearch] = useState("");
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState("all");
   const [expenseVisibleCount, setExpenseVisibleCount] = useState<number>(50);
@@ -154,9 +155,33 @@ export function TrackersView() {
   };
 
   /* ── Computed values ── */
+  // Journal sub-sections metadata
+  const journalTabs = useMemo(() => [
+    { key: "2026", label: "2026 Journal", count: data.journals?.["2026"]?.expenses?.length ?? data.expenses.length },
+    { key: "2026-fampay", label: "2026 Fam Pay", count: data.journals?.["2026-fampay"]?.expenses?.length ?? 0 },
+    { key: "2025", label: "2025 Journal", count: data.journals?.["2025"]?.expenses?.length ?? 0 },
+    { key: "2025-fampay", label: "2025 Fam Pay", count: data.journals?.["2025-fampay"]?.expenses?.length ?? 0 },
+    { key: "2024", label: "2024 Journal", count: data.journals?.["2024"]?.expenses?.length ?? 0 },
+    { key: "2024-fampay", label: "2024 Fam Pay", count: data.journals?.["2024-fampay"]?.expenses?.length ?? 0 },
+    { key: "2023", label: "2023 Journal", count: data.journals?.["2023"]?.expenses?.length ?? 0 },
+    { key: "pg", label: "PG Living Expenses", count: data.journals?.["pg"]?.expenses?.length ?? 0 },
+  ], [data.journals, data.expenses]);
+
+  const activeJournal = useMemo(() => {
+    return data.journals?.[selectedJournalKey] || {
+      key: selectedJournalKey,
+      title: "2026 Journal",
+      year: 2026,
+      totalSpent: 0,
+      totalIncome: 0,
+      expenses: data.expenses,
+    };
+  }, [data.journals, selectedJournalKey, data.expenses]);
+
   // Expenses filtering & robust sorting (latest on top)
   const filteredExpenses = useMemo(() => {
-    const list = data.expenses.filter((exp) => {
+    const rawList = activeJournal.expenses || [];
+    const list = rawList.filter((exp) => {
       const matchesSearch =
         exp.item.toLowerCase().includes(expenseSearch.toLowerCase()) ||
         exp.category.toLowerCase().includes(expenseSearch.toLowerCase()) ||
@@ -184,7 +209,7 @@ export function TrackersView() {
       }
       return 0;
     });
-  }, [data.expenses, expenseSearch, expenseCategoryFilter]);
+  }, [activeJournal.expenses, expenseSearch, expenseCategoryFilter]);
 
   // Category Budgets sorted (active & highest budget on top)
   const sortedCategoryBudgets = useMemo(() => {
@@ -198,16 +223,16 @@ export function TrackersView() {
   // Unique expense categories for filter chips
   const expenseCategories = useMemo(() => {
     const set = new Set<string>();
-    data.expenses.forEach((e) => {
+    (activeJournal.expenses || []).forEach((e) => {
       if (e.category) set.add(e.category);
     });
-    return Array.from(set).slice(0, 10);
-  }, [data.expenses]);
+    return Array.from(set).slice(0, 12);
+  }, [activeJournal.expenses]);
 
-  // Total expenses recorded in 2026
-  const total2026Expense = useMemo(() => {
-    return data.expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
-  }, [data.expenses]);
+  // Total expenses recorded in active journal
+  const totalActiveJournalExpense = useMemo(() => {
+    return (activeJournal.expenses || []).reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  }, [activeJournal.expenses]);
 
   // EB readings filtered & sorted (recent on top to bottom)
   const filteredReadings = useMemo(() => {
@@ -521,36 +546,84 @@ export function TrackersView() {
       ═══════════════════════════════════════════════════════════ */}
       {activeTab === "expenses" && (
         <div className="space-y-6">
-          {/* Top KPI Cards */}
+          {/* Sub-Section Journal Selector */}
+          <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-[13.5px] font-bold text-ink">Expense Journals & Archives</h3>
+                <p className="text-[11px] text-muted">Select yearly ledger or FamPay / PG journals</p>
+              </div>
+              <span className="text-[11px] font-semibold text-forest bg-[#f0f2eb] px-2.5 py-1 rounded-lg self-start sm:self-auto">
+                Viewing: {activeJournal.title}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
+              {journalTabs.map((j) => (
+                <button
+                  key={j.key}
+                  onClick={() => {
+                    setSelectedJournalKey(j.key);
+                    setExpenseVisibleCount(50);
+                    setExpenseCategoryFilter("all");
+                  }}
+                  className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-[11.5px] font-semibold whitespace-nowrap transition cursor-pointer ${
+                    selectedJournalKey === j.key
+                      ? "bg-forest text-white shadow-xs"
+                      : "bg-[#fbfcf9] border border-line text-muted hover:bg-[#f1f3ed] hover:text-ink"
+                  }`}
+                >
+                  <span>{j.label}</span>
+                  {j.count > 0 && (
+                    <span
+                      className={`rounded-full px-1.5 py-0.2 text-[9.5px] font-bold ${
+                        selectedJournalKey === j.key ? "bg-white/20 text-white" : "bg-[#eff1ec] text-[#556056]"
+                      }`}
+                    >
+                      {j.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Top KPI Cards for Selected Journal */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Monthly Budget</span>
-              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">₹{data.totalMonthlyBudget.toLocaleString()}</p>
-              <p className="mt-1 text-[10.5px] text-muted">Target monthly spending</p>
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Total Recorded Spent</span>
+              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">
+                ₹{(activeJournal.totalSpent || totalActiveJournalExpense).toLocaleString()}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">In {activeJournal.title}</p>
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">2026 Ledger Entries</span>
-              <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">{data.expenses.length}</p>
-              <p className="mt-1 text-[10.5px] text-muted">Total recorded debits & credits</p>
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Journal Entries</span>
+              <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">{activeJournal.expenses.length}</p>
+              <p className="mt-1 text-[10.5px] text-muted">Recorded debits & credits</p>
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Latest Balance</span>
               <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">
-                {data.expenses[0]?.balance ? `₹${data.expenses[0].balance.toLocaleString()}` : "₹1,617"}
+                {activeJournal.latestBalance !== null && activeJournal.latestBalance !== undefined
+                  ? `₹${activeJournal.latestBalance.toLocaleString()}`
+                  : "—"}
               </p>
-              <p className="mt-1 text-[10.5px] text-muted">As per latest ledger entry</p>
+              <p className="mt-1 text-[10.5px] text-muted">As per latest transaction</p>
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Active Categories</span>
-              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">{data.categoryBudgets.length}</p>
-              <p className="mt-1 text-[10.5px] text-muted">Budgets configured</p>
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Total Income / Credits</span>
+              <p className="mt-1 text-[22px] font-bold text-[#059669] tracking-tight">
+                ₹{(activeJournal.totalIncome || 0).toLocaleString()}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">Recorded credits</p>
             </div>
           </div>
 
-          {/* Category Budgets Grid */}
+          {/* Category Budgets Grid (for 2026 or active budget) */}
           <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -585,7 +658,7 @@ export function TrackersView() {
             <div className="p-4 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#fbfcf8]">
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-[13px] font-bold text-ink">2026 Expense Journal</h4>
+                  <h4 className="text-[13px] font-bold text-ink">{activeJournal.title}</h4>
                   <span className="rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 text-[9.5px] font-bold text-[#047857]">
                     Latest on top
                   </span>

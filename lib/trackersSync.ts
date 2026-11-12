@@ -9,6 +9,7 @@ import type {
   TrackerLifeStats,
   TrackerPurchase,
   TrackerInvestmentJournal,
+  TrackerExpenseJournal,
   UniversityYearFee,
   EducationLevelSummary,
   InvestmentContributor,
@@ -81,6 +82,106 @@ function parseGVizDate(cell: GVizCell | null | undefined): string {
   return raw;
 }
 
+export function parseExpenseJournalRows(
+  rows: GVizRow[] | undefined,
+  journalKey: string,
+  is2023 = false
+): TrackerExpense[] {
+  const result: TrackerExpense[] = [];
+  if (!rows) return result;
+
+  rows.forEach((row, idx) => {
+    const item = parseString(row.c[1]);
+    const amt = row.c[2] ? parseNumber(row.c[2].v ?? row.c[2].f) : 0;
+    const inc = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : null;
+    if (!item && !amt && !inc) return;
+
+    const year = row.c[0] ? parseNumber(row.c[0].v ?? row.c[0].f) : parseInt(journalKey.slice(0, 4), 10) || 2026;
+    const day = is2023
+      ? (row.c[4] ? parseNumber(row.c[4].v ?? row.c[4].f) : undefined)
+      : (row.c[5] ? parseNumber(row.c[5].v ?? row.c[5].f) : undefined);
+    const month = is2023
+      ? (row.c[5] ? parseNumber(row.c[5].v ?? row.c[5].f) : undefined)
+      : (row.c[6] ? parseNumber(row.c[6].v ?? row.c[6].f) : undefined);
+    const dateStr = is2023
+      ? (parseString(row.c[6]) || parseGVizDate(row.c[6]))
+      : (parseString(row.c[7]) || parseGVizDate(row.c[7]));
+    const cat = is2023
+      ? (parseString(row.c[7]) || "General")
+      : (parseString(row.c[8]) || "General");
+    const notes = is2023 ? parseString(row.c[8]) : parseString(row.c[9]);
+    const bal = is2023
+      ? (row.c[9] ? parseNumber(row.c[9].v ?? row.c[9].f) : null)
+      : (row.c[10] ? parseNumber(row.c[10].v ?? row.c[10].f) : null);
+
+    result.push({
+      id: `${journalKey}-${idx}`,
+      year,
+      day,
+      month,
+      item: item || (inc ? "Income" : "Expense"),
+      amount: amt,
+      income: inc,
+      dateStr: dateStr || String(year),
+      category: cat,
+      notes,
+      balance: bal,
+    });
+  });
+
+  // Recent entries on top
+  result.reverse();
+  return result;
+}
+
+const SEED_2026_EXPENSES: TrackerExpense[] = [
+  {
+    id: "exp-1",
+    year: 2026,
+    item: "Cool drinks",
+    amount: 50,
+    dateStr: "31-Oct-2026",
+    category: "Food and Grocery",
+    balance: 1617,
+  },
+  {
+    id: "exp-2",
+    year: 2026,
+    item: "Dinner",
+    amount: 190,
+    dateStr: "31-Oct-2026",
+    category: "Dinner",
+    balance: 1667,
+  },
+  {
+    id: "exp-3",
+    year: 2026,
+    item: "Cab",
+    amount: 1400,
+    dateStr: "31-Oct-2026",
+    category: "Commute",
+    balance: 1857,
+  },
+  {
+    id: "exp-4",
+    year: 2026,
+    item: "Cab",
+    amount: 1440,
+    dateStr: "31-Oct-2026",
+    category: "Commute",
+    balance: 3257,
+  },
+  {
+    id: "exp-5",
+    year: 2026,
+    item: "Debited",
+    amount: 500,
+    dateStr: "30-Oct-2026",
+    category: "Sent",
+    balance: 4697,
+  },
+];
+
 /* ── Fallback Seed Data (from user's real sheet) ── */
 export const SEED_TRACKERS_DATA: TrackersData = {
   spreadsheetId: GOOGLE_SHEET_ID,
@@ -101,53 +202,85 @@ export const SEED_TRACKERS_DATA: TrackersData = {
     { category: "Others", budget: 2400 },
     { category: "Utilities", budget: 2000 },
   ],
-  expenses: [
-    {
-      id: "exp-1",
+  expenses: SEED_2026_EXPENSES,
+  journals: {
+    "2026": {
+      key: "2026",
+      title: "2026 Journal",
       year: 2026,
-      item: "Cool drinks",
-      amount: 50,
-      dateStr: "31-Oct-2026",
-      category: "Food and Grocery",
-      balance: 1617,
+      totalSpent: 3580,
+      totalIncome: 0,
+      latestBalance: 1617,
+      expenses: SEED_2026_EXPENSES,
     },
-    {
-      id: "exp-2",
+    "2026-fampay": {
+      key: "2026-fampay",
+      title: "2026 Fam Pay",
       year: 2026,
-      item: "Dinner",
-      amount: 190,
-      dateStr: "31-Oct-2026",
-      category: "Dinner",
-      balance: 1667,
+      isFamPay: true,
+      totalSpent: 2106,
+      totalIncome: 0,
+      latestBalance: null,
+      expenses: [],
     },
-    {
-      id: "exp-3",
+    "2025": {
+      key: "2025",
+      title: "2025 Journal",
+      year: 2025,
+      totalSpent: 2615,
+      totalIncome: 0,
+      latestBalance: 2027,
+      expenses: [],
+    },
+    "2025-fampay": {
+      key: "2025-fampay",
+      title: "2025 Fam Pay",
+      year: 2025,
+      isFamPay: true,
+      totalSpent: 10,
+      totalIncome: 200,
+      latestBalance: null,
+      expenses: [],
+    },
+    "2024": {
+      key: "2024",
+      title: "2024 Journal",
+      year: 2024,
+      totalSpent: 200,
+      totalIncome: 200,
+      latestBalance: null,
+      expenses: [],
+    },
+    "2024-fampay": {
+      key: "2024-fampay",
+      title: "2024 Fam Pay",
+      year: 2024,
+      isFamPay: true,
+      totalSpent: 10,
+      totalIncome: 260,
+      latestBalance: 9238,
+      expenses: [],
+    },
+    "2023": {
+      key: "2023",
+      title: "2023 Journal",
+      year: 2023,
+      totalSpent: 456,
+      totalIncome: 2100,
+      latestBalance: 1971,
+      expenses: [],
+    },
+    "pg": {
+      key: "pg",
+      title: "PG Expenses",
       year: 2026,
-      item: "Cab",
-      amount: 1400,
-      dateStr: "31-Oct-2026",
-      category: "Commute",
-      balance: 1857,
+      isPG: true,
+      totalSpent: 7490,
+      totalIncome: 18000,
+      latestBalance: 10281,
+      expenses: [],
     },
-    {
-      id: "exp-4",
-      year: 2026,
-      item: "Cab",
-      amount: 1440,
-      dateStr: "31-Oct-2026",
-      category: "Commute",
-      balance: 3257,
-    },
-    {
-      id: "exp-5",
-      year: 2026,
-      item: "Debited",
-      amount: 500,
-      dateStr: "30-Oct-2026",
-      category: "Sent",
-      balance: 4697,
-    },
-  ],
+  },
   ebMeta: {
     rateTillSep: 10,
     currentRate: 12,
@@ -419,17 +552,39 @@ export const SEED_TRACKERS_DATA: TrackersData = {
 /* ── Live Syncer ── */
 export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
   try {
-    const [budgetData, expenseData, summaryData, readingsData, placementData, purchaseData, timeData, investmentData] =
-      await Promise.all([
-        fetchGVizSheet("Category Budget"),
-        fetchGVizSheet("2026 Expense Journal"),
-        fetchGVizSheet("Summary"),
-        fetchGVizSheet("Readings"),
-        fetchGVizSheet("Placement Tracker"),
-        fetchGVizSheet("Purchase Summary"),
-        fetchGVizSheet("Time Spent on Earth"),
-        fetchGVizSheet("Investment Journal"),
-      ]);
+    const [
+      budgetData,
+      exp2026Data,
+      exp2026FamPayData,
+      exp2025Data,
+      exp2025FamPayData,
+      exp2024Data,
+      exp2024FamPayData,
+      exp2023Data,
+      expPgData,
+      summaryData,
+      readingsData,
+      placementData,
+      purchaseData,
+      timeData,
+      investmentData,
+    ] = await Promise.all([
+      fetchGVizSheet("Category Budget"),
+      fetchGVizSheet("2026 Expense Journal"),
+      fetchGVizSheet("2026 Fam Pay Expense Journal"),
+      fetchGVizSheet("2025 Expense Journal"),
+      fetchGVizSheet("2025 Fam Pay Expense Journal"),
+      fetchGVizSheet("2024 Expense Journal"),
+      fetchGVizSheet("2024 Fam Pay Expense Journal"),
+      fetchGVizSheet("2023 Expense Journal"),
+      fetchGVizSheet("PG Expense Journal"),
+      fetchGVizSheet("Summary"),
+      fetchGVizSheet("Readings"),
+      fetchGVizSheet("Placement Tracker"),
+      fetchGVizSheet("Purchase Summary"),
+      fetchGVizSheet("Time Spent on Earth"),
+      fetchGVizSheet("Investment Journal"),
+    ]);
 
     // Parse Category Budget
     let totalMonthlyBudget = 7500;
@@ -449,41 +604,50 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       });
     }
 
-    // Parse Expenses
-    const expenses: TrackerExpense[] = [];
-    if (expenseData?.table?.rows) {
-      expenseData.table.rows.forEach((row, idx) => {
-        const item = parseString(row.c[1]);
-        const amt = row.c[2] ? parseNumber(row.c[2].v ?? row.c[2].f) : 0;
-        const inc = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : null;
-        if (!item && !amt && !inc) return;
+    // Parse All Expense Journals (2023 to 2026, FamPay, PG)
+    const j2026 = parseExpenseJournalRows(exp2026Data?.table?.rows, "2026");
+    const j2026FamPay = parseExpenseJournalRows(exp2026FamPayData?.table?.rows, "2026-fampay");
+    const j2025 = parseExpenseJournalRows(exp2025Data?.table?.rows, "2025");
+    const j2025FamPay = parseExpenseJournalRows(exp2025FamPayData?.table?.rows, "2025-fampay");
+    const j2024 = parseExpenseJournalRows(exp2024Data?.table?.rows, "2024");
+    const j2024FamPay = parseExpenseJournalRows(exp2024FamPayData?.table?.rows, "2024-fampay");
+    const j2023 = parseExpenseJournalRows(exp2023Data?.table?.rows, "2023", true);
+    const jPg = parseExpenseJournalRows(expPgData?.table?.rows, "pg");
 
-        const year = row.c[0] ? parseNumber(row.c[0].v ?? row.c[0].f) : 2026;
-        const day = row.c[5] ? parseNumber(row.c[5].v ?? row.c[5].f) : undefined;
-        const month = row.c[6] ? parseNumber(row.c[6].v ?? row.c[6].f) : undefined;
-        const dateStr = parseString(row.c[7]) || parseGVizDate(row.c[7]);
-        const cat = parseString(row.c[8]) || "General";
-        const notes = parseString(row.c[9]);
-        const bal = row.c[10] ? parseNumber(row.c[10].v ?? row.c[10].f) : null;
+    const makeJournal = (
+      key: string,
+      title: string,
+      year: number,
+      expList: TrackerExpense[],
+      extra?: { isFamPay?: boolean; isPG?: boolean }
+    ): TrackerExpenseJournal => {
+      const totalSpent = expList.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+      const totalIncome = expList.reduce((acc, curr) => acc + (curr.income || 0), 0);
+      const latestBalance = expList.find((e) => e.balance !== null && e.balance !== undefined)?.balance ?? null;
+      return {
+        key,
+        title,
+        year,
+        totalSpent,
+        totalIncome,
+        latestBalance,
+        expenses: expList,
+        ...extra,
+      };
+    };
 
-        expenses.push({
-          id: `exp-${idx}`,
-          year,
-          day,
-          month,
-          item: item || (inc ? "Income" : "Expense"),
-          amount: amt,
-          income: inc,
-          dateStr: dateStr || "2026",
-          category: cat,
-          notes,
-          balance: bal,
-        });
-      });
+    const journals: Record<string, TrackerExpenseJournal> = {
+      "2026": makeJournal("2026", "2026 Journal", 2026, j2026.length > 0 ? j2026 : SEED_2026_EXPENSES),
+      "2026-fampay": makeJournal("2026-fampay", "2026 Fam Pay", 2026, j2026FamPay, { isFamPay: true }),
+      "2025": makeJournal("2025", "2025 Journal", 2025, j2025),
+      "2025-fampay": makeJournal("2025-fampay", "2025 Fam Pay", 2025, j2025FamPay, { isFamPay: true }),
+      "2024": makeJournal("2024", "2024 Journal", 2024, j2024),
+      "2024-fampay": makeJournal("2024-fampay", "2024 Fam Pay", 2024, j2024FamPay, { isFamPay: true }),
+      "2023": makeJournal("2023", "2023 Journal", 2023, j2023),
+      "pg": makeJournal("pg", "PG Expenses", 2026, jPg, { isPG: true }),
+    };
 
-      // Ensure latest entries from the spreadsheet are on top
-      expenses.reverse();
-    }
+    const expenses = journals["2026"].expenses;
 
     // Parse EB Summary & Meta
     const ebMeta: TrackerEBMeta = {
@@ -697,7 +861,8 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       isLive: true,
       totalMonthlyBudget: totalMonthlyBudget || 7500,
       categoryBudgets: categoryBudgets.length > 0 ? categoryBudgets : SEED_TRACKERS_DATA.categoryBudgets,
-      expenses: expenses.length > 0 ? expenses : SEED_TRACKERS_DATA.expenses,
+      expenses,
+      journals,
       ebMeta,
       ebReadings: ebReadings.length > 0 ? ebReadings : SEED_TRACKERS_DATA.ebReadings,
       ebCycles: ebCycles.length > 0 ? ebCycles : SEED_TRACKERS_DATA.ebCycles,
