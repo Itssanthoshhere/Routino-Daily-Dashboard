@@ -58,6 +58,7 @@ export type TrackerJobApplication = {
   source: string;
   status: string;
   lastUpdate?: string;
+  lastUpdatedDate?: string;
   recruiter?: string;
   interviewStage?: string;
   notes?: string;

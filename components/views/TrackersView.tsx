@@ -45,6 +45,17 @@ import { SEED_TRACKERS_DATA } from "@/lib/trackersSync";
 
 type TabKey = "eb" | "expenses" | "tokens" | "investments" | "placements" | "life" | "purchases";
 
+function formatPlacementDate(dateStr?: string): string {
+  if (!dateStr || !dateStr.trim()) return "Recently";
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const [y, m, d] = trimmed.split("-").map(Number);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${d} ${months[m - 1]} ${y}`;
+  }
+  return trimmed;
+}
+
 export function TrackersView() {
   const [activeTab, setActiveTab] = useState<TabKey>("eb");
   const [data, setData] = useState<TrackersData>(SEED_TRACKERS_DATA);
@@ -1786,7 +1797,7 @@ export function TrackersView() {
 
                     <div className="mt-2.5 pt-2 border-t border-[#f0f2eb] flex items-center justify-between text-[10px] text-muted">
                       <span className="font-medium text-forest">{app.source}</span>
-                      <span>Applied: {app.appliedDate}</span>
+                      <span className="font-medium text-ink">Applied: {formatPlacementDate(app.appliedDate)}</span>
                     </div>
                   </div>
                 ))}
@@ -1912,7 +1923,7 @@ export function TrackersView() {
                   <span className="flex items-center gap-1">
                     <Building2 size={12} /> {job.source}
                   </span>
-                  <span>Applied: {job.appliedDate}</span>
+                  <span className="font-semibold text-ink">Applied: {formatPlacementDate(job.appliedDate)}</span>
                 </div>
               </div>
             ))}
