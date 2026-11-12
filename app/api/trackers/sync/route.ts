@@ -4,7 +4,7 @@ import type { TrackersData } from "@/types/dashboard";
 
 let cachedData: TrackersData | null = null;
 let lastFetchTime = 0;
-const CACHE_TTL_MS = 60 * 1000; // 1 minute
+const CACHE_TTL_MS = 15 * 1000; // 15 seconds cache for fast live updates
 
 export async function GET(request: Request) {
   try {

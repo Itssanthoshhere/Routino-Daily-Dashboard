@@ -422,14 +422,36 @@ export default function Home() {
   /* ── Fetch live data from Google OAuth ── */
   useEffect(() => {
     let active = true;
-    fetch("/api/dashboard", { cache: "no-store" }).then(async r => {
-      const result = await r.json();
-      if (active && result.connected) {
-        setLiveData(result as DashboardData);
-        setGoogleMail(result.unread || []);
+    const fetchDashboard = () => {
+      fetch("/api/dashboard", { cache: "no-store" })
+        .then(async (r) => {
+          const result = await r.json();
+          if (active && result.connected) {
+            setLiveData(result as DashboardData);
+            setGoogleMail(result.unread || []);
+          }
+        })
+        .catch(() => undefined);
+    };
+
+    fetchDashboard();
+
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === "visible") {
+        fetchDashboard();
       }
-    }).catch(() => undefined);
-    return () => { active = false; };
+    };
+
+    window.addEventListener("focus", onFocusOrVisible);
+    document.addEventListener("visibilitychange", onFocusOrVisible);
+    const interval = setInterval(onFocusOrVisible, 60 * 1000);
+
+    return () => {
+      active = false;
+      window.removeEventListener("focus", onFocusOrVisible);
+      document.removeEventListener("visibilitychange", onFocusOrVisible);
+      clearInterval(interval);
+    };
   }, []);
 
   /* ── Fetch live data from Microsoft Outlook ── */
@@ -456,6 +478,19 @@ export default function Home() {
 
   useEffect(() => {
     void fetchOutlookData();
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === "visible") {
+        void fetchOutlookData();
+      }
+    };
+    window.addEventListener("focus", onFocusOrVisible);
+    document.addEventListener("visibilitychange", onFocusOrVisible);
+    const interval = setInterval(onFocusOrVisible, 60 * 1000);
+    return () => {
+      window.removeEventListener("focus", onFocusOrVisible);
+      document.removeEventListener("visibilitychange", onFocusOrVisible);
+      clearInterval(interval);
+    };
   }, [fetchOutlookData]);
 
   // Handle post-redirect toast when returning from Outlook OAuth

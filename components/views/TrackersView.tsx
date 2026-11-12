@@ -101,33 +101,60 @@ export function TrackersView() {
   const [newExpenseCategory, setNewExpenseCategory] = useState("Food and Grocery");
   const [newExpenseNotes, setNewExpenseNotes] = useState("");
 
-  // Sync handler
-  const handleSync = useCallback(async (force = true) => {
-    setIsSyncing(true);
+  // Auto-sync preferences
+  const [autoSyncIntervalSec, setAutoSyncIntervalSec] = useState<number>(30); // 30s background auto-sync
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(true);
+
+  // Sync handler (supports silent background sync without locking UI)
+  const handleSync = useCallback(async (force = true, isSilent = false) => {
+    if (!isSilent) setIsSyncing(true);
     setSyncError(null);
     try {
-      const res = await fetch(`/api/trackers/sync${force ? "?force=true" : ""}`);
+      const res = await fetch(`/api/trackers/sync${force ? "?force=true" : ""}`, { cache: "no-store" });
       const json = await res.json();
       if (json.success && json.data) {
         setData(json.data);
-        setLastSyncStr(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        setLastSyncStr(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       } else {
-        setSyncError(json.error || "Could not sync latest rows.");
+        if (!isSilent) setSyncError(json.error || "Could not sync latest rows.");
       }
-    } catch (err) {
-      setSyncError("Network error while syncing Google Sheet.");
+    } catch {
+      if (!isSilent) setSyncError("Network error while syncing Google Sheet.");
     } finally {
-      setIsSyncing(false);
+      if (!isSilent) setIsSyncing(false);
     }
   }, []);
 
-  // Auto-sync on mount and background refresh every 10 minutes
+  // 1. Initial sync on mount
   useEffect(() => {
     handleSync(false);
+  }, [handleSync]);
+
+  // 2. Active background polling interval (every 30s when tab is visible)
+  useEffect(() => {
+    if (!autoSyncEnabled || autoSyncIntervalSec <= 0) return;
     const interval = setInterval(() => {
-      handleSync(false);
-    }, 10 * 60 * 1000);
+      if (document.visibilityState === "visible") {
+        handleSync(true, true);
+      }
+    }, autoSyncIntervalSec * 1000);
     return () => clearInterval(interval);
+  }, [autoSyncEnabled, autoSyncIntervalSec, handleSync]);
+
+  // 3. Tab Visibility & Window Focus: Sync automatically without refreshing when switching back from Google Sheets!
+  useEffect(() => {
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === "visible") {
+        handleSync(true, true);
+      }
+    };
+
+    window.addEventListener("focus", onFocusOrVisible);
+    document.addEventListener("visibilitychange", onFocusOrVisible);
+    return () => {
+      window.removeEventListener("focus", onFocusOrVisible);
+      document.removeEventListener("visibilitychange", onFocusOrVisible);
+    };
   }, [handleSync]);
 
   // Submit new EB reading
@@ -423,17 +450,40 @@ export function TrackersView() {
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-[20px] font-bold text-ink tracking-tight">Trackers Hub</h2>
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2.5 py-0.5 text-[10.5px] font-bold text-[#047857]">
+            <span
+              title={`Live background auto-sync active (every ${autoSyncIntervalSec}s + on tab switch)`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2.5 py-0.5 text-[10.5px] font-bold text-[#047857]"
+            >
               <span className="h-1.5 w-1.5 rounded-full bg-[#10b981] animate-pulse" />
-              Live Sync
+              Live Auto-Sync {autoSyncIntervalSec > 0 ? `(${autoSyncIntervalSec}s)` : "Active"}
             </span>
           </div>
           <p className="mt-1 text-[12px] text-muted">
-            Personal ledger, PG electricity readings, job applications & life metrics synced from Google Sheets.
+            Personal ledger, PG electricity, tokens, career & life metrics synced live from Google Sheets · Last synced: {lastSyncStr}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {/* Auto-Sync interval selector */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-medium text-ink shadow-xs">
+            <span className="text-muted text-[10.5px]">Auto:</span>
+            <select
+              value={autoSyncIntervalSec}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                setAutoSyncIntervalSec(val);
+                setAutoSyncEnabled(val > 0);
+              }}
+              className="bg-transparent font-semibold text-forest focus:outline-none cursor-pointer"
+            >
+              <option value="15">15s (Fast)</option>
+              <option value="30">30s (Default)</option>
+              <option value="60">1m</option>
+              <option value="300">5m</option>
+              <option value="0">Off (Manual)</option>
+            </select>
+          </div>
+
           <a
             href={data.spreadsheetUrl}
             target="_blank"
@@ -444,12 +494,12 @@ export function TrackersView() {
           </a>
 
           <button
-            onClick={() => handleSync(true)}
+            onClick={() => handleSync(true, false)}
             disabled={isSyncing}
-            className="inline-flex items-center gap-2 rounded-xl bg-forest px-3.5 py-2 text-[12px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-forest px-3.5 py-2 text-[12px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition disabled:opacity-60 cursor-pointer"
           >
             <RefreshCw size={13} className={isSyncing ? "animate-spin" : ""} />
-            {isSyncing ? "Syncing..." : "Sync Sheet"}
+            {isSyncing ? "Syncing..." : "Sync Now"}
           </button>
         </div>
       </div>
