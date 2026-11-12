@@ -31,6 +31,7 @@ import {
   Key,
   ShieldCheck,
   Copy,
+  Activity,
 } from "lucide-react";
 import type {
   TrackersData,
@@ -374,6 +375,31 @@ export function TrackersView() {
     );
   }, [data.ebCycles]);
 
+  // EB Smart Insights: daily burn rate, forecast, and roommate division
+  const ebInsights = useMemo(() => {
+    const cycle = runningEbCycle;
+    const unitsUsed = cycle?.unitsUsed ?? 0;
+    const rate = data.ebMeta.currentRate || 10;
+    const people = cycle?.peopleSharing || 2;
+
+    const now = new Date();
+    const daysElapsed = Math.max(1, now.getDate());
+    const burnRate = Number((unitsUsed / daysElapsed).toFixed(2));
+    const projectedUnits = Math.max(unitsUsed, Math.round(burnRate * 30));
+    const projectedTotal = projectedUnits * rate;
+    const projectedShare = Math.round(projectedTotal / people);
+    const projectedEndMeter = displayLatestReading + Math.max(0, projectedUnits - unitsUsed);
+
+    return {
+      daysElapsed,
+      burnRate,
+      projectedUnits,
+      projectedTotal,
+      projectedShare,
+      projectedEndMeter,
+    };
+  }, [runningEbCycle, data.ebMeta.currentRate, displayLatestReading]);
+
   // Placement applications filtered
   const filteredPlacements = useMemo(() => {
     return data.jobApplications.filter((job) => {
@@ -615,6 +641,58 @@ export function TrackersView() {
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">My Share (Running)</span>
               <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">₹{runningEbCycle?.myShare ?? 0}</p>
               <p className="mt-1 text-[10.5px] text-muted">{runningEbCycle?.peopleSharing || 2} People Sharing</p>
+            </div>
+          </div>
+
+          {/* Smart EB Consumption & 30-Day Forecast */}
+          <div className="rounded-2xl border border-line bg-linear-to-br from-[#fafbf7] to-white p-4 sm:p-5 shadow-card">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-line/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-8 w-8 place-items-center rounded-xl bg-[#ecfdf5] text-[#047857]">
+                  <Activity size={16} />
+                </div>
+                <div>
+                  <h4 className="text-[13px] font-bold text-ink">Smart Consumption Insights & 30-Day Forecast</h4>
+                  <p className="text-[11px] text-muted">Daily burn velocity and projected month-end settlement</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f0f2eb] px-2.5 py-1 text-[10.5px] font-semibold text-ink">
+                50/50 Roommate Division
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-4 sm:grid-cols-4">
+              <div>
+                <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider block">Daily Burn Rate</span>
+                <p className="mt-1 text-[20px] font-extrabold text-ink tracking-tight">
+                  {ebInsights.burnRate} <span className="text-[12px] font-normal text-muted">units/day</span>
+                </p>
+                <p className="text-[10px] text-muted mt-0.5">Over past {ebInsights.daysElapsed} days of active readings</p>
+              </div>
+
+              <div>
+                <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider block">Projected 30d Units</span>
+                <p className="mt-1 text-[20px] font-extrabold text-[#b45309] tracking-tight">
+                  ~{ebInsights.projectedUnits} <span className="text-[12px] font-normal text-muted">units</span>
+                </p>
+                <p className="text-[10px] text-muted mt-0.5">Projected final meter reading: ~{ebInsights.projectedEndMeter}</p>
+              </div>
+
+              <div>
+                <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider block">Projected Total Bill</span>
+                <p className="mt-1 text-[20px] font-extrabold text-ink tracking-tight">
+                  ₹{ebInsights.projectedTotal}
+                </p>
+                <p className="text-[10px] text-muted mt-0.5">At ₹{data.ebMeta.currentRate}/unit for full room</p>
+              </div>
+
+              <div>
+                <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider block">Projected My Share</span>
+                <p className="mt-1 text-[20px] font-extrabold text-forest tracking-tight">
+                  ₹{ebInsights.projectedShare}
+                </p>
+                <p className="text-[10px] text-[#059669] font-medium mt-0.5">Roommate share: ₹{ebInsights.projectedTotal - ebInsights.projectedShare}</p>
+              </div>
             </div>
           </div>
 
