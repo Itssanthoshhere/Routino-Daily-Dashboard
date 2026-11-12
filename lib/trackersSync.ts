@@ -1266,11 +1266,11 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       },
     ],
     contributors: [
-      { name: "Family Sponsor (Higher Ed Fund)", amount: 100000, status: "Paid" },
-      { name: "Family Contributor (Semester Support)", amount: 60000, status: "Paid" },
-      { name: "Parental Education Allocation", amount: 50000, status: "Paid" },
-      { name: "Family Sponsor (Academic Grant)", amount: 40000, status: "Paid" },
-      { name: "Supporter Pledge (Upcoming Cycle)", amount: 30000, status: "Pending" },
+      { name: "Gopal", amount: 100000, status: "Paid" },
+      { name: "Ganesh Uncle", amount: 60000, status: "Paid" },
+      { name: "Vanitha", amount: 50000, status: "Paid" },
+      { name: "Pavithra daddy", amount: 40000, status: "Paid" },
+      { name: "Jayan", amount: 30000, status: "Paid" },
     ],
   },
   antigravityTokens: SEED_ANTIGRAVITY_TOKENS,
@@ -1700,12 +1700,13 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
             if (investments.levels[4]) investments.levels[4].totalExpense = amt;
           }
         } else {
-          // Check contributor names
+          // Check contributor names from sheet (e.g. Vanitha, Gopal, Jayan, Ganesh Uncle, Pavithra daddy)
           const contributor = investments.contributors.find((c) =>
-            c0.toLowerCase().includes(c.name.toLowerCase())
+            c0.toLowerCase().includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(c0.toLowerCase())
           );
           if (contributor && amt > 0) {
             contributor.amount = amt;
+            contributor.status = "Paid";
           }
         }
       });
