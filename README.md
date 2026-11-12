@@ -12,6 +12,9 @@
     <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
       <img src="https://img.shields.io/badge/Google_Access-Gmail,_Calendar_&_Drive_Metadata-6f8a61?style=for-the-badge&logo=google&logoColor=white" alt="Read-only Gmail, Calendar, and Drive metadata access" />
     </a>
+    <a href="https://github.com/Itssanthoshhere/Routino-Daily-Dashboard">
+      <img src="https://img.shields.io/badge/Trackers-Google_Sheets_Live_Sync-059669?style=for-the-badge&logo=googlesheets&logoColor=white" alt="Google Sheets Live Sync" />
+    </a>
     <a href="LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT License" />
     </a>
@@ -62,6 +65,9 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 | **Notes & Scratchpad** | Google Keep-style notes, checklists, compressed images, priorities, drag-and-drop, and zero-knowledge AES-256 vault | Web Crypto API, Local storage & database sync |
 | **Focus Plan & Timer** | Focus timer with ambient soundscapes (Rain, Waves, Brown Noise, Forest, Café) and volume control | Synthesized Web Audio API |
 | **Daily Micro-Habits** | Streak tracking, completion history, local date calculation, and hydration tracker | Local storage & database sync |
+| **Trackers Quick Snapshot** | Executive pulse widget on Overview: token availability, EB burn rate, budget burn-down, and pipeline alerts | Live Google Sheets sync or local cache |
+| **Trackers Hub** | Full multi-tab operations center: Antigravity Tokens, PG Electricity (EB) Meter, Expense Journals, Career Pipelines, Investment Journal, and Hardware Inventory | Google Sheets GViz API (`/api/trackers/sync`) & offline demo seed |
+| **Time Audit** | Automated past 90-day time allocation by category (Sleep, Study/Work, Social, Gaming, Routine, Travel) | Google Apps Script sync to Google Sheets |
 | **Quick Links** | Shortcuts to Calendar, Gmail, Outlook, GitHub, Portfolio, and Drive | User-configurable with custom modal & persistent links |
 | **Preferences & Settings** | Routine defaults, focus durations, audio feedback, JSON export/import, and Outlook connection | Dedicated Preferences modal and DB sync |
 
@@ -137,6 +143,48 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 - `?` - Toggle Keyboard Shortcuts Sheet
 - `Esc` - Close any active modal or popover
 
+### 12. 📊 Trackers Hub: Multi-Stream Personal Operations Center
+Routino integrates a high-performance **Trackers Hub** providing unified visibility across utility meters, account tokens, personal budgets, career pipelines, hardware assets, and educational investments:
+- **Antigravity Token Management**: Real-time monitoring across 6 Chrome profiles (36 accounts total). Features a one-click **"Copy Next Ready"** button that directly copies the next available token email with instant clipboard feedback, **"Copy All Ready"** bulk copy, profile filter chips, and countdowns.
+- **PG Electricity (EB) Meter & 30-Day Forecast**: Tracks sub-meter readings, daily burn velocity (`~1.92 u/day`), automated 50/50 roommate cost splitting, and projected month-end settlement (`₹580` total / `₹290` share). Includes a quick logger modal for new meter readings.
+- **Expense & Monthly Budget Journals**: Multi-year financial ledger (`2026`, `2026-fampay`, `2025`, `2024`, `2023`, `PG`) with a dynamic **Monthly Budget Burn-down Progress Bar** against a planned ₹7,500 monthly limit. Color-coded spend threshold warnings (emerald <70%, amber 70-90%, rose >90%), category breakdown pills, real-time search, and **CSV export**.
+- **Placement & Career Tracker (Career Hub)**: Tracks 31+ job applications with real-time company/role search, status filter chips (`Applied`, `Shortlisted`, `Interviewing`, `OA Scheduled`), and source filters (`Superset`, `LinkedIn`, etc.). Features a dedicated **Active Career Pipelines** card highlighting urgent assessments and interview rounds (e.g. Digiryte Round 3, Josh Talks Dataset Task).
+- **Higher Education & Investment Journal**: Visual lifetime breakdown showcasing **University (95.1%) vs Schooling (4.9%)** of the ₹22.76 Lakh grand total, annual B.Tech fee ledger with 35% merit scholarship deductions, and a **Semester Funding Status Bar** reflecting 100% completed contributions (`₹2,80,000` of `₹2,80,000` Received) across family contributors.
+- **Gadgets & Hardware Assets Inventory**: Complete device registry with live search across products and model numbers, brand filter chips (`Apple`, `Dell`, `LG`, `UGREEN`, `DailyObjects`, `Green Soul`), price and date sorting, and dynamic **Lifecycle / Warranty Badges** (`< 1 Yr · Active Warranty`, `1–3 Yrs · Mid Lifecycle`, `3+ Yrs · Mature`, `AppleCare+ Protected`). Accurate pricing including Green Soul Surface 2.0 Desk (₹23,009.00) and Free Furniture Assembly.
+- **Time on Earth (Life Stats Odometer)**: Real-time biological age counter (years, months, days, hours, seconds) paired with an interplanetary age odometer for Mercury, Venus, Mars, Jupiter, and Saturn.
+
+### 13. ⚡ Overview Dashboard: "Trackers Quick Snapshot" Widget
+An executive summary card placed directly on your main **Overview** home screen:
+- **Tokens Pulse**: Shows live ready count (`27 Ready / 9 Cooldown`) with a one-click **"Copy Next Ready"** button.
+- **EB Meter**: Latest reading (`323 units`) and daily burn rate (`~1.92 u/day`) with projected bill and 50/50 roommate share.
+- **Monthly Budget**: Spend velocity (`₹3,420 / ₹7,500`) with a mini burn-down progress bar and remaining limit.
+- **Active Career Pipelines**: Direct alert chips for urgent rounds (`Digiryte Round 3`, `Josh Talks Task`).
+- **Direct Navigation**: 1-click "Open Trackers Hub" link.
+
+### 14. 🔄 Zero-Refresh Live Synchronization Engine
+- **Tab & Window Focus Sync**: Automatically polls and updates Google Sheets data when switching back to the dashboard or focusing the browser tab—no manual page refresh required.
+- **Smart 15s Caching**: Fast client-side responses with background cache invalidation and force-refresh support (`/api/trackers/sync?force=true`).
+- **Graceful Offline Fallback**: Runs completely self-contained with rich demo seed data when no external Google Sheet is configured.
+
+### 15. 🎨 Google Calendar Auto-Colorize Engine (`/api/calendar/auto-colorize`)
+- Automatically analyzes calendar events within a rolling 74-day window (past 14 days to next 60 days) and applies harmonious Google Calendar colors:
+  - 🥗 **Sage** (`#2`): Meals, Lunch, Dinner, Cooking, Food.
+  - 🫐 **Blueberry** (`#9`): Daily Routine, Sleep, Fresh up, Social.
+  - 🦩 **Flamingo** (`#4`): Games, Gaming, Chess, Valorant, BGMI.
+  - 🍌 **Banana** (`#5`): Projects, Work, CS coursework, Dev sprints.
+  - 🪨 **Graphite** (`#8`): Typing, Journaling, Notes.
+- Throttled batch updates prevent hitting Google API rate limits.
+
+### 16. 📜 Google Apps Script Calendar Sync & Time Audit
+- Included script template (`scripts/google-apps-script-calendar-sync.js`) for automated time tracking.
+- Syncs the past 90 days of Google Calendar events into a dedicated `Calendar Events` Google Sheet tab with automated categorization, minutes, and hours calculations for retrospective time auditing.
+
+### 17. 🛡️ Production-Grade Open-Source Security & Privacy
+- **Zero Secrets in Code**: All API credentials, client secrets, and external spreadsheet IDs are loaded strictly from environment variables (`.env.local`).
+- **Zero-Knowledge Encryption**: Notes vault uses Web Crypto API AES-256-GCM + PBKDF2 (100,000 iterations). Plaintext notes and passphrases are never sent to the server.
+- **Sanitized Fallback Data**: Open-source repository contains zero private email addresses or confidential family financial records in seed files.
+- **HTTP Security Headers**: Configured with `nosniff`, `SAMEORIGIN`, `1; mode=block`, and `strict-origin-when-cross-origin`.
+
 ---
 
 ## 🔐 Google Access & Security
@@ -190,6 +238,23 @@ Routino supports connecting personal and work/school Microsoft accounts via the 
 
 ---
 
+## 📊 Google Sheets Trackers Setup (Optional)
+
+Routino includes a comprehensive **Trackers Hub** (PG Electricity, Multi-Year Expense Journals, Career Pipelines, Gadgets Inventory, Antigravity Tokens, and Investment Journal).
+
+- **Offline Demo Mode**: If no spreadsheet ID is configured, Routino automatically loads rich, self-contained demo seed data—completely functional without any external configuration.
+- **Live Google Sheets Sync**: To connect your personal Google Sheet:
+  1. Open your spreadsheet in Google Drive.
+  2. Set its sharing permissions to **Anyone with the link can view** (enables the read-only Google Visualization API).
+  3. Copy the Spreadsheet ID from the browser URL (`https://docs.google.com/spreadsheets/d/<SPREADSHEET_ID>/edit`).
+  4. Add the ID to your `.env.local` (or Vercel / deployment environment variables):
+     ```bash
+     TRACKERS_SPREADSHEET_ID=your_spreadsheet_id_here
+     ```
+  5. The dashboard will automatically query your sheet via `/api/trackers/sync` and refresh whenever you focus the window or switch tabs.
+
+---
+
 ## ⚙️ Environment Variables
 
 Copy the example file for local development:
@@ -208,6 +273,10 @@ cp .env.example .env.local
 | `AZURE_AD_CLIENT_SECRET` | Optional Microsoft / Azure AD OAuth client secret |
 | `AZURE_AD_TENANT_ID` | Optional tenant ID (`common` by default for personal + work) |
 | `OUTLOOK_REDIRECT_URI` | Exact OAuth callback URL registered in Azure |
+| `TRACKERS_SPREADSHEET_ID` | Optional private Google Sheet ID for real-time trackers sync |
+| `DATABASE_URL` | Optional Neon Postgres connection string for cross-device sync |
+| `UPSTASH_REDIS_REST_URL` | Optional Upstash Redis endpoint for cloud persistence |
+| `UPSTASH_REDIS_REST_TOKEN` | Optional Upstash Redis authentication token |
 
 Generate a strong local secret with:
 
@@ -225,9 +294,11 @@ Routino-Daily-Dashboard/
 │   ├── actions.ts                 # Auth.js Google sign-in server action
 │   ├── api/
 │   │   ├── auth/[...nextauth]/    # Auth.js route handlers
+│   │   ├── calendar/auto-colorize # Google Calendar smart colorizer endpoint
 │   │   ├── dashboard/             # Authenticated Calendar and Gmail data route
 │   │   ├── drive/files/           # Read-only Drive recent files route
 │   │   ├── outlook/               # Microsoft Graph OAuth connect, callback & data routes
+│   │   ├── trackers/sync/         # Google Sheets live trackers synchronization API
 │   │   └── user-data/             # Multi-device cloud sync endpoint
 │   ├── auth/signout/              # Custom Routino sign-out confirmation page
 │   ├── page.tsx                   # Responsive dashboard interface
@@ -249,17 +320,24 @@ Routino-Daily-Dashboard/
 │       ├── CalendarView.tsx       # 7-day calendar view with Project & Travel filters
 │       ├── TasksView.tsx          # Task management with category filters and sub-steps
 │       ├── InboxView.tsx          # Gmail and Outlook unread email manager
-│       └── NotesView.tsx          # Keep-style markdown notes & AES-256 vault
+│       ├── NotesView.tsx          # Keep-style markdown notes & AES-256 vault
+│       ├── TrackersView.tsx       # Comprehensive Trackers Hub (EB, Expenses, Career, Assets, Tokens)
+│       └── TimeAuditView.tsx      # Retrospective 90-day time allocation auditor
 ├── lib/
 │   ├── auth.ts                    # Google provider and session callbacks
 │   ├── config.ts                  # Centralized typed configuration
 │   ├── crypto.ts                  # Zero-knowledge PBKDF2 + AES-256-GCM client-side encryption
-│   ├── database.ts                # Neon Postgres, Upstash Redis & KV persistence adapter
+│   ├── db.ts                      # Neon Postgres, Upstash Redis & filesystem persistence adapter
 │   ├── google.ts                  # Server-side token refresh and Google requests
 │   ├── meeting.ts                 # Video URL extraction, category & task inference
-│   └── sound.ts                   # Web Audio synthesizers for ambient noise & timers
+│   ├── outlook.ts                 # Microsoft Graph OAuth token exchange & Graph queries
+│   ├── sound.ts                   # Web Audio synthesizers for ambient noise & timers
+│   └── trackersSync.ts            # Google Sheets GViz parser, caching & offline demo seed
+├── scripts/
+│   └── google-apps-script-calendar-sync.js  # Google Apps Script for Calendar-to-Sheets time tracking
 ├── types/
 │   ├── dashboard.ts               # Core domain types (Notes, Tasks, Events, Mail)
+│   ├── trackers.ts                # Strong typing for all personal trackers
 │   └── next-auth.d.ts             # Auth.js token type declarations
 ├── .env.example                   # Environment variable template
 ├── package.json
