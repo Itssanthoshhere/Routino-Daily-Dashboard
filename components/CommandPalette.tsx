@@ -17,6 +17,7 @@ import {
   Keyboard,
   Flame,
   StickyNote,
+  Gauge,
 } from "lucide-react";
 import { Task, DashboardEvent } from "@/types/dashboard";
 
@@ -150,6 +151,13 @@ export function CommandPalette({
             >
               <StickyNote size={15} className="text-[#eab308]" />
               <span>Open Notes & Scratchpad</span>
+            </button>
+            <button
+              onClick={() => handleAction(() => onNavigate("Trackers"))}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#fdf2f2] transition"
+            >
+              <Gauge size={15} className="text-[#059669]" />
+              <span>Open Trackers Hub</span>
             </button>
             <button
               onClick={() => handleAction(onOpenFocusTimer)}

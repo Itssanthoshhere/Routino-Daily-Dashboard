@@ -830,6 +830,11 @@ export default function Home() {
         handleSelectNav("Notes");
         return;
       }
+      if (e.key === "6") {
+        e.preventDefault();
+        handleSelectNav("Trackers");
+        return;
+      }
 
       // F for focus timer
       if (e.key === "f" || e.key === "F") {

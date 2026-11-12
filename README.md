@@ -133,6 +133,7 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 - `3` - Switch to Inbox tab
 - `4` - Switch to Tasks Manager
 - `5` - Switch to Notes & Scratchpad
+- `6` - Switch to Trackers Hub
 - `Q` - Universal Quick Capture modal
 - `F` - Launch Deep Work Focus Timer
 - `T` - Add New Priority Task
