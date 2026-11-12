@@ -449,16 +449,16 @@ export function TrackersView() {
               <span className="text-[11px] text-muted">50/50 split with roommate</span>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
               {sortedEbCycles.map((cyc) => (
-                <div key={cyc.cycle} className="rounded-2xl border border-line bg-white p-4 shadow-card flex flex-col justify-between">
+                <div key={cyc.cycle} className="rounded-2xl border border-line bg-white p-5 shadow-card flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="rounded-lg bg-[#f0f2eb] px-2.5 py-1 text-[12px] font-bold text-ink">
                         {cyc.cycle} Cycle
                       </span>
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider ${
+                        className={`rounded-full px-2.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider ${
                           cyc.status === "Paid"
                             ? "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]"
                             : "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
@@ -468,7 +468,7 @@ export function TrackersView() {
                       </span>
                     </div>
 
-                    <div className="mt-3 space-y-1">
+                    <div className="mt-3.5 space-y-2">
                       <div className="flex items-baseline justify-between">
                         <span className="text-[11.5px] text-muted">Units Consumed</span>
                         <span className="text-[13px] font-bold text-ink">{cyc.unitsUsed} units</span>
@@ -477,7 +477,7 @@ export function TrackersView() {
                         <span className="text-[11.5px] text-muted">Total Billed</span>
                         <span className="text-[13px] font-semibold text-ink">₹{cyc.billedAmount ?? cyc.computedCost}</span>
                       </div>
-                      <div className="flex items-baseline justify-between pt-1 border-t border-[#f0f2eb]">
+                      <div className="flex items-baseline justify-between pt-2.5 mt-2 border-t border-line/70">
                         <span className="text-[12px] font-bold text-forest">My Share (Paid)</span>
                         <span className="text-[14px] font-extrabold text-forest">₹{cyc.myShare}</span>
                       </div>
@@ -485,9 +485,11 @@ export function TrackersView() {
                   </div>
 
                   {cyc.notes && (
-                    <p className="mt-3 text-[10px] text-muted bg-[#fafbf7] p-2 rounded-lg border border-[#f0f2eb] line-clamp-2">
-                      {cyc.notes}
-                    </p>
+                    <div className="mt-3.5 rounded-xl border border-line/70 bg-[#fafbf7] px-3.5 py-2.5">
+                      <p className="text-[11px] leading-relaxed text-muted line-clamp-3" title={cyc.notes}>
+                        {cyc.notes}
+                      </p>
+                    </div>
                   )}
                 </div>
               ))}
