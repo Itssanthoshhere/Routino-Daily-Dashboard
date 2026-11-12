@@ -1554,7 +1554,7 @@ export default function Home() {
       {/* ─── Main ─── */}
       <main id="overview" className="min-h-screen lg:ml-[236px]">
         {/* Header */}
-        <header className="sticky top-0 z-10 flex h-[68px] items-center justify-between border-b border-line bg-[#f7f7f2]/90 px-5 backdrop-blur-md sm:px-8 xl:px-10">
+        <header className="sticky top-0 z-30 flex h-[68px] items-center justify-between border-b border-line bg-[#f7f7f2]/95 px-5 backdrop-blur-md sm:px-8 xl:px-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setShowMobileSidebar(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white lg:hidden" aria-label="Open menu"><Menu size={17} /></button>
             <img src="/favicon.svg" alt="Routino" className="hidden h-8 w-8 rounded-[11px] sm:block lg:hidden" />

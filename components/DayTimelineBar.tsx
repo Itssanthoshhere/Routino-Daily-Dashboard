@@ -172,7 +172,7 @@ export function DayTimelineBar({
   };
 
   return (
-    <div className="relative rounded-2xl border border-line bg-white p-3.5 sm:p-4 shadow-card transition-all overflow-hidden">
+    <div className="relative isolate rounded-2xl border border-line bg-white p-3.5 sm:p-4 shadow-card transition-all overflow-hidden">
       {/* Top Header Row */}
       <div className="flex items-center justify-between gap-2 text-[11px]">
         <div className="flex items-center gap-2 min-w-0">
