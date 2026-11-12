@@ -388,6 +388,34 @@ export function TrackersView() {
     return data.purchases.reduce((acc, curr) => acc + (curr.price || 0), 0);
   }, [data.purchases]);
 
+  // Top placement source computed dynamically
+  const topPlacementSource = useMemo(() => {
+    if (!data.jobApplications || data.jobApplications.length === 0) return "Superset";
+    const counts: Record<string, number> = {};
+    data.jobApplications.forEach((j) => {
+      const src = j.source || "Superset";
+      counts[src] = (counts[src] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Superset";
+  }, [data.jobApplications]);
+
+  // Latest placement action computed dynamically
+  const latestPlacementAction = useMemo(() => {
+    const active = data.jobApplications.find((j) => j.nextAction || j.interviewStage || j.status);
+    return active?.nextAction || active?.interviewStage || active?.status || "In Process";
+  }, [data.jobApplications]);
+
+  // Primary ecosystem / brand in purchases
+  const primaryBrand = useMemo(() => {
+    if (!data.purchases || data.purchases.length === 0) return "Apple";
+    const counts: Record<string, number> = {};
+    data.purchases.forEach((p) => {
+      const b = p.brand || "Other";
+      counts[b] = (counts[b] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Apple";
+  }, [data.purchases]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* ─── Header & Sync Controls ─── */}
@@ -438,8 +466,20 @@ export function TrackersView() {
         {[
           { key: "eb", label: "PG Electricity (EB)", icon: Zap, count: `${displayLatestReading} units` },
           { key: "expenses", label: "Expense & Budget", icon: Wallet, count: `₹${data.totalMonthlyBudget.toLocaleString()}` },
-          { key: "tokens", label: "Antigravity Tokens", icon: Key, count: `${data.antigravityTokenSummary?.available ?? 27} ready` },
-          { key: "investments", label: "Investment Journal", icon: TrendingUp, count: `${data.investments?.grandTotalFormatted || "₹22.76L"}` },
+          {
+            key: "tokens",
+            label: "Antigravity Tokens",
+            icon: Key,
+            count: `${data.antigravityTokenSummary?.available ?? (data.antigravityTokens || []).filter((t) => t.isAvailable).length} ready`,
+          },
+          {
+            key: "investments",
+            label: "Investment Journal",
+            icon: TrendingUp,
+            count: data.investments?.grandTotal
+              ? `₹${(data.investments.grandTotal / 100000).toFixed(2)}L`
+              : (data.investments?.grandTotalFormatted || "₹0"),
+          },
           { key: "placements", label: "Placements & Career", icon: Briefcase, count: `${data.jobApplications.length}` },
           { key: "life", label: "Time on Earth", icon: Hourglass, count: `${data.lifeStats.ageYears} yrs` },
           { key: "purchases", label: "Gadgets & Assets", icon: Laptop, count: `${data.purchases.length}` },
@@ -867,7 +907,7 @@ export function TrackersView() {
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Grand Total Investment</span>
               <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">
-                {data.investments.grandTotalFormatted || "₹22,76,000"}
+                {data.investments.grandTotalFormatted || `₹${(data.investments.grandTotal || 0).toLocaleString("en-IN")}`}
               </p>
               <p className="mt-1 text-[10.5px] text-muted">Pre-School through University Degree</p>
             </div>
@@ -875,7 +915,7 @@ export function TrackersView() {
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">University (B.Tech)</span>
               <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">
-                ₹{(data.investments.universityTotal || 2164500).toLocaleString("en-IN")}
+                ₹{(data.investments.universityTotal ?? 0).toLocaleString("en-IN")}
               </p>
               <p className="mt-1 text-[10.5px] text-muted">4 Years Fees, Hostel & Exams</p>
             </div>
@@ -883,7 +923,7 @@ export function TrackersView() {
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Schooling (K-12)</span>
               <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">
-                ₹{(data.investments.schoolTotal || 112500).toLocaleString("en-IN")}
+                ₹{(data.investments.schoolTotal ?? 0).toLocaleString("en-IN")}
               </p>
               <p className="mt-1 text-[10.5px] text-muted">Pre-K through 12th Grade</p>
             </div>
@@ -891,9 +931,9 @@ export function TrackersView() {
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Merit Scholarship</span>
               <p className="mt-1 text-[22px] font-bold text-[#059669] tracking-tight">
-                ₹{(data.investments.scholarshipEarned || 130000).toLocaleString("en-IN")}
+                ₹{(data.investments.scholarshipEarned ?? 0).toLocaleString("en-IN")}
               </p>
-              <p className="mt-1 text-[10.5px] text-muted">35% Tuition Waiver in 1st Year</p>
+              <p className="mt-1 text-[10.5px] text-muted">Tuition Waiver & Benefits</p>
             </div>
           </div>
 
@@ -905,7 +945,7 @@ export function TrackersView() {
                 <p className="text-[11px] text-muted">Complete breakdown from Pre-School to Engineering Graduation</p>
               </div>
               <span className="rounded-xl bg-[#ecfdf5] border border-[#a7f3d0] px-3 py-1 text-[11px] font-bold text-[#047857]">
-                Grand Total: {data.investments.grandTotalFormatted || "₹22,76,000"}
+                Grand Total: {data.investments.grandTotalFormatted || `₹${(data.investments.grandTotal || 0).toLocaleString("en-IN")}`}
               </span>
             </div>
 
@@ -938,10 +978,10 @@ export function TrackersView() {
 
               <div className="flex items-center gap-2">
                 <span className="rounded-lg bg-[#f0f2eb] px-2.5 py-1 text-[11px] font-semibold text-[#475248]">
-                  Deposit: ₹{data.investments.depositFee?.toLocaleString("en-IN") || "45,000"}
+                  Deposit: ₹{(data.investments.depositFee ?? 0).toLocaleString("en-IN")}
                 </span>
                 <span className="rounded-lg bg-[#f0f2eb] px-2.5 py-1 text-[11px] font-semibold text-[#475248]">
-                  Alumni: ₹{data.investments.alumniFee?.toLocaleString("en-IN") || "1,500"}
+                  Alumni: ₹{(data.investments.alumniFee ?? 0).toLocaleString("en-IN")}
                 </span>
               </div>
             </div>
@@ -1074,10 +1114,12 @@ export function TrackersView() {
             <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Next Unlock Batch</span>
               <p className="mt-1 text-[16px] sm:text-[18px] font-bold text-forest tracking-tight">
-                {data.antigravityTokenSummary?.nextAvailableDate || "13-Nov-2026"}
+                {data.antigravityTokenSummary?.nextAvailableDate || "All Available"}
               </p>
               <p className="mt-1 text-[10.5px] text-muted">
-                {data.antigravityTokenSummary?.inCooldown ?? 9} accounts unlocking
+                {(data.antigravityTokenSummary?.inCooldown ?? 0) > 0
+                  ? `${data.antigravityTokenSummary?.inCooldown} accounts unlocking`
+                  : "All accounts ready to use"}
               </p>
             </div>
           </div>
@@ -1327,14 +1369,14 @@ export function TrackersView() {
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Top Source</span>
-              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">Superset</p>
-              <p className="mt-1 text-[10.5px] text-muted">Campus placement portal</p>
+              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight truncate">{topPlacementSource}</p>
+              <p className="mt-1 text-[10.5px] text-muted">Most frequent application channel</p>
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Latest Action</span>
-              <p className="mt-1 text-[16px] font-bold text-forest tracking-tight truncate">Wait / Assessment</p>
-              <p className="mt-1 text-[10.5px] text-muted">Interview preparation</p>
+              <p className="mt-1 text-[16px] font-bold text-forest tracking-tight truncate">{latestPlacementAction}</p>
+              <p className="mt-1 text-[10.5px] text-muted">Current candidate status</p>
             </div>
           </div>
 
@@ -1467,7 +1509,7 @@ export function TrackersView() {
               { label: "Minutes Lived", val: data.lifeStats.totalMinutes.toLocaleString() },
               { label: "Seconds Lived", val: data.lifeStats.totalSeconds.toLocaleString() },
               { label: "Current Age", val: `${data.lifeStats.ageYears} Years` },
-              { label: "Next Milestone", val: "22 Years" },
+              { label: "Next Milestone", val: `${(data.lifeStats.ageYears || 21) + 1} Years` },
             ].map(({ label, val }) => (
               <div key={label} className="rounded-2xl border border-line bg-white p-4 shadow-card">
                 <span className="text-[10.5px] font-semibold text-muted uppercase tracking-wider">{label}</span>
@@ -1530,14 +1572,16 @@ export function TrackersView() {
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Primary Ecosystem</span>
-              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">Apple</p>
-              <p className="mt-1 text-[10.5px] text-muted">MacBook, iPad, iPhone</p>
+              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">{primaryBrand}</p>
+              <p className="mt-1 text-[10.5px] text-muted">Most logged device brand</p>
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Warranty / AppleCare</span>
-              <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">Active</p>
-              <p className="mt-1 text-[10.5px] text-muted">Protected assets</p>
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Registered Assets</span>
+              <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">
+                {data.purchases.filter((p) => p.deliveryDate).length} / {data.purchases.length}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">Delivered & verified</p>
             </div>
           </div>
 

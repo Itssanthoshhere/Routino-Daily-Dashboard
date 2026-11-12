@@ -903,22 +903,39 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       });
     }
 
-    // Parse Life Stats
+    // Parse Life Stats (Dynamically calculate live odometer from birthdate)
+    const birthdate = new Date(2005, 5, 2); // June 2, 2005
+    const now = new Date();
+    const diffMs = Math.max(0, now.getTime() - birthdate.getTime());
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const ageYears = Math.floor(diffDays / 365.25);
+    const totalWeeks = Math.floor(diffDays / 7);
+    const totalMonths = Math.floor(diffDays / 30.4375);
+    const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const totalMinutes = Math.floor(diffMs / (1000 * 60));
+    const totalSeconds = Math.floor(diffMs / 1000);
+
+    let nextBday = new Date(now.getFullYear(), 5, 2);
+    if (nextBday.getTime() < now.getTime()) {
+      nextBday = new Date(now.getFullYear() + 1, 5, 2);
+    }
+    const daysUntilNextBirthday = Math.ceil((nextBday.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
     const lifeStats: TrackerLifeStats = {
       birthdate: "June 2, 2005",
-      ageYears: 21,
-      totalDays: 7833,
-      totalMonths: 257,
-      totalWeeks: 1119,
-      totalHours: 187992,
-      totalMinutes: 11279520,
-      totalSeconds: 676771200,
-      daysUntilNextBirthday: 202,
+      ageYears,
+      totalDays: diffDays,
+      totalMonths,
+      totalWeeks,
+      totalHours,
+      totalMinutes,
+      totalSeconds,
+      daysUntilNextBirthday,
       planetAges: {
-        mercury: 89.01,
-        venus: 34.81,
-        mars: 11.4,
-        jupiter: 1.77,
+        mercury: Math.round((diffDays / 87.97) * 100) / 100,
+        venus: Math.round((diffDays / 224.7) * 100) / 100,
+        mars: Math.round((diffDays / 686.98) * 100) / 100,
+        jupiter: Math.round((diffDays / (11.86 * 365.25)) * 100) / 100,
       },
     };
 
@@ -927,38 +944,99 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         const label = parseString(row.c[0]);
         const val = parseString(row.c[1]);
         if (label.includes("Birthdate")) lifeStats.birthdate = val || lifeStats.birthdate;
-        else if (label.includes("Current Age")) lifeStats.ageYears = parseNumber(val) || lifeStats.ageYears;
-        else if (label.includes("Total Days")) lifeStats.totalDays = parseNumber(val) || lifeStats.totalDays;
-        else if (label.includes("Months")) lifeStats.totalMonths = parseNumber(val) || lifeStats.totalMonths;
-        else if (label.includes("Weeks")) lifeStats.totalWeeks = parseNumber(val) || lifeStats.totalWeeks;
-        else if (label.includes("Hours")) lifeStats.totalHours = parseNumber(val) || lifeStats.totalHours;
-        else if (label.includes("Minutes")) lifeStats.totalMinutes = parseNumber(val) || lifeStats.totalMinutes;
-        else if (label.includes("Seconds")) lifeStats.totalSeconds = parseNumber(val) || lifeStats.totalSeconds;
-        else if (label.includes("Next Birthday")) lifeStats.daysUntilNextBirthday = parseNumber(val) || lifeStats.daysUntilNextBirthday;
-        else if (label.includes("Mercury")) lifeStats.planetAges.mercury = parseNumber(val) || lifeStats.planetAges.mercury;
-        else if (label.includes("Venus")) lifeStats.planetAges.venus = parseNumber(val) || lifeStats.planetAges.venus;
-        else if (label.includes("Mars")) lifeStats.planetAges.mars = parseNumber(val) || lifeStats.planetAges.mars;
-        else if (label.includes("Jupiter")) lifeStats.planetAges.jupiter = parseNumber(val) || lifeStats.planetAges.jupiter;
+        else if (label.includes("Current Age")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.ageYears = num;
+        } else if (label.includes("Total Days")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.totalDays = num;
+        } else if (label.includes("Months")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.totalMonths = num;
+        } else if (label.includes("Weeks")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.totalWeeks = num;
+        } else if (label.includes("Hours")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.totalHours = num;
+        } else if (label.includes("Minutes")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.totalMinutes = num;
+        } else if (label.includes("Seconds")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.totalSeconds = num;
+        } else if (label.includes("Next Birthday")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.daysUntilNextBirthday = num;
+        } else if (label.includes("Mercury")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.planetAges.mercury = num;
+        } else if (label.includes("Venus")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.planetAges.venus = num;
+        } else if (label.includes("Mars")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.planetAges.mars = num;
+        } else if (label.includes("Jupiter")) {
+          const num = parseNumber(val);
+          if (num > 0) lifeStats.planetAges.jupiter = num;
+        }
       });
     }
 
     // Parse Investment Journal
     const investments: TrackerInvestmentJournal = {
       ...SEED_TRACKERS_DATA.investments,
+      levels: [...SEED_TRACKERS_DATA.investments.levels.map((l) => ({ ...l }))],
+      contributors: [...SEED_TRACKERS_DATA.investments.contributors.map((c) => ({ ...c }))],
     };
 
     if (investmentData?.table?.rows) {
       investmentData.table.rows.forEach((row) => {
         const c0 = parseString(row.c[0]);
-        const c1 = parseString(row.c[1]);
+        const amt = parseNumber(row.c[1]?.v ?? row.c[1]?.f);
+
         if (c0.includes("Grand Total (School + University")) {
-          const amt = parseNumber(row.c[1]?.v ?? row.c[1]?.f);
           if (amt > 0) {
             investments.grandTotal = amt;
             investments.grandTotalFormatted = `₹${amt.toLocaleString("en-IN")}`;
           }
+        } else if (c0.includes("Pre-School")) {
+          if (amt > 0 && investments.levels[0]) investments.levels[0].totalExpense = amt;
+        } else if (c0.includes("Primary (1st to 8th)")) {
+          if (amt > 0 && investments.levels[1]) investments.levels[1].totalExpense = amt;
+        } else if (c0.includes("Secondary (9th to 10th)")) {
+          if (amt > 0 && investments.levels[2]) investments.levels[2].totalExpense = amt;
+        } else if (c0.includes("Higher Secondary")) {
+          if (amt > 0 && investments.levels[3]) investments.levels[3].totalExpense = amt;
+        } else if (c0.includes("University (1st to 4th Year")) {
+          if (amt > 0) {
+            investments.universityTotal = amt;
+            if (investments.levels[4]) investments.levels[4].totalExpense = amt;
+          }
+        } else {
+          // Check contributor names
+          const contributor = investments.contributors.find((c) =>
+            c0.toLowerCase().includes(c.name.toLowerCase())
+          );
+          if (contributor && amt > 0) {
+            contributor.amount = amt;
+          }
         }
       });
+
+      // Recalculate school total dynamically
+      const schoolLevelsTotal = investments.levels
+        .slice(0, 4)
+        .reduce((acc, curr) => acc + (curr.totalExpense || 0), 0);
+      if (schoolLevelsTotal > 0) {
+        investments.schoolTotal = schoolLevelsTotal;
+      }
+
+      if (!investments.grandTotal && investments.universityTotal && investments.schoolTotal) {
+        investments.grandTotal = investments.universityTotal + investments.schoolTotal;
+        investments.grandTotalFormatted = `₹${investments.grandTotal.toLocaleString("en-IN")}`;
+      }
     }
 
     // Parse Antigravity Token Expiry
@@ -1003,8 +1081,11 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
     });
     const profileDist = Array.from(profileMap.entries()).map(([profile, count]) => ({ profile, count }));
 
-    const cooldownTokens = tokensList.filter((t) => !t.isAvailable && t.availableAgain);
-    const nextAvailableDate = cooldownTokens.length > 0 ? cooldownTokens[0].availableAgain : undefined;
+    const cooldownTokens = tokensList.filter((t) => !t.isAvailable);
+    const sortedCooldown = [...cooldownTokens]
+      .filter((t) => t.daysLeft > 0 && t.availableAgain)
+      .sort((a, b) => a.daysLeft - b.daysLeft);
+    const nextAvailableDate = sortedCooldown[0]?.availableAgain || (cooldownTokens[0]?.availableAgain ?? "All Available");
 
     const antigravityTokenSummary: TrackerAntigravityTokenSummary = {
       total: tokensList.length,
