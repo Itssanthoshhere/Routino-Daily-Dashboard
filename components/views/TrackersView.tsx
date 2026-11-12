@@ -1269,10 +1269,21 @@ export function TrackersView() {
                             <span className="font-semibold text-ink">{t.email}</span>
                             <button
                               onClick={() => handleCopyEmail(t.email)}
-                              title="Copy email"
-                              className="text-muted/60 hover:text-ink transition p-1 rounded-md hover:bg-[#eff1eb]"
+                              title={copiedEmail === t.email ? "Copied to clipboard!" : "Copy email"}
+                              className={`inline-flex items-center gap-1 transition px-1.5 py-0.5 rounded-md text-[11px] font-medium cursor-pointer ${
+                                copiedEmail === t.email
+                                  ? "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0] shadow-2xs"
+                                  : "text-muted/60 hover:text-ink hover:bg-[#eff1eb]"
+                              }`}
                             >
-                              <Copy size={12} />
+                              {copiedEmail === t.email ? (
+                                <>
+                                  <Check size={11} className="text-[#047857]" />
+                                  <span className="text-[10px] font-bold text-[#047857]">Copied!</span>
+                                </>
+                              ) : (
+                                <Copy size={12} />
+                              )}
                             </button>
                           </div>
                         </td>
