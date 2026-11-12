@@ -56,6 +56,38 @@ function formatPlacementDate(dateStr?: string): string {
   return trimmed;
 }
 
+function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): { label: string; badgeClass: string } {
+  const combined = `${product} ${model}`.toLowerCase();
+  if (combined.includes("applecare")) {
+    return {
+      label: "AppleCare+ Protected",
+      badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
+    };
+  }
+  if (!daysSince || isNaN(daysSince) || daysSince <= 0) {
+    return {
+      label: "Recent Purchase",
+      badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
+    };
+  }
+  if (daysSince <= 365) {
+    return {
+      label: "< 1 Yr · Active Warranty",
+      badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
+    };
+  }
+  if (daysSince <= 1095) {
+    return {
+      label: "1–3 Yrs · Mid Lifecycle",
+      badgeClass: "bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe]",
+    };
+  }
+  return {
+    label: "3+ Yrs · Mature / Replacement Horizon",
+    badgeClass: "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]",
+  };
+}
+
 export function TrackersView() {
   const [activeTab, setActiveTab] = useState<TabKey>("eb");
   const [data, setData] = useState<TrackersData>(SEED_TRACKERS_DATA);
@@ -73,6 +105,11 @@ export function TrackersView() {
   const [placementSearch, setPlacementSearch] = useState("");
   const [placementStatusFilter, setPlacementStatusFilter] = useState("all");
   const [placementSourceFilter, setPlacementSourceFilter] = useState("all");
+
+  // Purchases filters
+  const [purchaseSearch, setPurchaseSearch] = useState("");
+  const [purchaseBrandFilter, setPurchaseBrandFilter] = useState("all");
+  const [purchaseSort, setPurchaseSort] = useState<"price-desc" | "price-asc" | "date-desc" | "date-asc">("price-desc");
 
   // Antigravity Tokens filters
   const [tokenSearch, setTokenSearch] = useState("");
@@ -589,6 +626,57 @@ export function TrackersView() {
       counts[b] = (counts[b] || 0) + 1;
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "Apple";
+  }, [data.purchases]);
+
+  // Unique purchase brands for filter chips
+  const purchaseBrands = useMemo(() => {
+    const set = new Set<string>();
+    (data.purchases || []).forEach((p) => {
+      const b = p.brand?.trim();
+      if (b && b !== "—" && b !== "-") set.add(b);
+    });
+    return Array.from(set).sort();
+  }, [data.purchases]);
+
+  // Filtered and sorted purchases
+  const filteredPurchases = useMemo(() => {
+    const list = data.purchases || [];
+    return list
+      .filter((p) => {
+        const matchesSearch =
+          p.product.toLowerCase().includes(purchaseSearch.toLowerCase()) ||
+          p.brand.toLowerCase().includes(purchaseSearch.toLowerCase()) ||
+          p.model.toLowerCase().includes(purchaseSearch.toLowerCase()) ||
+          p.seller.toLowerCase().includes(purchaseSearch.toLowerCase()) ||
+          p.location.toLowerCase().includes(purchaseSearch.toLowerCase());
+        if (!matchesSearch) return false;
+
+        if (purchaseBrandFilter !== "all") {
+          if (p.brand.toLowerCase() !== purchaseBrandFilter.toLowerCase()) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (purchaseSort === "price-desc") return (b.price || 0) - (a.price || 0);
+        if (purchaseSort === "price-asc") return (a.price || 0) - (b.price || 0);
+        if (purchaseSort === "date-desc") {
+          return (a.daysSinceDelivery || 0) - (b.daysSinceDelivery || 0);
+        }
+        if (purchaseSort === "date-asc") {
+          return (b.daysSinceDelivery || 0) - (a.daysSinceDelivery || 0);
+        }
+        return 0;
+      });
+  }, [data.purchases, purchaseSearch, purchaseBrandFilter, purchaseSort]);
+
+  // Active warranty count (< 365 days or AppleCare)
+  const activeWarrantyCount = useMemo(() => {
+    return (data.purchases || []).filter((p) => {
+      const combined = `${p.product} ${p.model}`.toLowerCase();
+      if (combined.includes("applecare")) return true;
+      return p.daysSinceDelivery > 0 && p.daysSinceDelivery <= 365;
+    }).length;
   }, [data.purchases]);
 
   return (
@@ -2034,63 +2122,154 @@ export function TrackersView() {
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Devices Logged</span>
               <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">{data.purchases.length}</p>
-              <p className="mt-1 text-[10.5px] text-muted">Tracked with warranty dates</p>
+              <p className="mt-1 text-[10.5px] text-muted">Tracked with order records</p>
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Primary Ecosystem</span>
               <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">{primaryBrand}</p>
-              <p className="mt-1 text-[10.5px] text-muted">Most logged device brand</p>
+              <p className="mt-1 text-[10.5px] text-muted">Most logged hardware brand</p>
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Registered Assets</span>
-              <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">
-                {data.purchases.filter((p) => p.deliveryDate).length} / {data.purchases.length}
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Under Warranty</span>
+              <p className="mt-1 text-[22px] font-bold text-[#059669] tracking-tight flex items-center gap-1.5">
+                <ShieldCheck size={18} className="text-[#059669]" />
+                {activeWarrantyCount}
               </p>
-              <p className="mt-1 text-[10.5px] text-muted">Delivered & verified</p>
+              <p className="mt-1 text-[10.5px] text-muted">&lt; 1 Year or AppleCare+ Plan</p>
+            </div>
+          </div>
+
+          {/* Search, Brand Filter Chips & Sort Controls */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="relative flex-1 w-full sm:w-auto">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="text"
+                value={purchaseSearch}
+                onChange={(e) => setPurchaseSearch(e.target.value)}
+                placeholder="Search product, model, seller or brand..."
+                className="h-9 w-full sm:w-72 rounded-xl border border-line bg-white pl-9 pr-3 text-[12px] text-ink placeholder:text-muted focus:border-forest focus:outline-none shadow-xs"
+              />
+              {purchaseSearch && (
+                <button
+                  onClick={() => setPurchaseSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {/* Brand Filter Chips */}
+              <div className="flex items-center gap-1 bg-white border border-line rounded-xl p-1 text-[11px] overflow-x-auto max-w-full">
+                <button
+                  onClick={() => setPurchaseBrandFilter("all")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                    purchaseBrandFilter === "all" ? "bg-forest text-white" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  All Brands ({data.purchases.length})
+                </button>
+                {purchaseBrands.map((b) => {
+                  const count = data.purchases.filter((p) => p.brand === b).length;
+                  return (
+                    <button
+                      key={b}
+                      onClick={() => setPurchaseBrandFilter(b)}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                        purchaseBrandFilter === b ? "bg-forest text-white" : "text-muted hover:text-ink"
+                      }`}
+                    >
+                      {b} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Sort Dropdown */}
+              <select
+                value={purchaseSort}
+                onChange={(e) => setPurchaseSort(e.target.value as any)}
+                className="h-9 rounded-xl border border-line bg-white px-2.5 text-[11px] font-semibold text-ink focus:border-forest focus:outline-none shadow-xs"
+              >
+                <option value="price-desc">Price: High to Low</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+              </select>
             </div>
           </div>
 
           {/* Purchases Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {data.purchases.map((p) => (
-              <div key={p.sNo} className="rounded-2xl border border-line bg-white p-5 shadow-card flex flex-col justify-between">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
+          {filteredPurchases.length === 0 ? (
+            <div className="rounded-2xl border border-line bg-white p-12 text-center text-muted shadow-card">
+              <Laptop size={32} className="mx-auto text-muted/40 mb-2" />
+              <p className="font-semibold text-ink">No devices found</p>
+              <p className="text-[12px] mt-1">Try clearing your search query or selecting &quot;All Brands&quot;.</p>
+              <button
+                onClick={() => {
+                  setPurchaseSearch("");
+                  setPurchaseBrandFilter("all");
+                }}
+                className="mt-4 rounded-xl border border-line bg-[#fbfcf9] px-4 py-1.5 text-[11px] font-semibold text-ink hover:bg-[#f1f3ed]"
+              >
+                Reset Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredPurchases.map((p) => {
+                const lifecycle = getDeviceLifecycleBadge(p.daysSinceDelivery, p.product, p.model);
+                return (
+                  <div key={p.sNo} className="rounded-2xl border border-line bg-white p-5 shadow-card flex flex-col justify-between hover:border-forest/40 transition">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{p.brand}</span>
-                      <h4 className="text-[15px] font-bold text-ink">{p.product}</h4>
-                      <p className="text-[11.5px] text-muted mt-0.5">{p.model}</p>
-                    </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{p.brand}</span>
+                          <h4 className="text-[15px] font-bold text-ink leading-tight">{p.product}</h4>
+                          <p className="text-[11.5px] text-muted mt-0.5 line-clamp-1">{p.model}</p>
+                        </div>
 
-                    <span className="rounded-xl bg-[#f0f2eb] px-3 py-1 text-[13px] font-extrabold text-forest shrink-0">
-                      {p.priceFormatted}
-                    </span>
-                  </div>
+                        <span className="rounded-xl bg-[#f0f2eb] px-3 py-1 text-[13px] font-extrabold text-forest shrink-0">
+                          {p.priceFormatted}
+                        </span>
+                      </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] bg-[#fbfcf9] p-3 rounded-xl border border-[#eff1ec]">
-                    <div>
-                      <span className="text-muted block text-[10px]">Purchased</span>
-                      <span className="font-semibold text-ink">{p.orderDate}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted block text-[10px]">Seller</span>
-                      <span className="font-semibold text-ink truncate block">{p.seller}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted block text-[10px]">Payment Mode</span>
-                      <span className="font-semibold text-ink">{p.paymentMode}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted block text-[10px]">Age Since Delivery</span>
-                      <span className="font-semibold text-forest truncate block">{p.timeSinceDelivery}</span>
+                      {/* Warranty & Lifecycle Badge */}
+                      <div className="mt-3">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${lifecycle.badgeClass}`}>
+                          <ShieldCheck size={11} />
+                          {lifecycle.label}
+                        </span>
+                      </div>
+
+                      <div className="mt-3.5 grid grid-cols-2 gap-2 text-[11px] bg-[#fbfcf9] p-3 rounded-xl border border-[#eff1ec]">
+                        <div>
+                          <span className="text-muted block text-[10px]">Purchased</span>
+                          <span className="font-semibold text-ink">{p.orderDate || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted block text-[10px]">Seller</span>
+                          <span className="font-semibold text-ink truncate block">{p.seller || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted block text-[10px]">Payment Mode</span>
+                          <span className="font-semibold text-ink">{p.paymentMode || "—"}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted block text-[10px]">Age Since Delivery</span>
+                          <span className="font-semibold text-forest truncate block">{p.timeSinceDelivery || "—"}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
