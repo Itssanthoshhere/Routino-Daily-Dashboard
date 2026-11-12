@@ -8,6 +8,10 @@ import type {
   TrackerJobApplication,
   TrackerLifeStats,
   TrackerPurchase,
+  TrackerInvestmentJournal,
+  UniversityYearFee,
+  EducationLevelSummary,
+  InvestmentContributor,
 } from "@/types/dashboard";
 
 export const GOOGLE_SHEET_ID = "1bGxy0pgNx0nlO09pqdhYi_ZwNVqBcX4z1rkPWoIpeSw";
@@ -341,12 +345,81 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       timeSinceDelivery: "1 Years 4 Months 16 Days",
     },
   ],
+  investments: {
+    grandTotal: 2276000,
+    grandTotalFormatted: "₹22,76,000",
+    universityTotal: 2164500,
+    schoolTotal: 112500,
+    scholarshipEarned: 130000,
+    depositFee: 45000,
+    alumniFee: 1500,
+    levels: [
+      { level: "Pre-School (Pre-K to UKG)", totalExpense: 10500, years: "2008–2011", notes: "₹3,500/yr for 3 years" },
+      { level: "Primary School (1st to 8th Grade)", totalExpense: 57600, years: "2011–2019", notes: "₹1,800/term × 4 terms = ₹7,200/yr" },
+      { level: "Secondary School (9th & 10th Grade)", totalExpense: 19200, years: "2019–2021", notes: "₹2,400/term × 4 terms = ₹9,600/yr" },
+      { level: "Higher Secondary (11th & 12th Grade)", totalExpense: 25200, years: "2021–2023", notes: "₹3,150/term × 4 terms = ₹12,600/yr" },
+      { level: "University Degree (1st to 4th Year + Charges)", totalExpense: 2164500, years: "2023–2027", notes: "Tuition + Hostel + Exams + Deposit + Alumni" },
+    ],
+    universityYears: [
+      {
+        year: "2023–2024",
+        grade: "1st Year",
+        tuitionFee: 370000,
+        scholarship: 130000,
+        netTuition: 240000,
+        hostelFee: 150000,
+        examCharges: 12000,
+        totalAnnualFee: 402000,
+        cumulativeExpense: 402000,
+      },
+      {
+        year: "2024–2025",
+        grade: "2nd Year",
+        tuitionFee: 370000,
+        scholarship: 0,
+        netTuition: 370000,
+        hostelFee: 150000,
+        examCharges: 12000,
+        totalAnnualFee: 532000,
+        cumulativeExpense: 934000,
+      },
+      {
+        year: "2025–2026",
+        grade: "3rd Year",
+        tuitionFee: 370000,
+        scholarship: 0,
+        netTuition: 370000,
+        hostelFee: 160250,
+        examCharges: 12000,
+        totalAnnualFee: 542250,
+        cumulativeExpense: 1476250,
+      },
+      {
+        year: "2026–2027",
+        grade: "4th Year",
+        tuitionFee: 370000,
+        scholarship: 0,
+        netTuition: 370000,
+        hostelFee: 160250,
+        examCharges: 12000,
+        totalAnnualFee: 542250,
+        cumulativeExpense: 2018500,
+      },
+    ],
+    contributors: [
+      { name: "Gopal", amount: 100000, status: "Paid" },
+      { name: "Ganesh Uncle", amount: 60000, status: "Paid" },
+      { name: "Vanitha", amount: 50000, status: "Paid" },
+      { name: "Pavithra daddy", amount: 40000, status: "Paid" },
+      { name: "Jayan", amount: 30000, status: "Pending" },
+    ],
+  },
 };
 
 /* ── Live Syncer ── */
 export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
   try {
-    const [budgetData, expenseData, summaryData, readingsData, placementData, purchaseData, timeData] =
+    const [budgetData, expenseData, summaryData, readingsData, placementData, purchaseData, timeData, investmentData] =
       await Promise.all([
         fetchGVizSheet("Category Budget"),
         fetchGVizSheet("2026 Expense Journal"),
@@ -355,6 +428,7 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         fetchGVizSheet("Placement Tracker"),
         fetchGVizSheet("Purchase Summary"),
         fetchGVizSheet("Time Spent on Earth"),
+        fetchGVizSheet("Investment Journal"),
       ]);
 
     // Parse Category Budget
@@ -580,6 +654,25 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       });
     }
 
+    // Parse Investment Journal
+    const investments: TrackerInvestmentJournal = {
+      ...SEED_TRACKERS_DATA.investments,
+    };
+
+    if (investmentData?.table?.rows) {
+      investmentData.table.rows.forEach((row) => {
+        const c0 = parseString(row.c[0]);
+        const c1 = parseString(row.c[1]);
+        if (c0.includes("Grand Total (School + University")) {
+          const amt = parseNumber(row.c[1]?.v ?? row.c[1]?.f);
+          if (amt > 0) {
+            investments.grandTotal = amt;
+            investments.grandTotalFormatted = `₹${amt.toLocaleString("en-IN")}`;
+          }
+        }
+      });
+    }
+
     return {
       spreadsheetId: GOOGLE_SHEET_ID,
       spreadsheetUrl: GOOGLE_SHEET_URL,
@@ -594,6 +687,7 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       jobApplications: jobApplications.length > 0 ? jobApplications : SEED_TRACKERS_DATA.jobApplications,
       lifeStats,
       purchases: purchases.length > 0 ? purchases : SEED_TRACKERS_DATA.purchases,
+      investments,
     };
   } catch (err) {
     console.error("Error syncing spreadsheet trackers:", err);

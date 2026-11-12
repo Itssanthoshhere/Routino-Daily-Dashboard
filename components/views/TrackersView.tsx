@@ -25,6 +25,9 @@ import {
   CreditCard,
   DollarSign,
   Share2,
+  GraduationCap,
+  Award,
+  Landmark,
 } from "lucide-react";
 import type {
   TrackersData,
@@ -34,7 +37,7 @@ import type {
 } from "@/types/dashboard";
 import { SEED_TRACKERS_DATA } from "@/lib/trackersSync";
 
-type TabKey = "eb" | "expenses" | "placements" | "life" | "purchases";
+type TabKey = "eb" | "expenses" | "investments" | "placements" | "life" | "purchases";
 
 export function TrackersView() {
   const [activeTab, setActiveTab] = useState<TabKey>("eb");
@@ -256,6 +259,7 @@ export function TrackersView() {
         {[
           { key: "eb", label: "PG Electricity (EB)", icon: Zap, count: `${data.ebMeta.latestReading} units` },
           { key: "expenses", label: "Expense & Budget", icon: Wallet, count: `₹${data.totalMonthlyBudget.toLocaleString()}` },
+          { key: "investments", label: "Investment Journal", icon: TrendingUp, count: `${data.investments?.grandTotalFormatted || "₹22.76L"}` },
           { key: "placements", label: "Placements & Career", icon: Briefcase, count: `${data.jobApplications.length}` },
           { key: "life", label: "Time on Earth", icon: Hourglass, count: `${data.lifeStats.ageYears} yrs` },
           { key: "purchases", label: "Gadgets & Assets", icon: Laptop, count: `${data.purchases.length}` },
@@ -580,6 +584,187 @@ export function TrackersView() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          TAB: INVESTMENT JOURNAL (EDUCATION & LIFETIME LEDGER)
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "investments" && (
+        <div className="space-y-6">
+          {/* Top KPI Cards */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Grand Total Investment</span>
+              <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">
+                {data.investments.grandTotalFormatted || "₹22,76,000"}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">Pre-School through University Degree</p>
+            </div>
+
+            <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">University (B.Tech)</span>
+              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">
+                ₹{(data.investments.universityTotal || 2164500).toLocaleString("en-IN")}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">4 Years Fees, Hostel & Exams</p>
+            </div>
+
+            <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Schooling (K-12)</span>
+              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">
+                ₹{(data.investments.schoolTotal || 112500).toLocaleString("en-IN")}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">Pre-K through 12th Grade</p>
+            </div>
+
+            <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Merit Scholarship</span>
+              <p className="mt-1 text-[22px] font-bold text-[#059669] tracking-tight">
+                ₹{(data.investments.scholarshipEarned || 130000).toLocaleString("en-IN")}
+              </p>
+              <p className="mt-1 text-[10.5px] text-muted">35% Tuition Waiver in 1st Year</p>
+            </div>
+          </div>
+
+          {/* Education Level Breakdown Cards */}
+          <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-[14px] font-bold text-ink">Lifetime Education Progression</h3>
+                <p className="text-[11px] text-muted">Complete breakdown from Pre-School to Engineering Graduation</p>
+              </div>
+              <span className="rounded-xl bg-[#ecfdf5] border border-[#a7f3d0] px-3 py-1 text-[11px] font-bold text-[#047857]">
+                Grand Total: {data.investments.grandTotalFormatted || "₹22,76,000"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {data.investments.levels.map((lvl, idx) => (
+                <div key={lvl.level} className="rounded-xl border border-[#eff1ec] bg-[#fbfcf9] p-3.5 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-muted uppercase block">Phase {idx + 1} · {lvl.years}</span>
+                    <p className="text-[12px] font-bold text-ink mt-1 line-clamp-2">{lvl.level}</p>
+                    {lvl.notes && (
+                      <p className="text-[10.5px] text-muted mt-1 leading-snug">{lvl.notes}</p>
+                    )}
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-[#eff1ec] flex items-center justify-between">
+                    <span className="text-[10.5px] text-muted font-medium">Expense</span>
+                    <span className="text-[12.5px] font-bold text-forest">₹{lvl.totalExpense.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* University Year-by-Year Table */}
+          <div className="rounded-2xl border border-line bg-white shadow-card overflow-hidden">
+            <div className="p-4 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#fbfcf8]">
+              <div>
+                <h4 className="text-[13px] font-bold text-ink">University Fee Breakdown (1st to 4th Year)</h4>
+                <p className="text-[11px] text-muted">Tuition, 35% scholarship, hostel fee & examination charges</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-[#f0f2eb] px-2.5 py-1 text-[11px] font-semibold text-[#475248]">
+                  Deposit: ₹{data.investments.depositFee?.toLocaleString("en-IN") || "45,000"}
+                </span>
+                <span className="rounded-lg bg-[#f0f2eb] px-2.5 py-1 text-[11px] font-semibold text-[#475248]">
+                  Alumni: ₹{data.investments.alumniFee?.toLocaleString("en-IN") || "1,500"}
+                </span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-[12px]">
+                <thead>
+                  <tr className="border-b border-line bg-[#fafbf7] text-[10.5px] font-bold uppercase tracking-wider text-muted">
+                    <th className="py-2.5 px-4">Academic Year</th>
+                    <th className="py-2.5 px-4">Grade</th>
+                    <th className="py-2.5 px-4 text-right">Base Tuition</th>
+                    <th className="py-2.5 px-4 text-right">Scholarship</th>
+                    <th className="py-2.5 px-4 text-right">Net Tuition</th>
+                    <th className="py-2.5 px-4 text-right">Hostel Fee</th>
+                    <th className="py-2.5 px-4 text-right">Exam Fee</th>
+                    <th className="py-2.5 px-4 text-right">Total Annual</th>
+                    <th className="py-2.5 px-4 text-right">Cumulative</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#eff1ec]">
+                  {data.investments.universityYears.map((yr) => (
+                    <tr key={yr.year} className="hover:bg-[#fbfcf9] transition">
+                      <td className="py-3 px-4 font-semibold text-ink whitespace-nowrap">{yr.year}</td>
+                      <td className="py-3 px-4">
+                        <span className="rounded px-2 py-0.5 text-[10px] font-bold bg-[#f1f3ed] text-[#475248]">
+                          {yr.grade}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right text-muted whitespace-nowrap">₹{yr.tuitionFee.toLocaleString("en-IN")}</td>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        {yr.scholarship > 0 ? (
+                          <span className="text-[#059669] font-semibold">-₹{yr.scholarship.toLocaleString("en-IN")} (35%)</span>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right font-medium text-ink whitespace-nowrap">₹{yr.netTuition.toLocaleString("en-IN")}</td>
+                      <td className="py-3 px-4 text-right text-muted whitespace-nowrap">₹{yr.hostelFee.toLocaleString("en-IN")}</td>
+                      <td className="py-3 px-4 text-right text-muted whitespace-nowrap">₹{yr.examCharges.toLocaleString("en-IN")}</td>
+                      <td className="py-3 px-4 text-right font-bold text-forest whitespace-nowrap">₹{yr.totalAnnualFee.toLocaleString("en-IN")}</td>
+                      <td className="py-3 px-4 text-right font-semibold text-ink whitespace-nowrap">₹{yr.cumulativeExpense.toLocaleString("en-IN")}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-[#fbfcf8] font-bold border-t border-line">
+                    <td colSpan={2} className="py-2.5 px-4 text-ink">Other Mandatory Charges</td>
+                    <td colSpan={5} className="py-2.5 px-4 text-muted text-[11px]">One-Time Refundable Deposit (₹45,000) + Alumni Contribution (₹1,500)</td>
+                    <td className="py-2.5 px-4 text-right text-forest">₹46,500</td>
+                    <td className="py-2.5 px-4 text-right text-forest">₹21,64,500</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Contributors & Semester Funding */}
+          <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-[14px] font-bold text-ink">Family & Supporter Contributions</h3>
+                <p className="text-[11px] text-muted">Education funding support recorded for 6th Semester (₹2,80,000 Total)</p>
+              </div>
+              <span className="rounded-xl bg-[#f0f2eb] px-3 py-1 text-[11px] font-bold text-ink">
+                6th Semester Fund
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {data.investments.contributors.map((c) => (
+                <div key={c.name} className="rounded-xl border border-[#eff1ec] bg-[#fbfcf9] p-3.5 flex flex-col justify-between">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-[12.5px] font-bold text-ink">{c.name}</p>
+                      <p className="text-[10px] text-muted mt-0.5">Education Support</p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                        c.status === "Paid"
+                          ? "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]"
+                          : "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                      }`}
+                    >
+                      {c.status}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 pt-2 border-t border-[#eff1ec] flex items-center justify-between">
+                    <span className="text-[10px] text-muted">Amount</span>
+                    <span className="text-[13px] font-extrabold text-forest">₹{c.amount.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

@@ -98,6 +98,44 @@ export type TrackerPurchase = {
   timeSinceDelivery: string;
 };
 
+export type UniversityYearFee = {
+  year: string;
+  grade: string;
+  tuitionFee: number;
+  scholarship: number;
+  netTuition: number;
+  hostelFee: number;
+  examCharges: number;
+  totalAnnualFee: number;
+  cumulativeExpense: number;
+};
+
+export type EducationLevelSummary = {
+  level: string;
+  totalExpense: number;
+  years: string;
+  notes?: string;
+};
+
+export type InvestmentContributor = {
+  name: string;
+  amount: number;
+  status: "Paid" | "Pending";
+};
+
+export type TrackerInvestmentJournal = {
+  grandTotal: number;
+  grandTotalFormatted: string;
+  universityTotal: number;
+  schoolTotal: number;
+  scholarshipEarned: number;
+  depositFee: number;
+  alumniFee: number;
+  levels: EducationLevelSummary[];
+  universityYears: UniversityYearFee[];
+  contributors: InvestmentContributor[];
+};
+
 export type TrackersData = {
   spreadsheetId: string;
   spreadsheetUrl: string;
@@ -113,4 +151,5 @@ export type TrackersData = {
   jobApplications: TrackerJobApplication[];
   lifeStats: TrackerLifeStats;
   purchases: TrackerPurchase[];
+  investments: TrackerInvestmentJournal;
 };
