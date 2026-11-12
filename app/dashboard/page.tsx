@@ -73,6 +73,41 @@ const nav = [
   { icon: StickyNote, label: "Notes" },
 ];
 
+const TAB_TO_PARAM: Record<string, string> = {
+  Overview: "overview",
+  Calendar: "calendar",
+  "Time Audit": "time-audit",
+  Trackers: "trackers",
+  Inbox: "inbox",
+  Tasks: "tasks",
+  Notes: "notes",
+};
+
+const PARAM_TO_TAB: Record<string, string> = {
+  overview: "Overview",
+  calendar: "Calendar",
+  "time-audit": "Time Audit",
+  timeaudit: "Time Audit",
+  trackers: "Trackers",
+  inbox: "Inbox",
+  tasks: "Tasks",
+  notes: "Notes",
+};
+
+const TRACKER_SHORTCUTS: Record<string, TrackersTabKey> = {
+  tokens: "tokens",
+  eb: "eb",
+  electricity: "eb",
+  expenses: "expenses",
+  budget: "expenses",
+  placements: "placements",
+  career: "placements",
+  investments: "investments",
+  purchases: "purchases",
+  gadgets: "purchases",
+  life: "life",
+};
+
 const sampleSchedule: ScheduleItem[] = [
   { time: "09:30", end: "10:00", name: "Weekly team sync", detail: "Product & design · Meet link", tag: "PREP", color: "#7b8df4" },
   { time: "11:00", end: "12:00", name: "Project review", detail: "Q4 roadmap · 3 guests", tag: "IN 2H", color: "#e7a15a" },
@@ -471,9 +506,28 @@ export default function Home() {
         setSoundEnabled(storedSound === "true");
       }
 
-      const storedNav = localStorage.getItem("routino_active_nav");
-      if (storedNav) {
-        setActiveNav(storedNav);
+      // 1. Check URL search param (?tab=...) first, then fallback to storedNav
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlTab = urlParams.get("tab")?.toLowerCase();
+      const urlSub = urlParams.get("sub")?.toLowerCase() as TrackersTabKey | undefined;
+
+      if (urlTab) {
+        if (TRACKER_SHORTCUTS[urlTab]) {
+          setActiveNav("Trackers");
+          setTrackersTab(TRACKER_SHORTCUTS[urlTab]);
+          setTrackersTabKey(k => k + 1);
+        } else if (PARAM_TO_TAB[urlTab]) {
+          setActiveNav(PARAM_TO_TAB[urlTab]);
+          if (PARAM_TO_TAB[urlTab] === "Trackers" && urlSub && TRACKER_SHORTCUTS[urlSub]) {
+            setTrackersTab(TRACKER_SHORTCUTS[urlSub]);
+            setTrackersTabKey(k => k + 1);
+          }
+        }
+      } else {
+        const storedNav = localStorage.getItem("routino_active_nav");
+        if (storedNav) {
+          setActiveNav(storedNav);
+        }
       }
 
       const storedStarred = localStorage.getItem("routino_starred_mail");
@@ -505,6 +559,36 @@ export default function Home() {
       // Fallback
     }
     setHydrated(true);
+  }, []);
+
+  /* ── Browser Back / Forward URL Sync ── */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab")?.toLowerCase();
+      const subParam = params.get("sub")?.toLowerCase() as TrackersTabKey | undefined;
+
+      if (tabParam) {
+        if (TRACKER_SHORTCUTS[tabParam]) {
+          setActiveNav("Trackers");
+          setTrackersTab(TRACKER_SHORTCUTS[tabParam]);
+          setTrackersTabKey((k) => k + 1);
+        } else if (PARAM_TO_TAB[tabParam]) {
+          setActiveNav(PARAM_TO_TAB[tabParam]);
+          if (PARAM_TO_TAB[tabParam] === "Trackers" && subParam && TRACKER_SHORTCUTS[subParam]) {
+            setTrackersTab(TRACKER_SHORTCUTS[subParam]);
+            setTrackersTabKey((k) => k + 1);
+          }
+        }
+      } else {
+        setActiveNav("Overview");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   /* ── Toast helper ── */
@@ -1191,9 +1275,18 @@ export default function Home() {
     });
   };
 
-  const handleSelectNav = (tab: string) => {
+  const handleSelectNav = (tab: string, pushUrl = true) => {
     setActiveNav(tab);
     try { localStorage.setItem("routino_active_nav", tab); } catch {}
+
+    if (pushUrl && typeof window !== "undefined") {
+      const slug = TAB_TO_PARAM[tab] || "overview";
+      const newUrl = slug === "overview" ? "/dashboard" : `/dashboard?tab=${slug}`;
+      if (window.location.pathname + window.location.search !== newUrl) {
+        window.history.pushState({ tab }, "", newUrl);
+      }
+    }
+
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       document.documentElement.scrollTop = 0;
@@ -1206,10 +1299,18 @@ export default function Home() {
     }
   };
 
-  const handleOpenTrackersTab = useCallback((tab: TrackersTabKey) => {
+  const handleOpenTrackersTab = useCallback((tab: TrackersTabKey, pushUrl = true) => {
     setTrackersTab(tab);
     setTrackersTabKey((k) => k + 1);
-    handleSelectNav("Trackers");
+    handleSelectNav("Trackers", false);
+
+    if (pushUrl && typeof window !== "undefined") {
+      const newUrl = `/dashboard?tab=trackers&sub=${tab}`;
+      if (window.location.pathname + window.location.search !== newUrl) {
+        window.history.pushState({ tab: "Trackers", sub: tab }, "", newUrl);
+      }
+    }
+
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       document.documentElement.scrollTop = 0;
@@ -1549,7 +1650,15 @@ export default function Home() {
             <TrackersView
               initialTab={trackersTab}
               tabChangeKey={trackersTabKey}
-              onTabChange={(tab) => setTrackersTab(tab)}
+              onTabChange={(tab) => {
+                setTrackersTab(tab);
+                if (typeof window !== "undefined") {
+                  const newUrl = `/dashboard?tab=trackers&sub=${tab}`;
+                  if (window.location.pathname + window.location.search !== newUrl) {
+                    window.history.pushState({ tab: "Trackers", sub: tab }, "", newUrl);
+                  }
+                }
+              }}
             />
           ) : activeNav === "Inbox" ? (
             <InboxView
