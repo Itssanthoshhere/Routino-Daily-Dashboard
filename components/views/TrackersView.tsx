@@ -61,6 +61,7 @@ export function TrackersView() {
   const [ebReadingsVisibleCount, setEbReadingsVisibleCount] = useState<number>(20);
   const [placementSearch, setPlacementSearch] = useState("");
   const [placementStatusFilter, setPlacementStatusFilter] = useState("all");
+  const [placementSourceFilter, setPlacementSourceFilter] = useState("all");
 
   // Antigravity Tokens filters
   const [tokenSearch, setTokenSearch] = useState("");
@@ -449,6 +450,30 @@ export function TrackersView() {
     };
   }, [runningEbCycle, data.ebMeta.currentRate, displayLatestReading]);
 
+  // Active placement applications (not rejected)
+  const activeApplications = useMemo(() => {
+    return (data.jobApplications || []).filter(
+      (j) => !j.status.toLowerCase().includes("reject") && !j.status.toLowerCase().includes("not attend")
+    );
+  }, [data.jobApplications]);
+
+  // Unique placement statuses and sources
+  const placementStatuses = useMemo(() => {
+    const set = new Set<string>();
+    (data.jobApplications || []).forEach((j) => {
+      if (j.status) set.add(j.status);
+    });
+    return Array.from(set);
+  }, [data.jobApplications]);
+
+  const placementSources = useMemo(() => {
+    const set = new Set<string>();
+    (data.jobApplications || []).forEach((j) => {
+      if (j.source) set.add(j.source);
+    });
+    return Array.from(set);
+  }, [data.jobApplications]);
+
   // Placement applications filtered
   const filteredPlacements = useMemo(() => {
     return data.jobApplications.filter((job) => {
@@ -459,11 +484,24 @@ export function TrackersView() {
       if (!matchSearch) return false;
 
       if (placementStatusFilter !== "all") {
-        if (job.status.toLowerCase() !== placementStatusFilter.toLowerCase()) return false;
+        if (placementStatusFilter === "active") {
+          if (job.status.toLowerCase().includes("reject") || job.status.toLowerCase().includes("not attend")) {
+            return false;
+          }
+        } else if (job.status.toLowerCase() !== placementStatusFilter.toLowerCase()) {
+          return false;
+        }
       }
+
+      if (placementSourceFilter !== "all") {
+        if (job.source.toLowerCase() !== placementSourceFilter.toLowerCase()) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [data.jobApplications, placementSearch, placementStatusFilter]);
+  }, [data.jobApplications, placementSearch, placementStatusFilter, placementSourceFilter]);
 
   // Antigravity Tokens filtered & sorted
   const filteredTokens = useMemo(() => {
@@ -1715,7 +1753,48 @@ export function TrackersView() {
             </div>
           </div>
 
-          {/* Search & Filter Header */}
+          {/* Active Pipelines & Action Items Card */}
+          {activeApplications.length > 0 && (
+            <div className="rounded-2xl border border-line bg-linear-to-br from-[#fafbf7] to-white p-4 sm:p-5 shadow-card">
+              <div className="flex items-center justify-between border-b border-line/60 pb-3 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-7 w-7 place-items-center rounded-lg bg-[#ecfdf5] text-[#047857]">
+                    <Sparkles size={14} />
+                  </div>
+                  <div>
+                    <h4 className="text-[13px] font-bold text-ink">Active Career Pipelines & Next Actions</h4>
+                    <p className="text-[11px] text-muted">{activeApplications.length} active applications progressing</p>
+                  </div>
+                </div>
+                <span className="rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2.5 py-0.5 text-[10.5px] font-bold text-[#047857]">
+                  Awaiting OA / Next Round
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {activeApplications.map((app) => (
+                  <div key={app.id} className="rounded-xl border border-line/70 bg-white p-3 shadow-2xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-bold text-[13px] text-ink truncate">{app.company}</span>
+                        <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-[#eff6ff] text-[#1d4ed8]">
+                          {app.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted truncate mt-0.5">{app.role}</p>
+                    </div>
+
+                    <div className="mt-2.5 pt-2 border-t border-[#f0f2eb] flex items-center justify-between text-[10px] text-muted">
+                      <span className="font-medium text-forest">{app.source}</span>
+                      <span>Applied: {app.appliedDate}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Search, Status & Source Filter Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="relative flex-1 w-full sm:w-auto">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -1726,22 +1805,64 @@ export function TrackersView() {
                 placeholder="Search company, role or location..."
                 className="h-9 w-full sm:w-72 rounded-xl border border-line bg-white pl-9 pr-3 text-[12px] text-ink placeholder:text-muted focus:border-forest focus:outline-none shadow-xs"
               />
+              {placementSearch && (
+                <button
+                  onClick={() => setPlacementSearch("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-              {["all", "Applied", "Rejected", "Did Not Attend"].map((st) => (
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              {/* Status Chips */}
+              <div className="flex items-center gap-1 bg-white border border-line rounded-xl p-1 text-[11px] overflow-x-auto max-w-full">
                 <button
-                  key={st}
-                  onClick={() => setPlacementStatusFilter(st)}
-                  className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
-                    placementStatusFilter === st
-                      ? "bg-forest text-white"
-                      : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
+                  onClick={() => setPlacementStatusFilter("all")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                    placementStatusFilter === "all" ? "bg-forest text-white" : "text-muted hover:text-ink"
                   }`}
                 >
-                  {st}
+                  All ({data.jobApplications.length})
                 </button>
-              ))}
+                <button
+                  onClick={() => setPlacementStatusFilter("active")}
+                  className={`px-2.5 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                    placementStatusFilter === "active" ? "bg-[#ecfdf5] text-[#047857]" : "text-muted hover:text-ink"
+                  }`}
+                >
+                  Active ({activeApplications.length})
+                </button>
+                {placementStatuses.map((st) => {
+                  const count = data.jobApplications.filter((j) => j.status === st).length;
+                  return (
+                    <button
+                      key={st}
+                      onClick={() => setPlacementStatusFilter(st)}
+                      className={`px-2.5 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                        placementStatusFilter === st ? "bg-forest text-white" : "text-muted hover:text-ink"
+                      }`}
+                    >
+                      {st} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Source Dropdown */}
+              {placementSources.length > 1 && (
+                <select
+                  value={placementSourceFilter}
+                  onChange={(e) => setPlacementSourceFilter(e.target.value)}
+                  className="h-9 rounded-xl border border-line bg-white px-2.5 text-[11px] font-semibold text-ink focus:border-forest focus:outline-none shadow-xs"
+                >
+                  <option value="all">All Sources</option>
+                  {placementSources.map((src) => (
+                    <option key={src} value={src}>{src}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
