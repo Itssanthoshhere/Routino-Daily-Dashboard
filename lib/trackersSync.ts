@@ -284,10 +284,40 @@ export const SEED_TRACKERS_DATA: TrackersData = {
   ebMeta: {
     rateTillSep: 10,
     currentRate: 12,
-    latestReading: 318.06,
-    latestReadingDate: "01 Nov 2026, 2:21 PM",
+    latestReading: 323.0,
+    latestReadingDate: "07 Nov 2026, 9:40 AM",
   },
   ebReadings: [
+    {
+      id: "eb-r0",
+      dateTimeStr: "07 Nov 2026, 9:40 AM",
+      meterReading: 323.0,
+      unitsUsed: 3.3,
+      cost: 33.0,
+      daysSincePrevious: 3.43,
+      unitsPerDay: 0.96,
+      billingCycle: "Nov",
+    },
+    {
+      id: "eb-r0-b",
+      dateTimeStr: "03 Nov 2026, 11:14 PM",
+      meterReading: 319.7,
+      unitsUsed: 1.3,
+      cost: 13.0,
+      daysSincePrevious: 1.37,
+      unitsPerDay: 0.95,
+      billingCycle: "Nov",
+    },
+    {
+      id: "eb-r0-c",
+      dateTimeStr: "02 Nov 2026, 2:21 PM",
+      meterReading: 318.4,
+      unitsUsed: 0.4,
+      cost: 4.0,
+      daysSincePrevious: 1.64,
+      unitsPerDay: 0.24,
+      billingCycle: "Nov",
+    },
     {
       id: "eb-r1",
       dateTimeStr: "01 Nov 2026, 2:21 PM",
@@ -653,8 +683,8 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
     const ebMeta: TrackerEBMeta = {
       rateTillSep: 10,
       currentRate: 12,
-      latestReading: 318.06,
-      latestReadingDate: "01 Nov 2026, 2:21 PM",
+      latestReading: 0,
+      latestReadingDate: "",
     };
     const ebCycles: TrackerEBCycleSummary[] = [];
 
@@ -666,7 +696,10 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         } else if (label.includes("Rate (Rs per unit)")) {
           ebMeta.currentRate = parseNumber(row.c[1]?.v ?? row.c[1]?.f) || 12;
         } else if (label.includes("Latest reading (units)")) {
-          ebMeta.latestReading = parseNumber(row.c[1]?.v ?? row.c[1]?.f) || 318.06;
+          ebMeta.latestReading = parseNumber(row.c[1]?.v ?? row.c[1]?.f) || 0;
+        } else if (label.toLowerCase().includes("reading taken at") || label.toLowerCase().includes("latest reading taken")) {
+          const dt = parseString(row.c[1]) || parseGVizDate(row.c[1]);
+          if (dt) ebMeta.latestReadingDate = dt;
         } else if (["Aug", "Sep", "Oct", "Nov"].includes(label)) {
           const units = row.c[1] ? parseNumber(row.c[1].v ?? row.c[1].f) : 0;
           const computed = row.c[2] ? parseNumber(row.c[2].v ?? row.c[2].f) : 0;
@@ -718,11 +751,26 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       // Ensure recent readings are on top
       ebReadings.reverse();
 
-      const maxReading = Math.max(...ebReadings.map((r) => r.meterReading), 0);
-      if (maxReading > ebMeta.latestReading) {
-        ebMeta.latestReading = maxReading;
-        const latestItem = ebReadings.find((r) => r.meterReading === maxReading);
-        if (latestItem) ebMeta.latestReadingDate = latestItem.dateTimeStr;
+      if (ebReadings.length > 0) {
+        // Dynamic derivation of latest reading and date from readings data
+        const sortedByReading = [...ebReadings].sort((a, b) => b.meterReading - a.meterReading);
+        const latestItem = sortedByReading[0];
+        if (latestItem) {
+          if (!ebMeta.latestReading || latestItem.meterReading >= ebMeta.latestReading) {
+            ebMeta.latestReading = latestItem.meterReading;
+          }
+          if (latestItem.dateTimeStr && (!ebMeta.latestReadingDate || latestItem.meterReading >= ebMeta.latestReading)) {
+            ebMeta.latestReadingDate = latestItem.dateTimeStr;
+          }
+        }
+      }
+
+      // Safe fallback if sheet summary and readings had no values
+      if (!ebMeta.latestReading) {
+        ebMeta.latestReading = SEED_TRACKERS_DATA.ebMeta.latestReading;
+      }
+      if (!ebMeta.latestReadingDate) {
+        ebMeta.latestReadingDate = SEED_TRACKERS_DATA.ebMeta.latestReadingDate;
       }
     }
 

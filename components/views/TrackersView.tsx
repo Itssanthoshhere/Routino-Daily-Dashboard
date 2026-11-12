@@ -60,6 +60,23 @@ export function TrackersView() {
   const [showAddReadingModal, setShowAddReadingModal] = useState(false);
   const [newReadingVal, setNewReadingVal] = useState("");
   const [newReadingCycle, setNewReadingCycle] = useState("Nov");
+  const [newReadingDateTime, setNewReadingDateTime] = useState("");
+
+  const openAddReadingModal = () => {
+    setNewReadingVal("");
+    setNewReadingCycle("Nov");
+    setNewReadingDateTime(
+      new Date().toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    );
+    setShowAddReadingModal(true);
+  };
 
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [newExpenseItem, setNewExpenseItem] = useState("");
@@ -109,6 +126,7 @@ export function TrackersView() {
           payload: {
             meterReading: parseFloat(newReadingVal),
             billingCycle: newReadingCycle,
+            dateTimeStr: newReadingDateTime.trim() || undefined,
           },
         }),
       });
@@ -117,6 +135,7 @@ export function TrackersView() {
         setData(json.data);
         setShowAddReadingModal(false);
         setNewReadingVal("");
+        setNewReadingDateTime("");
       }
     } catch (err) {
       console.error(err);
@@ -264,6 +283,29 @@ export function TrackersView() {
     });
   }, [data.ebCycles]);
 
+  // Dynamic latest EB reading and timestamp from readings data or metadata
+  const latestEbReadingItem = useMemo(() => {
+    if (!data.ebReadings || data.ebReadings.length === 0) return null;
+    return [...data.ebReadings].sort((a, b) => {
+      if (b.meterReading !== a.meterReading) return b.meterReading - a.meterReading;
+      const tA = new Date(a.dateTimeStr).getTime();
+      const tB = new Date(b.dateTimeStr).getTime();
+      if (!isNaN(tA) && !isNaN(tB)) return tB - tA;
+      return 0;
+    })[0];
+  }, [data.ebReadings]);
+
+  const displayLatestReading = latestEbReadingItem ? latestEbReadingItem.meterReading : data.ebMeta.latestReading;
+  const displayLatestReadingDate = latestEbReadingItem?.dateTimeStr || data.ebMeta.latestReadingDate || "";
+
+  // Dynamic running billing cycle metrics
+  const runningEbCycle = useMemo(() => {
+    return (
+      data.ebCycles.find((c) => c.status === "Running" || c.cycle.toLowerCase() === "nov") ||
+      data.ebCycles[data.ebCycles.length - 1]
+    );
+  }, [data.ebCycles]);
+
   // Placement applications filtered
   const filteredPlacements = useMemo(() => {
     return data.jobApplications.filter((job) => {
@@ -333,7 +375,7 @@ export function TrackersView() {
       {/* ─── Navigation Tabs ─── */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line pb-3">
         {[
-          { key: "eb", label: "PG Electricity (EB)", icon: Zap, count: `${data.ebMeta.latestReading} units` },
+          { key: "eb", label: "PG Electricity (EB)", icon: Zap, count: `${displayLatestReading} units` },
           { key: "expenses", label: "Expense & Budget", icon: Wallet, count: `₹${data.totalMonthlyBudget.toLocaleString()}` },
           { key: "investments", label: "Investment Journal", icon: TrendingUp, count: `${data.investments?.grandTotalFormatted || "₹22.76L"}` },
           { key: "placements", label: "Placements & Career", icon: Briefcase, count: `${data.jobApplications.length}` },
@@ -371,10 +413,12 @@ export function TrackersView() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Latest Reading</span>
-              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">{data.ebMeta.latestReading} <span className="text-[13px] font-normal text-muted">units</span></p>
-              <p className="mt-1 text-[10.5px] text-[#059669] flex items-center gap-1 font-medium">
-                <Clock size={11} /> {data.ebMeta.latestReadingDate || "Latest Nov reading"}
-              </p>
+              <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">{displayLatestReading} <span className="text-[13px] font-normal text-muted">units</span></p>
+              {displayLatestReadingDate ? (
+                <p className="mt-1 text-[10.5px] text-[#059669] flex items-center gap-1 font-medium">
+                  <Clock size={11} /> {displayLatestReadingDate}
+                </p>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
@@ -384,17 +428,17 @@ export function TrackersView() {
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Nov Running Cycle</span>
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">{runningEbCycle?.cycle || "Nov"} Running Cycle</span>
               <p className="mt-1 text-[22px] font-bold text-[#b45309] tracking-tight">
-                0.06 <span className="text-[13px] font-normal text-muted">units</span>
+                {runningEbCycle?.unitsUsed ?? 0} <span className="text-[13px] font-normal text-muted">units</span>
               </p>
-              <p className="mt-1 text-[10.5px] text-muted">Cost ₹0.72 · 50% split</p>
+              <p className="mt-1 text-[10.5px] text-muted">Cost ₹{runningEbCycle?.computedCost ?? 0} · {runningEbCycle?.peopleSharing ? `${Math.round(100 / runningEbCycle.peopleSharing)}% split` : "50% split"}</p>
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">My Share (Running)</span>
-              <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">₹0.36</p>
-              <p className="mt-1 text-[10.5px] text-muted">2 People Sharing</p>
+              <p className="mt-1 text-[22px] font-bold text-forest tracking-tight">₹{runningEbCycle?.myShare ?? 0}</p>
+              <p className="mt-1 text-[10.5px] text-muted">{runningEbCycle?.peopleSharing || 2} People Sharing</p>
             </div>
           </div>
 
@@ -482,7 +526,7 @@ export function TrackersView() {
                 </div>
 
                 <button
-                  onClick={() => setShowAddReadingModal(true)}
+                  onClick={openAddReadingModal}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-[#8b1116] transition"
                 >
                   <Plus size={12} /> Log Reading
@@ -1231,6 +1275,17 @@ export function TrackersView() {
                   value={newReadingVal}
                   onChange={(e) => setNewReadingVal(e.target.value)}
                   className="w-full h-9 rounded-xl border border-line px-3 text-[13px] text-ink focus:border-forest focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-muted block mb-1">Date & Time</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 07 Nov 2026, 9:40 AM"
+                  value={newReadingDateTime}
+                  onChange={(e) => setNewReadingDateTime(e.target.value)}
+                  className="w-full h-9 rounded-xl border border-line px-3 text-[12px] text-ink focus:border-forest focus:outline-none"
                 />
               </div>
 
