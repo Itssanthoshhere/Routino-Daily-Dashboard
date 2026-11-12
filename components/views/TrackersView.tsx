@@ -289,11 +289,31 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
     if (initialTab) {
       setActiveTab(initialTab);
     }
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      });
+    }
   }, [initialTab, tabChangeKey]);
 
   const handleTabSelect = (tab: TabKey) => {
     setActiveTab(tab);
     onTabChange?.(tab);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      });
+    }
   };
   const [data, setData] = useState<TrackersData>(SEED_TRACKERS_DATA);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);

@@ -1193,12 +1193,32 @@ export default function Home() {
   const handleSelectNav = (tab: string) => {
     setActiveNav(tab);
     try { localStorage.setItem("routino_active_nav", tab); } catch {}
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      });
+    }
   };
 
   const handleOpenTrackersTab = useCallback((tab: TrackersTabKey) => {
     setTrackersTab(tab);
     setTrackersTabKey((k) => k + 1);
     handleSelectNav("Trackers");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      });
+    }
   }, []);
 
   const handleFocusComplete = (mins: number) => {
