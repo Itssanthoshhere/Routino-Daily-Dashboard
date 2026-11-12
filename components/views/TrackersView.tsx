@@ -51,6 +51,7 @@ export function TrackersView() {
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState("all");
   const [expenseVisibleCount, setExpenseVisibleCount] = useState<number>(50);
   const [ebCycleFilter, setEbCycleFilter] = useState("all");
+  const [ebReadingsVisibleCount, setEbReadingsVisibleCount] = useState<number>(20);
   const [placementSearch, setPlacementSearch] = useState("");
   const [placementStatusFilter, setPlacementStatusFilter] = useState("all");
 
@@ -208,11 +209,35 @@ export function TrackersView() {
     return data.expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
   }, [data.expenses]);
 
-  // EB readings filtered
+  // EB readings filtered & sorted (recent on top to bottom)
   const filteredReadings = useMemo(() => {
-    if (ebCycleFilter === "all") return data.ebReadings;
-    return data.ebReadings.filter((r) => r.billingCycle.toLowerCase() === ebCycleFilter.toLowerCase());
+    const list = ebCycleFilter === "all"
+      ? data.ebReadings
+      : data.ebReadings.filter((r) => r.billingCycle.toLowerCase() === ebCycleFilter.toLowerCase());
+
+    return [...list].sort((a, b) => {
+      // Recent on top: highest meter reading first
+      if (b.meterReading !== a.meterReading) {
+        return b.meterReading - a.meterReading;
+      }
+      const tA = new Date(a.dateTimeStr).getTime();
+      const tB = new Date(b.dateTimeStr).getTime();
+      if (!isNaN(tA) && !isNaN(tB)) {
+        return tB - tA;
+      }
+      return 0;
+    });
   }, [data.ebReadings, ebCycleFilter]);
+
+  // EB cycles sorted (latest cycle first: Nov, Oct, Sep, Aug)
+  const sortedEbCycles = useMemo(() => {
+    const cycleOrder: Record<string, number> = { nov: 4, dec: 5, oct: 3, sep: 2, aug: 1 };
+    return [...data.ebCycles].sort((a, b) => {
+      const orderA = cycleOrder[a.cycle.toLowerCase()] || 0;
+      const orderB = cycleOrder[b.cycle.toLowerCase()] || 0;
+      return orderB - orderA;
+    });
+  }, [data.ebCycles]);
 
   // Placement applications filtered
   const filteredPlacements = useMemo(() => {
@@ -356,7 +381,7 @@ export function TrackersView() {
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {data.ebCycles.map((cyc) => (
+              {sortedEbCycles.map((cyc) => (
                 <div key={cyc.cycle} className="rounded-2xl border border-line bg-white p-4 shadow-card flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between">
@@ -404,8 +429,15 @@ export function TrackersView() {
           <div className="rounded-2xl border border-line bg-white shadow-card overflow-hidden">
             <div className="p-4 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#fbfcf8]">
               <div>
-                <h4 className="text-[13px] font-bold text-ink">Meter Photo & Reading Logs</h4>
-                <p className="text-[11px] text-muted">All photo meter readings taken at your PG</p>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-[13px] font-bold text-ink">Meter Photo & Reading Logs</h4>
+                  <span className="rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 text-[9.5px] font-bold text-[#047857]">
+                    Recent on top
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted">
+                  Showing {Math.min(ebReadingsVisibleCount, filteredReadings.length)} of {filteredReadings.length} readings (most recent on top)
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -446,7 +478,7 @@ export function TrackersView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eff1ec]">
-                  {filteredReadings.slice(0, 15).map((row) => (
+                  {filteredReadings.slice(0, ebReadingsVisibleCount).map((row) => (
                     <tr key={row.id} className="hover:bg-[#fbfcf9] transition">
                       <td className="py-2.5 px-4 font-medium text-ink">{row.dateTimeStr}</td>
                       <td className="py-2.5 px-4 text-right font-bold text-ink">{row.meterReading.toFixed(2)}</td>
@@ -469,6 +501,17 @@ export function TrackersView() {
                 </tbody>
               </table>
             </div>
+
+            {filteredReadings.length > ebReadingsVisibleCount && (
+              <div className="p-3 text-center border-t border-line bg-[#fbfcf8]">
+                <button
+                  onClick={() => setEbReadingsVisibleCount((prev) => prev + 20)}
+                  className="rounded-xl border border-line bg-white px-4 py-1.5 text-[11px] font-semibold text-ink hover:bg-[#f1f3ed] transition shadow-xs"
+                >
+                  Show More (Showing {Math.min(ebReadingsVisibleCount, filteredReadings.length)} of {filteredReadings.length})
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

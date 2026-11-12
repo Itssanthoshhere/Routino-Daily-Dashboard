@@ -550,6 +550,16 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
           billingCycle: cycle,
         });
       });
+
+      // Ensure recent readings are on top
+      ebReadings.reverse();
+
+      const maxReading = Math.max(...ebReadings.map((r) => r.meterReading), 0);
+      if (maxReading > ebMeta.latestReading) {
+        ebMeta.latestReading = maxReading;
+        const latestItem = ebReadings.find((r) => r.meterReading === maxReading);
+        if (latestItem) ebMeta.latestReadingDate = latestItem.dateTimeStr;
+      }
     }
 
     // Parse Placement Tracker
