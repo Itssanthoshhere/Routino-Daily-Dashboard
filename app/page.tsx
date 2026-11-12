@@ -7,10 +7,11 @@ import {
   ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
   Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
   StickyNote, Target, Timer, TriangleAlert, Video, X, PieChart, Gauge,
+  Key, Zap, Wallet, Briefcase, Copy, ShieldCheck,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
 
-import type { Task, DashboardEvent, DashboardMail, DashboardData, QuickLink, NotificationItem, Habit, SubTask, KeepNote } from "@/types/dashboard";
+import type { Task, DashboardEvent, DashboardMail, DashboardData, QuickLink, NotificationItem, Habit, SubTask, KeepNote, TrackersData } from "@/types/dashboard";
 import { ToastContainer, ToastMessage } from "@/components/Toast";
 import { FocusTimerModal } from "@/components/FocusTimerModal";
 import { TaskModal } from "@/components/TaskModal";
@@ -42,6 +43,7 @@ import { TasksView } from "@/components/views/TasksView";
 import { NotesView } from "@/components/views/NotesView";
 import { TimeAuditView } from "@/components/views/TimeAuditView";
 import { TrackersView } from "@/components/views/TrackersView";
+import { SEED_TRACKERS_DATA } from "@/lib/trackersSync";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
@@ -312,6 +314,96 @@ export default function Home() {
   const [showDeskSheet, setShowDeskSheet] = useState(false);
   const [showQuickCapture, setShowQuickCapture] = useState(false);
   const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
+
+  /* ── Trackers Snapshot state ── */
+  const [trackersData, setTrackersData] = useState<TrackersData>(SEED_TRACKERS_DATA);
+  const [copiedOverviewEmail, setCopiedOverviewEmail] = useState<string | null>(null);
+
+  const fetchTrackersData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/trackers/sync", { cache: "no-store" });
+      const json = await res.json();
+      if (json?.success && json?.data) {
+        setTrackersData(json.data);
+      }
+    } catch {
+      // Keep seeded fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTrackersData();
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        fetchTrackersData();
+      }
+    };
+    window.addEventListener("focus", onVisibilityOrFocus);
+    document.addEventListener("visibilitychange", onVisibilityOrFocus);
+    return () => {
+      window.removeEventListener("focus", onVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", onVisibilityOrFocus);
+    };
+  }, [fetchTrackersData]);
+
+  const handleCopyNextReadyOverview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const readyList = (trackersData.antigravityTokens || []).filter((t) => t.isAvailable);
+    if (readyList.length === 0) return;
+    const next = readyList[0];
+    navigator.clipboard.writeText(next.email);
+    setCopiedOverviewEmail(next.email);
+    setTimeout(() => {
+      setCopiedOverviewEmail(null);
+    }, 2500);
+  };
+
+  const overviewTrackersSummary = useMemo(() => {
+    // 1. Antigravity Tokens
+    const tokens = trackersData.antigravityTokens || [];
+    const readyTokens = tokens.filter((t) => t.isAvailable);
+    const cooldownTokens = tokens.filter((t) => !t.isAvailable);
+    const readyCount = trackersData.antigravityTokenSummary?.available ?? readyTokens.length;
+    const cooldownCount = trackersData.antigravityTokenSummary?.inCooldown ?? cooldownTokens.length;
+
+    // 2. EB Meter
+    const latestEbReadingItem = trackersData.ebReadings?.[0];
+    const latestReading = latestEbReadingItem ? latestEbReadingItem.meterReading : (trackersData.ebMeta?.latestReading ?? 323);
+    const rate = trackersData.ebMeta?.currentRate || 10;
+    const runningCycle = trackersData.ebCycles?.find((c) => c.status === "Running" || c.cycle.toLowerCase() === "nov") || trackersData.ebCycles?.[trackersData.ebCycles.length - 1];
+    const unitsUsed = runningCycle?.unitsUsed ?? 23;
+    const people = runningCycle?.peopleSharing || 2;
+    const daysElapsed = Math.max(1, new Date().getDate());
+    const burnRate = Number((unitsUsed / daysElapsed).toFixed(2));
+    const projectedUnits = Math.max(unitsUsed, Math.round(burnRate * 30));
+    const projectedTotal = projectedUnits * rate;
+    const projectedShare = Math.round(projectedTotal / people);
+
+    // 3. Monthly Budget
+    const budget = trackersData.totalMonthlyBudget || 7500;
+    const spent = trackersData.journals?.["2026"]?.totalSpent ?? trackersData.expenses?.reduce((acc, curr) => acc + (curr.amount || 0), 0) ?? 3420;
+    const spentPct = Math.min(100, Math.round((spent / budget) * 100));
+    const remaining = Math.max(0, budget - spent);
+
+    // 4. Career Pipelines
+    const activeApps = (trackersData.jobApplications || []).filter(
+      (j) => !j.status.toLowerCase().includes("reject") && !j.status.toLowerCase().includes("not attend")
+    );
+
+    return {
+      readyCount,
+      cooldownCount,
+      latestReading,
+      burnRate,
+      projectedTotal,
+      projectedShare,
+      budget,
+      spent,
+      spentPct,
+      remaining,
+      activeAppsCount: activeApps.length,
+    };
+  }, [trackersData]);
 
   useEffect(() => {
     setIntentionIndex(getTodayIntentionIndex());
@@ -1540,6 +1632,205 @@ export default function Home() {
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{focusMinutes}</span><span className="text-[11px] text-muted">min focus planned</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#87ac6c] animate-pulse" />Click to start a focus session</div>
                 </button>
+              </div>
+
+              {/* ─── Trackers Quick Snapshot Widget ─── */}
+              <div className="mt-6 rounded-2xl border border-line bg-white p-5 sm:p-6 shadow-card">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line/60 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-forest/10 text-forest">
+                      <Gauge size={18} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-[15px] font-bold text-ink">Trackers Quick Snapshot</h3>
+                        <span className="rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 text-[10px] font-bold text-[#047857]">
+                          Live Sync
+                        </span>
+                      </div>
+                      <p className="text-[11.5px] text-muted">
+                        Executive pulse across Antigravity tokens, utility meters, monthly burn, and career applications
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleSelectNav("Trackers")}
+                    className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl border border-line bg-[#fafbf7] px-3 py-1.5 text-[11.5px] font-semibold text-forest hover:bg-forest hover:text-white transition shadow-2xs group"
+                  >
+                    <span>Open Trackers Hub</span>
+                    <ArrowRight size={13} className="transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-4">
+                  {/* 1. Antigravity Tokens */}
+                  <div className="rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider">Antigravity Tokens</span>
+                        <div className="grid h-6 w-6 place-items-center rounded-lg bg-[#ecfdf5] text-[#047857]">
+                          <Key size={13} />
+                        </div>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline gap-2">
+                        <span className="text-[24px] font-bold text-ink tracking-tight">
+                          <span className="text-[#059669]">{overviewTrackersSummary.readyCount}</span>
+                          <span className="text-[16px] text-muted font-semibold"> / {overviewTrackersSummary.cooldownCount}</span>
+                        </span>
+                        <span className="text-[11px] font-medium text-muted">Ready / Cooldown</span>
+                      </div>
+                      <p className="mt-1 text-[10.5px] text-muted">
+                        Across 6 Chrome profiles · 36 total
+                      </p>
+                    </div>
+
+                    <div className="mt-3.5 pt-3 border-t border-[#f0f2eb]">
+                      <button
+                        onClick={handleCopyNextReadyOverview}
+                        disabled={overviewTrackersSummary.readyCount === 0}
+                        className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-forest/30 bg-[#ecfdf5] px-2.5 py-1.5 text-[11px] font-bold text-forest hover:bg-forest hover:text-white disabled:opacity-50 transition"
+                      >
+                        {copiedOverviewEmail ? (
+                          <>
+                            <Check size={12} className="text-white" />
+                            <span>Copied {copiedOverviewEmail}!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} />
+                            <span>Copy Next Ready</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 2. EB Electricity Meter */}
+                  <div
+                    onClick={() => handleSelectNav("Trackers")}
+                    className="cursor-pointer rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider">PG Electricity Meter</span>
+                        <div className="grid h-6 w-6 place-items-center rounded-lg bg-[#fffbeb] text-[#b45309]">
+                          <Zap size={13} />
+                        </div>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline gap-1.5">
+                        <span className="text-[24px] font-bold text-ink tracking-tight">
+                          {overviewTrackersSummary.latestReading}
+                        </span>
+                        <span className="text-[12px] font-semibold text-muted">units</span>
+                        <span className="ml-auto rounded-full bg-[#f1f3ed] px-2 py-0.5 text-[10px] font-bold text-[#475248]">
+                          ~{overviewTrackersSummary.burnRate} u/day
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[10.5px] text-muted">
+                        Daily burn velocity over active Nov readings
+                      </p>
+                    </div>
+
+                    <div className="mt-3.5 pt-3 border-t border-[#f0f2eb] flex items-center justify-between text-[10.5px]">
+                      <span className="text-muted">Est. 30d: <strong className="text-ink font-semibold">₹{overviewTrackersSummary.projectedTotal}</strong></span>
+                      <span className="font-bold text-forest bg-[#ecfdf5] border border-[#a7f3d0] rounded-md px-1.5 py-0.5">
+                        My Share: ₹{overviewTrackersSummary.projectedShare}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 3. Monthly Budget Burn-Down */}
+                  <div
+                    onClick={() => handleSelectNav("Trackers")}
+                    className="cursor-pointer rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider">Monthly Budget</span>
+                        <div className="grid h-6 w-6 place-items-center rounded-lg bg-[#ecfdf5] text-[#059669]">
+                          <Wallet size={13} />
+                        </div>
+                      </div>
+                      <div className="mt-2.5 flex items-baseline gap-1.5">
+                        <span className="text-[22px] font-bold text-ink tracking-tight">
+                          ₹{overviewTrackersSummary.spent.toLocaleString()}
+                        </span>
+                        <span className="text-[12px] font-normal text-muted">
+                          / ₹{overviewTrackersSummary.budget.toLocaleString()}
+                        </span>
+                        <span
+                          className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            overviewTrackersSummary.spentPct > 90
+                              ? "bg-[#fef2f2] text-[#b91c1c]"
+                              : overviewTrackersSummary.spentPct > 70
+                              ? "bg-[#fffbeb] text-[#b45309]"
+                              : "bg-[#ecfdf5] text-[#047857]"
+                          }`}
+                        >
+                          {overviewTrackersSummary.spentPct}%
+                        </span>
+                      </div>
+
+                      {/* Mini Burn-Down Progress Bar */}
+                      <div className="mt-2.5 h-2 w-full bg-[#f0f2eb] rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            overviewTrackersSummary.spentPct > 90
+                              ? "bg-[#ef4444]"
+                              : overviewTrackersSummary.spentPct > 70
+                              ? "bg-[#f59e0b]"
+                              : "bg-[#10b981]"
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(5, overviewTrackersSummary.spentPct))}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-3 pt-2.5 border-t border-[#f0f2eb] flex items-center justify-between text-[10.5px]">
+                      <span className="text-muted">Remaining limit:</span>
+                      <span className="font-bold text-ink">₹{overviewTrackersSummary.remaining.toLocaleString()} left</span>
+                    </div>
+                  </div>
+
+                  {/* 4. Active Career Pipelines */}
+                  <div
+                    onClick={() => handleSelectNav("Trackers")}
+                    className="cursor-pointer rounded-xl border border-line/80 bg-linear-to-b from-[#fbfcf9] to-white p-4 flex flex-col justify-between hover:border-forest/30 transition group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10.5px] font-bold text-muted uppercase tracking-wider">Career Pipelines</span>
+                        <div className="grid h-6 w-6 place-items-center rounded-lg bg-[#eff6ff] text-[#1d4ed8]">
+                          <Briefcase size={13} />
+                        </div>
+                      </div>
+
+                      <div className="mt-2 space-y-1.5">
+                        <div className="flex items-center justify-between gap-1 rounded-lg bg-[#eff6ff]/70 border border-[#bfdbfe]/60 px-2 py-1 text-[11px]">
+                          <span className="font-bold text-[#1e40af] truncate">Digiryte</span>
+                          <span className="shrink-0 text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-white text-[#1d4ed8]">
+                            Round 3 Challenge
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-1 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0]/60 px-2 py-1 text-[11px]">
+                          <span className="font-bold text-[#166534] truncate">Josh Talks</span>
+                          <span className="shrink-0 text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-white text-[#15803d]">
+                            Dataset Task
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-2.5 pt-2 border-t border-[#f0f2eb] flex items-center justify-between text-[10.5px] text-muted">
+                      <span>{overviewTrackersSummary.activeAppsCount} active in pipeline</span>
+                      <span className="font-semibold text-forest group-hover:underline">
+                        View Hub →
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* ─── Micro-Habits & Streak Tracker ─── */}
