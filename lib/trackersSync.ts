@@ -1162,14 +1162,14 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       sNo: 18,
       product: "Green Soul Surface 2.0 Electric Sit Stand Desk",
       brand: "Green Soul",
-      model: "Dual Motor Motorized Height Adjustable",
-      orderDate: "04-Oct-2026",
+      model: "Electric height-adjustable desk, Digital Display, Memory Preset, Sedentary Alarm, Carbon Fibre, Black, 3 Yr Warranty + Desk Mat",
+      orderDate: "23-Sep-2026",
       deliveryDate: "05-Oct-2026",
-      seller: "Green Soul Online",
-      price: 15990,
-      priceFormatted: "₹15,990.00",
-      paymentMode: "Card",
-      location: "Green Soul Store",
+      seller: "Amazon",
+      price: 23009,
+      priceFormatted: "₹23,009.00",
+      paymentMode: "Pay on Delivery",
+      location: "Amazon",
       daysSinceDelivery: 38,
       timeSinceDelivery: "0 Years 1 Months 7 Days",
     },
@@ -1537,12 +1537,34 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         const prod = parseString(row.c[1]);
         if (!prod || prod.toLowerCase() === "product") return;
         const brand = parseString(row.c[2]);
-        const model = parseString(row.c[3]);
+        let model = parseString(row.c[3]);
         const oDate = parseString(row.c[4]) || parseGVizDate(row.c[4]);
         const dDate = parseString(row.c[5]) || parseGVizDate(row.c[5]);
         const seller = parseString(row.c[7]);
-        const price = row.c[8] ? parseNumber(row.c[8].v ?? row.c[8].f) : 0;
-        const priceFormatted = parseString(row.c[8]) || `₹${price.toLocaleString("en-IN")}`;
+        let price = row.c[8] ? parseNumber(row.c[8].v ?? row.c[8].f) : 0;
+        let priceFormatted = parseString(row.c[8]);
+
+        const prodLower = prod.toLowerCase();
+        // Exact price correction for Green Soul Surface 2.0 Electric Sit Stand Desk
+        if ((price === 0 || !price) && prodLower.includes("green soul") && (prodLower.includes("surface") || prodLower.includes("desk"))) {
+          price = 23009;
+          priceFormatted = "₹23,009.00";
+          if (!model) {
+            model = "Electric height-adjustable desk, Digital Display, Memory Preset, Sedentary Alarm, Carbon Fibre, Black, 3 Yr Warranty + Desk Mat";
+          }
+        } else if ((price === 0 || !price) && prodLower.includes("furniture installation")) {
+          price = 999;
+          priceFormatted = "₹999.00";
+        } else if ((price === 0 || !price) && prodLower.includes("multipurpose runner")) {
+          price = 899;
+          priceFormatted = "₹899.00";
+        }
+
+        if (!priceFormatted && price > 0) {
+          priceFormatted = `₹${price.toLocaleString("en-IN")}`;
+        } else if (!priceFormatted) {
+          priceFormatted = "₹0.00";
+        }
         const mode = parseString(row.c[9]);
         const loc = parseString(row.c[10]);
         const days = row.c[11] ? parseNumber(row.c[11].v ?? row.c[11].f) : 0;
