@@ -20,9 +20,9 @@ export function ToastContainer({
 
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
-      {toasts.map((toast) => (
+      {toasts.map((toast, index) => (
         <div
-          key={toast.id}
+          key={`${toast.id}-${index}`}
           className="pointer-events-auto flex items-center gap-3 rounded-xl border border-line bg-white/95 px-4 py-3 shadow-lg backdrop-blur transition-all animate-in fade-in slide-in-from-bottom-2"
         >
           {toast.type === "info" ? (

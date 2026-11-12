@@ -268,7 +268,7 @@ export function DayTimelineBar({
               {/* Hover Tooltip - Smart horizontal alignment so it never overflows card boundary */}
               {activeTooltipId === ev.id && (
                 <div
-                  className={`absolute bottom-4 z-30 whitespace-nowrap rounded-lg bg-[#1f2421] px-2.5 py-1.5 text-[10px] text-white shadow-xl pointer-events-auto ${
+                  className={`absolute bottom-4 z-20 whitespace-nowrap rounded-lg bg-[#1f2421] px-2.5 py-1.5 text-[10px] text-white shadow-xl pointer-events-auto ${
                     ev.leftPercent > 70
                       ? "right-0"
                       : ev.leftPercent < 25
@@ -314,7 +314,7 @@ export function DayTimelineBar({
         {/* Now Indicator Pin (clamped inside the bar) */}
         {!isBeforeWorkday && !isAfterWorkday && (
           <div
-            className="absolute -top-0.5 z-20 -translate-x-1/2 pointer-events-none"
+            className="absolute -top-0.5 z-10 -translate-x-1/2 pointer-events-none"
             style={{ left: `${Math.min(99, Math.max(1, progressPercent))}%` }}
           >
             <div className="h-3 w-1.5 rounded-full bg-forest ring-2 ring-white shadow-xs animate-pulse" />

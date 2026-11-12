@@ -299,6 +299,8 @@ function SectionHeading({ icon: Icon, title, sub, right }: { icon: typeof Calend
   );
 }
 
+let globalToastSeq = 0;
+
 /* ─── Main component ─────────────────────────────────────────── */
 
 export default function Home() {
@@ -597,8 +599,12 @@ export default function Home() {
 
   /* ── Toast helper ── */
   const toast = useCallback((message: string, type: "success" | "info" = "success") => {
-    const id = "toast-" + Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
+    const id = `toast-${Date.now()}-${++globalToastSeq}-${Math.random().toString(36).slice(2, 7)}`;
+    setToasts(prev => {
+      const isDuplicate = prev.some(t => t.message === message && t.type === type);
+      if (isDuplicate) return prev;
+      return [...prev, { id, message, type }];
+    });
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
   }, []);
 
@@ -1558,7 +1564,7 @@ export default function Home() {
       {/* ─── Main ─── */}
       <main id="overview" className="min-h-screen lg:ml-[236px]">
         {/* Header */}
-        <header className="sticky top-0 z-30 flex h-[68px] items-center justify-between border-b border-line bg-[#f7f7f2]/95 px-5 backdrop-blur-md sm:px-8 xl:px-10">
+        <header className="sticky top-0 z-40 flex h-[68px] items-center justify-between border-b border-line bg-[#f7f7f2]/95 px-5 backdrop-blur-md sm:px-8 xl:px-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setShowMobileSidebar(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white lg:hidden" aria-label="Open menu"><Menu size={17} /></button>
             <img src="/favicon.svg" alt="Routino" className="hidden h-8 w-8 rounded-[11px] sm:block lg:hidden" />
@@ -1580,7 +1586,7 @@ export default function Home() {
             <button onClick={() => setShowCommandPalette(true)} aria-label="Search or command palette" className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition" title="Press Cmd+K">
               <Search size={15} />
             </button>
-            <div className="relative">
+            <div className="relative z-50">
               <button onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }} aria-label="Notifications" className="relative grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition">
                 <Bell size={15} />
                 {notifications.length > 0 && (
@@ -1595,7 +1601,7 @@ export default function Home() {
                 onClearAll={clearAllNotifications}
               />
             </div>
-            <div className="relative">
+            <div className="relative z-50">
               <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }} aria-label="User profile" className="ml-1 grid h-8 w-8 place-items-center rounded-full bg-[#e4d4c2] text-[11px] font-semibold text-[#614d3f] hover:ring-2 hover:ring-forest/20 transition overflow-hidden">
                 {liveData?.user?.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
