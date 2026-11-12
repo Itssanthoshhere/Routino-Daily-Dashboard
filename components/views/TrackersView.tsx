@@ -679,6 +679,36 @@ export function TrackersView() {
     }).length;
   }, [data.purchases]);
 
+  // Investment allocation metrics & sponsor status breakdown
+  const investmentSplit = useMemo(() => {
+    const grand = data.investments?.grandTotal || 2276000;
+    const uni = data.investments?.universityTotal || 2164500;
+    const school = data.investments?.schoolTotal || 112500;
+    const uniPct = Number(((uni / grand) * 100).toFixed(1));
+    const schoolPct = Number(((school / grand) * 100).toFixed(1));
+
+    const totalContrib = (data.investments?.contributors || []).reduce((acc, c) => acc + (c.amount || 0), 0);
+    const paidContrib = (data.investments?.contributors || [])
+      .filter((c) => c.status === "Paid")
+      .reduce((acc, c) => acc + (c.amount || 0), 0);
+    const pendingContrib = (data.investments?.contributors || [])
+      .filter((c) => c.status === "Pending")
+      .reduce((acc, c) => acc + (c.amount || 0), 0);
+    const paidPct = totalContrib > 0 ? Number(((paidContrib / totalContrib) * 100).toFixed(1)) : 100;
+
+    return {
+      grand,
+      uni,
+      school,
+      uniPct,
+      schoolPct,
+      totalContrib,
+      paidContrib,
+      pendingContrib,
+      paidPct,
+    };
+  }, [data.investments]);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* ─── Header & Sync Controls ─── */}
@@ -1356,6 +1386,48 @@ export function TrackersView() {
             </div>
           </div>
 
+          {/* Visual Progression Breakdown: University vs Schooling */}
+          <div className="rounded-2xl border border-line bg-white p-5 shadow-card space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-[13.5px] font-bold text-ink">Lifetime Investment Allocation</h3>
+                <p className="text-[11px] text-muted">
+                  University Degree ({investmentSplit.uniPct}%) vs K-12 Schooling ({investmentSplit.schoolPct}%) of ₹{investmentSplit.grand.toLocaleString("en-IN")}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-[11.5px] font-semibold">
+                <span className="flex items-center gap-1.5 text-forest font-bold">
+                  <span className="h-2.5 w-2.5 rounded-full bg-forest" />
+                  University Degree {investmentSplit.uniPct}% (₹{investmentSplit.uni.toLocaleString("en-IN")})
+                </span>
+                <span className="flex items-center gap-1.5 text-[#b45309] font-bold">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />
+                  K-12 Schooling {investmentSplit.schoolPct}% (₹{investmentSplit.school.toLocaleString("en-IN")})
+                </span>
+              </div>
+            </div>
+
+            {/* Split Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="h-3.5 w-full bg-[#f0f2eb] rounded-full overflow-hidden flex p-0.5 gap-0.5">
+                <div
+                  className="h-full bg-forest rounded-l-full transition-all duration-500"
+                  style={{ width: `${investmentSplit.uniPct}%` }}
+                  title={`University: ${investmentSplit.uniPct}%`}
+                />
+                <div
+                  className="h-full bg-[#f59e0b] rounded-r-full transition-all duration-500"
+                  style={{ width: `${investmentSplit.schoolPct}%` }}
+                  title={`Schooling: ${investmentSplit.schoolPct}%`}
+                />
+              </div>
+              <div className="flex justify-between text-[10.5px] text-muted font-medium">
+                <span>Pre-School to 12th Grade: ₹{investmentSplit.school.toLocaleString("en-IN")} ({investmentSplit.schoolPct}%)</span>
+                <span>University Degree & Hostel: ₹{investmentSplit.uni.toLocaleString("en-IN")} ({investmentSplit.uniPct}%)</span>
+              </div>
+            </div>
+          </div>
+
           {/* Education Level Breakdown Cards */}
           <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
             <div className="flex items-center justify-between mb-4">
@@ -1456,42 +1528,78 @@ export function TrackersView() {
           </div>
 
           {/* Contributors & Semester Funding */}
-          <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
-            <div className="flex items-center justify-between mb-4">
+          <div className="rounded-2xl border border-line bg-white p-5 shadow-card space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-line/60 pb-3">
               <div>
                 <h3 className="text-[14px] font-bold text-ink">Family & Supporter Contributions</h3>
-                <p className="text-[11px] text-muted">Education funding support recorded for 6th Semester (₹2,80,000 Total)</p>
+                <p className="text-[11px] text-muted">Education funding support recorded for 6th Semester (₹{investmentSplit.totalContrib.toLocaleString("en-IN")} Total)</p>
               </div>
-              <span className="rounded-xl bg-[#f0f2eb] px-3 py-1 text-[11px] font-bold text-ink">
-                6th Semester Fund
+              <span className="rounded-xl bg-[#ecfdf5] border border-[#a7f3d0] px-3 py-1 text-[11px] font-bold text-[#047857]">
+                {investmentSplit.paidPct}% Fund Received
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {data.investments.contributors.map((c) => (
-                <div key={c.name} className="rounded-xl border border-[#eff1ec] bg-[#fbfcf9] p-3.5 flex flex-col justify-between">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-[12.5px] font-bold text-ink">{c.name}</p>
-                      <p className="text-[10px] text-muted mt-0.5">Education Support</p>
-                    </div>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                        c.status === "Paid"
-                          ? "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]"
-                          : "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
-                      }`}
-                    >
-                      {c.status}
-                    </span>
-                  </div>
+            {/* Funding Progress Bar */}
+            <div className="p-3.5 rounded-xl border border-line/70 bg-[#fafbf7] space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11.5px]">
+                <span className="font-semibold text-ink">
+                  Funding Status: <span className="text-[#059669] font-bold">₹{investmentSplit.paidContrib.toLocaleString("en-IN")} Received</span>
+                  {investmentSplit.pendingContrib > 0 && (
+                    <span className="text-[#b45309] font-bold"> · ₹{investmentSplit.pendingContrib.toLocaleString("en-IN")} Pending</span>
+                  )}
+                </span>
+                <span className="text-muted text-[11px]">
+                  Target Fund: ₹{investmentSplit.totalContrib.toLocaleString("en-IN")}
+                </span>
+              </div>
+              <div className="h-2.5 w-full bg-[#f0f2eb] rounded-full overflow-hidden flex gap-0.5">
+                <div
+                  className="h-full bg-[#10b981] rounded-l-full transition-all duration-500"
+                  style={{ width: `${investmentSplit.paidPct}%` }}
+                  title={`Received: ${investmentSplit.paidPct}%`}
+                />
+                <div
+                  className="h-full bg-[#f59e0b] rounded-r-full transition-all duration-500"
+                  style={{ width: `${100 - investmentSplit.paidPct}%` }}
+                  title={`Pending: ${(100 - investmentSplit.paidPct).toFixed(1)}%`}
+                />
+              </div>
+            </div>
 
-                  <div className="mt-3 pt-2 border-t border-[#eff1ec] flex items-center justify-between">
-                    <span className="text-[10px] text-muted">Amount</span>
-                    <span className="text-[13px] font-extrabold text-forest">₹{c.amount.toLocaleString("en-IN")}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              {data.investments.contributors.map((c) => {
+                const sharePct = investmentSplit.totalContrib > 0
+                  ? ((c.amount / investmentSplit.totalContrib) * 100).toFixed(1)
+                  : "0";
+                const isPaid = c.status === "Paid";
+                return (
+                  <div key={c.name} className="rounded-xl border border-[#eff1ec] bg-[#fbfcf9] p-3.5 flex flex-col justify-between hover:border-forest/40 transition">
+                    <div>
+                      <div className="flex items-start justify-between gap-1.5">
+                        <div className="min-w-0">
+                          <p className="text-[12.5px] font-bold text-ink truncate">{c.name}</p>
+                          <p className="text-[10px] text-muted mt-0.5">{sharePct}% of fund</p>
+                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider shrink-0 ${
+                            isPaid
+                              ? "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]"
+                              : "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                          }`}
+                        >
+                          {isPaid ? <Check size={10} /> : <Clock size={10} />}
+                          {isPaid ? "Paid" : "Pending"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3.5 pt-2 border-t border-[#eff1ec] flex items-center justify-between">
+                      <span className="text-[10px] text-muted font-medium">Contributed</span>
+                      <span className="text-[13px] font-extrabold text-forest">₹{c.amount.toLocaleString("en-IN")}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
