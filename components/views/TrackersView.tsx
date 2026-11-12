@@ -32,6 +32,7 @@ import {
   ShieldCheck,
   Copy,
   Activity,
+  Download,
 } from "lucide-react";
 import type {
   TrackersData,
@@ -242,6 +243,32 @@ export function TrackersView() {
     }
   };
 
+  // Export current journal expenses to CSV
+  const handleExportExpensesCSV = () => {
+    const list = filteredExpenses;
+    if (list.length === 0) return;
+
+    const headers = ["Date", "Item Description", "Category", "Debit (Expense)", "Credit (Income)", "Balance", "Notes"];
+    const rows = list.map((e) => [
+      `"${(e.dateStr || "").replace(/"/g, '""')}"`,
+      `"${(e.item || "").replace(/"/g, '""')}"`,
+      `"${(e.category || "").replace(/"/g, '""')}"`,
+      e.amount || 0,
+      e.income || 0,
+      e.balance || "",
+      `"${(e.notes || "").replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${activeJournal.key}-expenses.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   /* ── Computed values ── */
   // Journal sub-sections metadata
   const journalTabs = useMemo(() => [
@@ -320,6 +347,28 @@ export function TrackersView() {
   // Total expenses recorded in active journal
   const totalActiveJournalExpense = useMemo(() => {
     return (activeJournal.expenses || []).reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  }, [activeJournal.expenses]);
+
+  // Active journal category spending breakdown & percentages
+  const activeJournalCategoryBreakdown = useMemo(() => {
+    const map: Record<string, number> = {};
+    let total = 0;
+    (activeJournal.expenses || []).forEach((e) => {
+      if (e.amount && e.amount > 0) {
+        const cat = e.category || "General";
+        map[cat] = (map[cat] || 0) + e.amount;
+        total += e.amount;
+      }
+    });
+
+    return Object.entries(map)
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percent: total > 0 ? Math.round((amount / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 6);
   }, [activeJournal.expenses]);
 
   // EB readings filtered & sorted (recent on top to bottom)
@@ -923,6 +972,78 @@ export function TrackersView() {
             </div>
           </div>
 
+          {/* Monthly Budget Burn-down Bar & Category Distribution */}
+          <div className="rounded-2xl border border-line bg-white p-5 shadow-card space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-[14px] font-bold text-ink">Monthly Budget Burn-down</h3>
+                <p className="text-[11px] text-muted">
+                  Spend velocity vs planned limit of ₹{(data.totalMonthlyBudget || 7500).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${
+                    (totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) > 0.9
+                      ? "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]"
+                      : (totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) > 0.7
+                      ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                      : "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]"
+                  }`}
+                >
+                  {Math.round((totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) * 100)}% utilized
+                </span>
+                <span className="text-[12px] font-semibold text-ink">
+                  ₹{Math.max(0, (data.totalMonthlyBudget || 7500) - totalActiveJournalExpense).toLocaleString()} left
+                </span>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="h-3 w-full bg-[#f0f2eb] rounded-full overflow-hidden p-0.5">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    (totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) > 0.9
+                      ? "bg-[#ef4444]"
+                      : (totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) > 0.7
+                      ? "bg-[#f59e0b]"
+                      : "bg-[#10b981]"
+                  }`}
+                  style={{
+                    width: `${Math.min(100, Math.max(4, Math.round((totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) * 100)))}%`,
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-[10.5px] text-muted font-medium">
+                <span>₹0</span>
+                <span>₹{((data.totalMonthlyBudget || 7500) * 0.5).toLocaleString()} (50%)</span>
+                <span>Limit: ₹{(data.totalMonthlyBudget || 7500).toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Category Distribution Pills */}
+            {activeJournalCategoryBreakdown.length > 0 && (
+              <div className="pt-2 border-t border-line/60">
+                <span className="text-[11px] font-semibold text-muted block mb-2">Top Spending Categories in this Journal:</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {activeJournalCategoryBreakdown.map((item) => (
+                    <div
+                      key={item.category}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-[#fafbf7] px-3 py-1 text-[11px]"
+                    >
+                      <span className="font-semibold text-ink">{item.category}</span>
+                      <span className="font-bold text-forest">₹{item.amount.toLocaleString()}</span>
+                      <span className="rounded-full bg-[#f0f2eb] px-1.5 py-0.2 text-[9px] font-bold text-[#556056]">
+                        {item.percent}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Category Budgets Grid (for 2026 or active budget) */}
           <div className="rounded-2xl border border-line bg-white p-5 shadow-card">
             <div className="flex items-center justify-between mb-4">
@@ -990,6 +1111,15 @@ export function TrackersView() {
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
+
+                <button
+                  onClick={handleExportExpensesCSV}
+                  title="Export currently filtered expenses to CSV file"
+                  className="inline-flex items-center gap-1.5 h-8 rounded-xl border border-line bg-white px-3 text-[11px] font-semibold text-ink hover:bg-[#f1f3ed] transition shadow-xs cursor-pointer"
+                >
+                  <Download size={12} className="text-muted" />
+                  <span>Export CSV</span>
+                </button>
               </div>
             </div>
 
