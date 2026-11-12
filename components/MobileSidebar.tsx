@@ -14,6 +14,7 @@ import {
   StickyNote,
   FolderOpen,
   PieChart,
+  Gauge,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 
@@ -33,6 +34,7 @@ const navItems = [
   { icon: Target, label: "Overview" },
   { icon: CalendarDays, label: "Calendar" },
   { icon: PieChart, label: "Time Audit" },
+  { icon: Gauge, label: "Trackers" },
   { icon: Inbox, label: "Inbox" },
   { icon: ListTodo, label: "Tasks" },
   { icon: StickyNote, label: "Notes" },

@@ -6,7 +6,7 @@ import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
   Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
-  StickyNote, Target, Timer, TriangleAlert, Video, X, PieChart,
+  StickyNote, Target, Timer, TriangleAlert, Video, X, PieChart, Gauge,
 } from "lucide-react";
 import { connectGoogle } from "./actions";
 
@@ -41,6 +41,7 @@ import { InboxView } from "@/components/views/InboxView";
 import { TasksView } from "@/components/views/TasksView";
 import { NotesView } from "@/components/views/NotesView";
 import { TimeAuditView } from "@/components/views/TimeAuditView";
+import { TrackersView } from "@/components/views/TrackersView";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
@@ -63,6 +64,7 @@ const nav = [
   { icon: Target, label: "Overview" },
   { icon: CalendarDays, label: "Calendar" },
   { icon: PieChart, label: "Time Audit" },
+  { icon: Gauge, label: "Trackers" },
   { icon: Inbox, label: "Inbox" },
   { icon: ListTodo, label: "Tasks" },
   { icon: StickyNote, label: "Notes" },
@@ -1374,6 +1376,8 @@ export default function Home() {
               events={allEvents}
               isConnected={isConnected}
             />
+          ) : activeNav === "Trackers" ? (
+            <TrackersView />
           ) : activeNav === "Inbox" ? (
             <InboxView
               mailList={mailItems}

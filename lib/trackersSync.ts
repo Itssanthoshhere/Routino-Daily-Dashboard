@@ -1,0 +1,607 @@
+import type {
+  TrackersData,
+  TrackerCategoryBudget,
+  TrackerExpense,
+  TrackerEBReading,
+  TrackerEBCycleSummary,
+  TrackerEBMeta,
+  TrackerJobApplication,
+  TrackerLifeStats,
+  TrackerPurchase,
+} from "@/types/dashboard";
+
+export const GOOGLE_SHEET_ID = "1bGxy0pgNx0nlO09pqdhYi_ZwNVqBcX4z1rkPWoIpeSw";
+export const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/edit?usp=sharing`;
+
+type GVizCell = {
+  v?: string | number | boolean | null;
+  f?: string | null;
+};
+
+type GVizRow = {
+  c: (GVizCell | null)[];
+};
+
+type GVizResponse = {
+  table: {
+    cols: { label?: string; id?: string }[];
+    rows: GVizRow[];
+  };
+};
+
+async function fetchGVizSheet(sheetName: string): Promise<GVizResponse | null> {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}") + 1;
+    if (start === -1 || end <= start) return null;
+    return JSON.parse(text.slice(start, end)) as GVizResponse;
+  } catch (err) {
+    console.error(`Failed to fetch GViz sheet: ${sheetName}`, err);
+    return null;
+  }
+}
+
+function parseNumber(val: unknown): number {
+  if (typeof val === "number") return val;
+  if (!val) return 0;
+  const cleaned = String(val).replace(/[^0-9.-]/g, "");
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+function parseString(cell: GVizCell | null | undefined): string {
+  if (!cell) return "";
+  if (cell.f) return cell.f.trim();
+  if (cell.v !== null && cell.v !== undefined) return String(cell.v).trim();
+  return "";
+}
+
+function parseGVizDate(cell: GVizCell | null | undefined): string {
+  if (!cell) return "";
+  if (cell.f) return cell.f.trim();
+  const raw = String(cell.v || "");
+  if (raw.startsWith("Date(")) {
+    const parts = raw.slice(5, -1).split(",").map((n) => parseInt(n.trim(), 10));
+    const year = parts[0] || 2026;
+    const month = (parts[1] ?? 0) + 1;
+    const day = parts[2] ?? 1;
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  return raw;
+}
+
+/* ── Fallback Seed Data (from user's real sheet) ── */
+export const SEED_TRACKERS_DATA: TrackersData = {
+  spreadsheetId: GOOGLE_SHEET_ID,
+  spreadsheetUrl: GOOGLE_SHEET_URL,
+  lastSyncedAt: new Date().toISOString(),
+  isLive: false,
+  totalMonthlyBudget: 7500,
+  categoryBudgets: [
+    { category: "House Rent", budget: 0 },
+    { category: "Investments", budget: 500 },
+    { category: "Food & Grocery", budget: 500 },
+    { category: "Commute", budget: 200 },
+    { category: "Entertainment", budget: 500 },
+    { category: "Insurance", budget: 0 },
+    { category: "Mobile", budget: 900 },
+    { category: "Internet", budget: 0 },
+    { category: "Grooming", budget: 500 },
+    { category: "Others", budget: 2400 },
+    { category: "Utilities", budget: 2000 },
+  ],
+  expenses: [
+    {
+      id: "exp-1",
+      year: 2026,
+      item: "Cool drinks",
+      amount: 50,
+      dateStr: "31-Oct-2026",
+      category: "Food and Grocery",
+      balance: 1617,
+    },
+    {
+      id: "exp-2",
+      year: 2026,
+      item: "Dinner",
+      amount: 190,
+      dateStr: "31-Oct-2026",
+      category: "Dinner",
+      balance: 1667,
+    },
+    {
+      id: "exp-3",
+      year: 2026,
+      item: "Cab",
+      amount: 1400,
+      dateStr: "31-Oct-2026",
+      category: "Commute",
+      balance: 1857,
+    },
+    {
+      id: "exp-4",
+      year: 2026,
+      item: "Cab",
+      amount: 1440,
+      dateStr: "31-Oct-2026",
+      category: "Commute",
+      balance: 3257,
+    },
+    {
+      id: "exp-5",
+      year: 2026,
+      item: "Debited",
+      amount: 500,
+      dateStr: "30-Oct-2026",
+      category: "Sent",
+      balance: 4697,
+    },
+  ],
+  ebMeta: {
+    rateTillSep: 10,
+    currentRate: 12,
+    latestReading: 318.06,
+    latestReadingDate: "01 Nov 2026, 2:21 PM",
+  },
+  ebReadings: [
+    {
+      id: "eb-r1",
+      dateTimeStr: "01 Nov 2026, 2:21 PM",
+      meterReading: 318.06,
+      unitsUsed: 0.06,
+      cost: 0.6,
+      daysSincePrevious: 0.64,
+      unitsPerDay: 0.09,
+      billingCycle: "Nov",
+    },
+    {
+      id: "eb-r2",
+      dateTimeStr: "31 Oct 2026, 10:59 PM",
+      meterReading: 318.0,
+      unitsUsed: 1.4,
+      cost: 14.0,
+      daysSincePrevious: 1.96,
+      unitsPerDay: 0.71,
+      billingCycle: "Oct",
+    },
+    {
+      id: "eb-r3",
+      dateTimeStr: "29 Oct 2026, 11:58 PM",
+      meterReading: 316.6,
+      unitsUsed: 12.0,
+      cost: 120.0,
+      daysSincePrevious: 10.96,
+      unitsPerDay: 1.1,
+      billingCycle: "Oct",
+    },
+  ],
+  ebCycles: [
+    {
+      cycle: "Aug",
+      unitsUsed: 69,
+      computedCost: 690,
+      billedAmount: 690,
+      peopleSharing: 2,
+      myShare: 420,
+      status: "Paid",
+      notes: "Billed Rs 690. I paid Rs 420, roommate paid Rs 270.",
+    },
+    {
+      cycle: "Sep",
+      unitsUsed: 147.6,
+      computedCost: 1476,
+      billedAmount: 1500,
+      peopleSharing: 2,
+      myShare: 750,
+      status: "Paid",
+      notes: "Billed as 150 units = Rs 1500. Split by 2, my share Rs 750.",
+    },
+    {
+      cycle: "Oct",
+      unitsUsed: 64,
+      computedCost: 768,
+      billedAmount: 768,
+      peopleSharing: 2,
+      myShare: 384,
+      status: "Paid",
+      notes: "Estimate from readings. Split by 2.",
+    },
+    {
+      cycle: "Nov",
+      unitsUsed: 0.06,
+      computedCost: 0.72,
+      billedAmount: 0.72,
+      peopleSharing: 2,
+      myShare: 0.36,
+      status: "Running",
+      notes: "Ongoing billing cycle.",
+    },
+  ],
+  jobApplications: [
+    {
+      id: "job-1",
+      company: "NyneOS Technologies",
+      role: "Full Stack Developer / QA Automation Engineer",
+      location: "Remote & Co-Located",
+      appliedDate: "2026-01-27",
+      source: "Superset",
+      status: "Applied",
+      lastUpdate: "Process: CV Shortlisting -> Assignment -> Situation discussion",
+      notes: "Stipend Rs 25,000/month, PPO Rs 7-15L/yr.",
+      nextAction: "Wait",
+    },
+    {
+      id: "job-2",
+      company: "Hindustan Power",
+      role: "IT Intern",
+      location: "Delhi NCR",
+      appliedDate: "2026-02-07",
+      source: "Superset",
+      status: "Applied",
+      notes: "12-month internship.",
+    },
+    {
+      id: "job-3",
+      company: "Reltio",
+      role: "Software Engineering Intern",
+      location: "Bangalore (Hybrid)",
+      appliedDate: "2026-03-01",
+      source: "Superset",
+      status: "Applied",
+      notes: "OA (DSA/coding) on HackerEarth.",
+    },
+    {
+      id: "job-4",
+      company: "Lokal",
+      role: "React Native / Mobile App Developer",
+      location: "Remote",
+      appliedDate: "2026-03-12",
+      source: "Company Careers",
+      status: "Rejected",
+      interviewStage: "HR",
+    },
+    {
+      id: "job-5",
+      company: "United Airlines",
+      role: "Gen AI Intern",
+      location: "Gurgaon",
+      appliedDate: "2026-04-07",
+      source: "Superset",
+      status: "Applied",
+    },
+  ],
+  lifeStats: {
+    birthdate: "June 2, 2005",
+    ageYears: 21,
+    totalDays: 7833,
+    totalMonths: 257,
+    totalWeeks: 1119,
+    totalHours: 187992,
+    totalMinutes: 11279520,
+    totalSeconds: 676771200,
+    daysUntilNextBirthday: 202,
+    planetAges: {
+      mercury: 89.01,
+      venus: 34.81,
+      mars: 11.4,
+      jupiter: 1.77,
+    },
+  },
+  purchases: [
+    {
+      sNo: 1,
+      product: 'iPad Pro 12.9" (5th Gen)',
+      brand: "Apple",
+      model: "Wi-Fi, 256GB, Model 2021",
+      orderDate: "2-Jan-2021",
+      deliveryDate: "2-Jan-2021",
+      seller: "Apple India Pvt Ltd",
+      price: 99900,
+      priceFormatted: "₹99,900.00",
+      paymentMode: "Card",
+      location: "Croma",
+      daysSinceDelivery: 2140,
+      timeSinceDelivery: "5 Years 10 Months 10 Days",
+    },
+    {
+      sNo: 4,
+      product: "iPhone 15",
+      brand: "Apple",
+      model: "Blue, 128GB, Model MPWU3HN/A",
+      orderDate: "05-Jul-2024",
+      deliveryDate: "05-Jul-2024",
+      seller: "Apple India Pvt Ltd",
+      price: 72990,
+      priceFormatted: "₹72,990.00",
+      paymentMode: "UPI",
+      location: "Aptronix - Ambattur",
+      daysSinceDelivery: 860,
+      timeSinceDelivery: "2 Years 4 Months 7 Days",
+    },
+    {
+      sNo: 8,
+      product: "MacBook Air",
+      brand: "Apple",
+      model: "13″, Midnight, 10-core, 512GB",
+      orderDate: "26-Jun-2025",
+      deliveryDate: "27-Jun-2025",
+      seller: "Apple India Pvt Ltd",
+      price: 109900,
+      priceFormatted: "₹109,900.00",
+      paymentMode: "Net Banking",
+      location: "Apple India",
+      daysSinceDelivery: 503,
+      timeSinceDelivery: "1 Years 4 Months 16 Days",
+    },
+  ],
+};
+
+/* ── Live Syncer ── */
+export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
+  try {
+    const [budgetData, expenseData, summaryData, readingsData, placementData, purchaseData, timeData] =
+      await Promise.all([
+        fetchGVizSheet("Category Budget"),
+        fetchGVizSheet("2026 Expense Journal"),
+        fetchGVizSheet("Summary"),
+        fetchGVizSheet("Readings"),
+        fetchGVizSheet("Placement Tracker"),
+        fetchGVizSheet("Purchase Summary"),
+        fetchGVizSheet("Time Spent on Earth"),
+      ]);
+
+    // Parse Category Budget
+    let totalMonthlyBudget = 7500;
+    const categoryBudgets: TrackerCategoryBudget[] = [];
+    if (budgetData?.table?.rows) {
+      budgetData.table.rows.forEach((row, idx) => {
+        const cat = parseString(row.c[0]);
+        if (!cat) return;
+        if (idx === 0) {
+          const totalVal = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : 7500;
+          if (totalVal > 0) totalMonthlyBudget = totalVal;
+          return;
+        }
+        if (cat.toLowerCase() === "category" || cat.toLowerCase() === "income") return;
+        const amt = row.c[1] ? parseNumber(row.c[1].v ?? row.c[1].f) : 0;
+        categoryBudgets.push({ category: cat, budget: amt });
+      });
+    }
+
+    // Parse Expenses
+    const expenses: TrackerExpense[] = [];
+    if (expenseData?.table?.rows) {
+      expenseData.table.rows.forEach((row, idx) => {
+        const item = parseString(row.c[1]);
+        const amt = row.c[2] ? parseNumber(row.c[2].v ?? row.c[2].f) : 0;
+        const inc = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : null;
+        if (!item && !amt && !inc) return;
+
+        const year = row.c[0] ? parseNumber(row.c[0].v ?? row.c[0].f) : 2026;
+        const dateStr = parseString(row.c[7]) || parseGVizDate(row.c[7]);
+        const cat = parseString(row.c[8]) || "General";
+        const notes = parseString(row.c[9]);
+        const bal = row.c[10] ? parseNumber(row.c[10].v ?? row.c[10].f) : null;
+
+        expenses.push({
+          id: `exp-${idx}`,
+          year,
+          item: item || (inc ? "Income" : "Expense"),
+          amount: amt,
+          income: inc,
+          dateStr: dateStr || "2026",
+          category: cat,
+          notes,
+          balance: bal,
+        });
+      });
+    }
+
+    // Parse EB Summary & Meta
+    const ebMeta: TrackerEBMeta = {
+      rateTillSep: 10,
+      currentRate: 12,
+      latestReading: 318.06,
+      latestReadingDate: "01 Nov 2026, 2:21 PM",
+    };
+    const ebCycles: TrackerEBCycleSummary[] = [];
+
+    if (summaryData?.table?.rows) {
+      summaryData.table.rows.forEach((row) => {
+        const label = parseString(row.c[0]);
+        if (label.includes("Rate (Rs per unit) till Sep")) {
+          ebMeta.rateTillSep = parseNumber(row.c[1]?.v ?? row.c[1]?.f) || 10;
+        } else if (label.includes("Rate (Rs per unit)")) {
+          ebMeta.currentRate = parseNumber(row.c[1]?.v ?? row.c[1]?.f) || 12;
+        } else if (label.includes("Latest reading (units)")) {
+          ebMeta.latestReading = parseNumber(row.c[1]?.v ?? row.c[1]?.f) || 318.06;
+        } else if (["Aug", "Sep", "Oct", "Nov"].includes(label)) {
+          const units = row.c[1] ? parseNumber(row.c[1].v ?? row.c[1].f) : 0;
+          const computed = row.c[2] ? parseNumber(row.c[2].v ?? row.c[2].f) : 0;
+          const billed = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : computed;
+          const people = row.c[4] ? parseNumber(row.c[4].v ?? row.c[4].f) : 2;
+          const share = row.c[5] ? parseNumber(row.c[5].v ?? row.c[5].f) : (billed || computed) / (people || 2);
+          const status = (parseString(row.c[6]) as "Paid" | "Running" | "Pending") || (label === "Nov" ? "Running" : "Paid");
+          const notes = parseString(row.c[7]);
+
+          ebCycles.push({
+            cycle: label,
+            unitsUsed: units,
+            computedCost: computed,
+            billedAmount: billed,
+            peopleSharing: people,
+            myShare: share,
+            status,
+            notes,
+          });
+        }
+      });
+    }
+
+    // Parse EB Meter Readings
+    const ebReadings: TrackerEBReading[] = [];
+    if (readingsData?.table?.rows) {
+      readingsData.table.rows.forEach((row, idx) => {
+        const dt = parseString(row.c[0]) || parseGVizDate(row.c[0]);
+        const reading = row.c[1] ? parseNumber(row.c[1].v ?? row.c[1].f) : 0;
+        if (!dt && !reading) return;
+        const units = row.c[2] ? parseNumber(row.c[2].v ?? row.c[2].f) : null;
+        const cost = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : null;
+        const days = row.c[4] ? parseNumber(row.c[4].v ?? row.c[4].f) : null;
+        const perDay = row.c[5] ? parseNumber(row.c[5].v ?? row.c[5].f) : null;
+        const cycle = parseString(row.c[6]) || "Running";
+
+        ebReadings.push({
+          id: `reading-${idx}`,
+          dateTimeStr: dt,
+          meterReading: reading,
+          unitsUsed: units,
+          cost,
+          daysSincePrevious: days,
+          unitsPerDay: perDay,
+          billingCycle: cycle,
+        });
+      });
+    }
+
+    // Parse Placement Tracker
+    const jobApplications: TrackerJobApplication[] = [];
+    if (placementData?.table?.rows) {
+      placementData.table.rows.forEach((row, idx) => {
+        const comp = parseString(row.c[0]);
+        if (!comp || comp.toLowerCase() === "company") return;
+        const role = parseString(row.c[1]);
+        const loc = parseString(row.c[2]);
+        const appliedDate = parseString(row.c[3]) || parseGVizDate(row.c[3]);
+        const source = parseString(row.c[4]) || "Superset";
+        const status = parseString(row.c[5]) || "Applied";
+        const lastUpdate = parseString(row.c[6]);
+        const recruiter = parseString(row.c[8]);
+        const stage = parseString(row.c[9]);
+        const notes = parseString(row.c[10]);
+        const nextAction = parseString(row.c[11]);
+
+        jobApplications.push({
+          id: `job-${idx}`,
+          company: comp,
+          role,
+          location: loc,
+          appliedDate,
+          source,
+          status,
+          lastUpdate,
+          recruiter,
+          interviewStage: stage,
+          notes,
+          nextAction,
+        });
+      });
+    }
+
+    // Parse Purchases
+    const purchases: TrackerPurchase[] = [];
+    if (purchaseData?.table?.rows) {
+      purchaseData.table.rows.forEach((row, idx) => {
+        const prod = parseString(row.c[1]);
+        if (!prod || prod.toLowerCase() === "product") return;
+        const brand = parseString(row.c[2]);
+        const model = parseString(row.c[3]);
+        const oDate = parseString(row.c[4]) || parseGVizDate(row.c[4]);
+        const dDate = parseString(row.c[5]) || parseGVizDate(row.c[5]);
+        const seller = parseString(row.c[7]);
+        const price = row.c[8] ? parseNumber(row.c[8].v ?? row.c[8].f) : 0;
+        const priceFormatted = parseString(row.c[8]) || `₹${price.toLocaleString("en-IN")}`;
+        const mode = parseString(row.c[9]);
+        const loc = parseString(row.c[10]);
+        const days = row.c[11] ? parseNumber(row.c[11].v ?? row.c[11].f) : 0;
+        const timeSince = parseString(row.c[12]);
+
+        purchases.push({
+          sNo: idx + 1,
+          product: prod,
+          brand,
+          model,
+          orderDate: oDate,
+          deliveryDate: dDate,
+          seller,
+          price,
+          priceFormatted,
+          paymentMode: mode,
+          location: loc,
+          daysSinceDelivery: days,
+          timeSinceDelivery: timeSince,
+        });
+      });
+    }
+
+    // Parse Life Stats
+    const lifeStats: TrackerLifeStats = {
+      birthdate: "June 2, 2005",
+      ageYears: 21,
+      totalDays: 7833,
+      totalMonths: 257,
+      totalWeeks: 1119,
+      totalHours: 187992,
+      totalMinutes: 11279520,
+      totalSeconds: 676771200,
+      daysUntilNextBirthday: 202,
+      planetAges: {
+        mercury: 89.01,
+        venus: 34.81,
+        mars: 11.4,
+        jupiter: 1.77,
+      },
+    };
+
+    if (timeData?.table?.rows) {
+      timeData.table.rows.forEach((row) => {
+        const label = parseString(row.c[0]);
+        const val = parseString(row.c[1]);
+        if (label.includes("Birthdate")) lifeStats.birthdate = val || lifeStats.birthdate;
+        else if (label.includes("Current Age")) lifeStats.ageYears = parseNumber(val) || lifeStats.ageYears;
+        else if (label.includes("Total Days")) lifeStats.totalDays = parseNumber(val) || lifeStats.totalDays;
+        else if (label.includes("Months")) lifeStats.totalMonths = parseNumber(val) || lifeStats.totalMonths;
+        else if (label.includes("Weeks")) lifeStats.totalWeeks = parseNumber(val) || lifeStats.totalWeeks;
+        else if (label.includes("Hours")) lifeStats.totalHours = parseNumber(val) || lifeStats.totalHours;
+        else if (label.includes("Minutes")) lifeStats.totalMinutes = parseNumber(val) || lifeStats.totalMinutes;
+        else if (label.includes("Seconds")) lifeStats.totalSeconds = parseNumber(val) || lifeStats.totalSeconds;
+        else if (label.includes("Next Birthday")) lifeStats.daysUntilNextBirthday = parseNumber(val) || lifeStats.daysUntilNextBirthday;
+        else if (label.includes("Mercury")) lifeStats.planetAges.mercury = parseNumber(val) || lifeStats.planetAges.mercury;
+        else if (label.includes("Venus")) lifeStats.planetAges.venus = parseNumber(val) || lifeStats.planetAges.venus;
+        else if (label.includes("Mars")) lifeStats.planetAges.mars = parseNumber(val) || lifeStats.planetAges.mars;
+        else if (label.includes("Jupiter")) lifeStats.planetAges.jupiter = parseNumber(val) || lifeStats.planetAges.jupiter;
+      });
+    }
+
+    return {
+      spreadsheetId: GOOGLE_SHEET_ID,
+      spreadsheetUrl: GOOGLE_SHEET_URL,
+      lastSyncedAt: new Date().toISOString(),
+      isLive: true,
+      totalMonthlyBudget: totalMonthlyBudget || 7500,
+      categoryBudgets: categoryBudgets.length > 0 ? categoryBudgets : SEED_TRACKERS_DATA.categoryBudgets,
+      expenses: expenses.length > 0 ? expenses : SEED_TRACKERS_DATA.expenses,
+      ebMeta,
+      ebReadings: ebReadings.length > 0 ? ebReadings : SEED_TRACKERS_DATA.ebReadings,
+      ebCycles: ebCycles.length > 0 ? ebCycles : SEED_TRACKERS_DATA.ebCycles,
+      jobApplications: jobApplications.length > 0 ? jobApplications : SEED_TRACKERS_DATA.jobApplications,
+      lifeStats,
+      purchases: purchases.length > 0 ? purchases : SEED_TRACKERS_DATA.purchases,
+    };
+  } catch (err) {
+    console.error("Error syncing spreadsheet trackers:", err);
+    return {
+      ...SEED_TRACKERS_DATA,
+      lastSyncedAt: new Date().toISOString(),
+      isLive: false,
+      error: String(err),
+    };
+  }
+}
