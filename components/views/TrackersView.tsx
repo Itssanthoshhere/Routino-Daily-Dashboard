@@ -1085,16 +1085,16 @@ export function TrackersView() {
         <div className="space-y-6">
           {/* Top KPI Summary Cards */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Total Accounts</span>
+            <div className="rounded-2xl border border-line bg-white p-4 sm:p-5 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block">Total Accounts</span>
               <p className="mt-1 text-[22px] font-bold text-ink tracking-tight">
                 {data.antigravityTokenSummary?.total ?? (data.antigravityTokens?.length || 0)}
               </p>
               <p className="mt-1 text-[10.5px] text-muted">Across {tokenProfiles.length} Chrome profiles</p>
             </div>
 
-            <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Ready to Use</span>
+            <div className="rounded-2xl border border-line bg-white p-4 sm:p-5 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block">Ready to Use</span>
               <p className="mt-1 text-[22px] font-bold text-[#059669] tracking-tight flex items-center gap-1.5">
                 <CheckCircle2 size={18} className="text-[#059669]" />
                 {data.antigravityTokenSummary?.available ?? 0}
@@ -1102,8 +1102,8 @@ export function TrackersView() {
               <p className="mt-1 text-[10.5px] text-muted">Cooldown complete · Active</p>
             </div>
 
-            <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">In Cooldown</span>
+            <div className="rounded-2xl border border-line bg-white p-4 sm:p-5 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block">In Cooldown</span>
               <p className="mt-1 text-[22px] font-bold text-[#b45309] tracking-tight flex items-center gap-1.5">
                 <Clock size={18} className="text-[#b45309]" />
                 {data.antigravityTokenSummary?.inCooldown ?? 0}
@@ -1111,9 +1111,9 @@ export function TrackersView() {
               <p className="mt-1 text-[10.5px] text-muted">7-day cooldown cycle</p>
             </div>
 
-            <div className="rounded-2xl border border-line bg-white p-4.5 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Next Unlock Batch</span>
-              <p className="mt-1 text-[16px] sm:text-[18px] font-bold text-forest tracking-tight">
+            <div className="rounded-2xl border border-line bg-white p-4 sm:p-5 shadow-card">
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider block">Next Unlock Batch</span>
+              <p className="mt-1 text-[18px] sm:text-[20px] font-bold text-forest tracking-tight">
                 {data.antigravityTokenSummary?.nextAvailableDate || "All Available"}
               </p>
               <p className="mt-1 text-[10.5px] text-muted">
