@@ -49,6 +49,7 @@ export function TrackersView() {
   // Filtering states
   const [expenseSearch, setExpenseSearch] = useState("");
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState("all");
+  const [expenseVisibleCount, setExpenseVisibleCount] = useState<number>(50);
   const [ebCycleFilter, setEbCycleFilter] = useState("all");
   const [placementSearch, setPlacementSearch] = useState("");
   const [placementStatusFilter, setPlacementStatusFilter] = useState("all");
@@ -152,9 +153,9 @@ export function TrackersView() {
   };
 
   /* ── Computed values ── */
-  // Expenses filtering
+  // Expenses filtering & robust sorting (latest on top)
   const filteredExpenses = useMemo(() => {
-    return data.expenses.filter((exp) => {
+    const list = data.expenses.filter((exp) => {
       const matchesSearch =
         exp.item.toLowerCase().includes(expenseSearch.toLowerCase()) ||
         exp.category.toLowerCase().includes(expenseSearch.toLowerCase()) ||
@@ -166,7 +167,32 @@ export function TrackersView() {
       }
       return true;
     });
+
+    return [...list].sort((a, b) => {
+      // 1. If explicit year/month/day present, sort descending
+      if (a.year && b.year && a.month && b.month && a.day && b.day) {
+        const valA = a.year * 10000 + a.month * 100 + a.day;
+        const valB = b.year * 10000 + b.month * 100 + b.day;
+        if (valB !== valA) return valB - valA;
+      }
+      // 2. Parse date strings
+      const tA = new Date(a.dateStr).getTime();
+      const tB = new Date(b.dateStr).getTime();
+      if (!isNaN(tA) && !isNaN(tB) && tB !== tA) {
+        return tB - tA;
+      }
+      return 0;
+    });
   }, [data.expenses, expenseSearch, expenseCategoryFilter]);
+
+  // Category Budgets sorted (active & highest budget on top)
+  const sortedCategoryBudgets = useMemo(() => {
+    return [...data.categoryBudgets].sort((a, b) => {
+      if (a.budget > 0 && b.budget === 0) return -1;
+      if (a.budget === 0 && b.budget > 0) return 1;
+      return b.budget - a.budget;
+    });
+  }, [data.categoryBudgets]);
 
   // Unique expense categories for filter chips
   const expenseCategories = useMemo(() => {
@@ -497,7 +523,7 @@ export function TrackersView() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {data.categoryBudgets.map((cb) => (
+              {sortedCategoryBudgets.map((cb) => (
                 <div key={cb.category} className="rounded-xl border border-[#eff1ec] bg-[#fbfcf9] p-3.5 flex items-center justify-between">
                   <div>
                     <p className="text-[12.5px] font-semibold text-ink">{cb.category}</p>
@@ -515,8 +541,15 @@ export function TrackersView() {
           <div className="rounded-2xl border border-line bg-white shadow-card overflow-hidden">
             <div className="p-4 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#fbfcf8]">
               <div>
-                <h4 className="text-[13px] font-bold text-ink">2026 Expense Journal</h4>
-                <p className="text-[11px] text-muted">Recent financial debits, payments & cash flows</p>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-[13px] font-bold text-ink">2026 Expense Journal</h4>
+                  <span className="rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 text-[9.5px] font-bold text-[#047857]">
+                    Latest on top
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted">
+                  Showing {Math.min(expenseVisibleCount, filteredExpenses.length)} of {filteredExpenses.length} transactions
+                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -556,7 +589,7 @@ export function TrackersView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eff1ec]">
-                  {filteredExpenses.slice(0, 25).map((exp) => (
+                  {filteredExpenses.slice(0, expenseVisibleCount).map((exp) => (
                     <tr key={exp.id} className="hover:bg-[#fbfcf9] transition">
                       <td className="py-2.5 px-4 text-muted whitespace-nowrap">{exp.dateStr}</td>
                       <td className="py-2.5 px-4">
@@ -585,6 +618,17 @@ export function TrackersView() {
                 </tbody>
               </table>
             </div>
+
+            {filteredExpenses.length > expenseVisibleCount && (
+              <div className="p-3 text-center border-t border-line bg-[#fbfcf8]">
+                <button
+                  onClick={() => setExpenseVisibleCount((prev) => prev + 50)}
+                  className="rounded-xl border border-line bg-white px-4 py-1.5 text-[11px] font-semibold text-ink hover:bg-[#f1f3ed] transition shadow-xs"
+                >
+                  Show More (Showing {expenseVisibleCount} of {filteredExpenses.length})
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

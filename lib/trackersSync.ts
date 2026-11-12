@@ -459,6 +459,8 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         if (!item && !amt && !inc) return;
 
         const year = row.c[0] ? parseNumber(row.c[0].v ?? row.c[0].f) : 2026;
+        const day = row.c[5] ? parseNumber(row.c[5].v ?? row.c[5].f) : undefined;
+        const month = row.c[6] ? parseNumber(row.c[6].v ?? row.c[6].f) : undefined;
         const dateStr = parseString(row.c[7]) || parseGVizDate(row.c[7]);
         const cat = parseString(row.c[8]) || "General";
         const notes = parseString(row.c[9]);
@@ -467,6 +469,8 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         expenses.push({
           id: `exp-${idx}`,
           year,
+          day,
+          month,
           item: item || (inc ? "Income" : "Expense"),
           amount: amt,
           income: inc,
@@ -476,6 +480,9 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
           balance: bal,
         });
       });
+
+      // Ensure latest entries from the spreadsheet are on top
+      expenses.reverse();
     }
 
     // Parse EB Summary & Meta
