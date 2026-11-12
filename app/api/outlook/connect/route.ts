@@ -13,11 +13,11 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.email) {
-    return NextResponse.redirect(new URL("/?setup=google", request.url));
+    return NextResponse.redirect(new URL("/dashboard?setup=google", request.url));
   }
 
   if (!hasOutlookCredentials()) {
-    return NextResponse.redirect(new URL("/?setup=outlook", request.url));
+    return NextResponse.redirect(new URL("/dashboard?setup=outlook", request.url));
   }
 
   const state = randomBytes(32).toString("hex");

@@ -47,6 +47,8 @@
 
 **Routino** brings every dimension of a focused day into one calm view: upcoming meetings, unread messages, high-priority tasks, zero-knowledge encrypted notes, deep work focus blocks, micro-habits, and the week ahead. Routino also bridges digital planning with physical focus through its **Daily Desk Sheet**—a single-page printable companion engineered for your actual desk.
 
+Routino now features a high-impact, modern **Public Landing Page** (`/`) inspired by modern AI productivity suites with live in-browser Web Audio soundscape synthesizers and interactive PG Electricity calculators, directing users to the full **Workspace Dashboard** (`/dashboard`).
+
 Google sign-in uses Auth.js. When the account holder signs in and approves access, the app reads Calendar events and limited Gmail message details. Microsoft Outlook Mail & Calendar can also be connected via Microsoft Graph. Until connected, the page displays clearly identified sample content. The app never writes to or modifies external email or calendars.
 
 ---
@@ -55,6 +57,8 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 
 | Section | What it shows | Data source |
 | :--- | :--- | :--- |
+| **Public Landing Page** | Glassmorphic landing page with live synthesized ambient sound preview and interactive EB calculator | Pure Web Audio API & client-side math (`/`) |
+| **Workspace Dashboard** | The complete Routino daily operations workspace | Full client & server dashboard (`/dashboard`) |
 | **Today's Flow Timeline** | Live daytime progress bar, upcoming meeting markers, and dynamic evening expansion | Google Calendar, Outlook Calendar, or local events |
 | **Daily Summary** | Date, daily intention quote, weather forecast, calendar count, unread email count, and focus card | Google / Outlook Calendar, Gmail, Open-Meteo, and live state |
 | **Daily Desk Sheet** | Single-page printable companion with Top 3 Non-Negotiables, schedule, hydration, and notes | Local storage, Calendar, and printer-optimized CSS |
@@ -180,7 +184,19 @@ An executive summary card placed directly on your main **Overview** home screen 
   - 🪨 **Graphite** (`#8`): Typing, Journaling, Notes.
 - Throttled batch updates prevent hitting Google API rate limits.
 
-### 16. 📜 Google Apps Script Calendar Sync & Time Audit
+### 16. 🌐 Modern Glassmorphic Public Landing Page (`/`)
+Routino includes a high-impact, modern public landing page inspired by top-tier AI productivity applications:
+- **Sticky Glassmorphic Header**: Blur backdrop navigation with quick jump anchors, GitHub star button, and direct "Launch Workspace" CTA.
+- **Interactive Live Audio Synthesizer**: In-browser demo letting visitors play and adjust volume for Gentle Rain, Ocean Waves, and Brown Noise via the Web Audio API without signing in.
+- **Interactive PG Electricity Calculator**: Live estimator demonstrating real-time daily burn rate (~1.9 u/day) and 50/50 roommate split calculations.
+- **7-Engine Trackers Hub Showcase**: Dedicated feature cards detailing Antigravity tokens, utility meters, multi-year expense ledgers, and career pipelines.
+- **Full Architecture & Security Breakdown**: Highlights PBKDF2/AES-256-GCM zero-knowledge client encryption, local-first data ownership, and open-source verification.
+- **Seamless Route Structure**:
+  - `/` → Public Landing Page with interactive demos
+  - `/dashboard` → Complete Workspace Dashboard
+  - `/app` → Automatic redirect to `/dashboard`
+
+### 17. 📜 Google Apps Script Calendar Sync & Time Audit
 - Included script template (`scripts/google-apps-script-calendar-sync.js`) for automated time tracking.
 - Syncs the past 90 days of Google Calendar events into a dedicated `Calendar Events` Google Sheet tab with automated categorization, minutes, and hours calculations for retrospective time auditing.
 

@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.email) {
-    return NextResponse.redirect(new URL("/?setup=google", request.url));
+    return NextResponse.redirect(new URL("/dashboard?setup=google", request.url));
   }
 
   const searchParams = request.nextUrl.searchParams;
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const expectedState = request.cookies.get("routino_outlook_oauth_state")?.value;
 
   if (!code || !state || !expectedState || state !== expectedState) {
-    return NextResponse.redirect(new URL("/?error=outlook_state_mismatch", request.url));
+    return NextResponse.redirect(new URL("/dashboard?error=outlook_state_mismatch", request.url));
   }
 
   try {
@@ -40,11 +40,11 @@ export async function GET(request: NextRequest) {
       connectedAt: new Date().toISOString(),
     });
 
-    const response = NextResponse.redirect(new URL("/?connected=outlook", request.url));
+    const response = NextResponse.redirect(new URL("/dashboard?connected=outlook", request.url));
     response.cookies.delete("routino_outlook_oauth_state");
     return response;
   } catch (error) {
     console.error("[outlook/callback] Error:", error);
-    return NextResponse.redirect(new URL("/?error=outlook_auth_failed", request.url));
+    return NextResponse.redirect(new URL("/dashboard?error=outlook_auth_failed", request.url));
   }
 }

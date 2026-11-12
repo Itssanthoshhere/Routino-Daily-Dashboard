@@ -7,9 +7,9 @@ export async function connectGoogle() {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     // Instead of redirecting to the blank NextAuth internal signin page,
     // redirect with a setup query so the UI can explain how to set up keys.
-    redirect("/?setup=google");
+    redirect("/dashboard?setup=google");
   }
-  await signIn("google", { redirectTo: "/" });
+  await signIn("google", { redirectTo: "/dashboard" });
 }
 
 export async function disconnectGoogle() {
