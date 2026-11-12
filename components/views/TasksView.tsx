@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ListTodo,
   Plus,
@@ -121,6 +121,32 @@ export function TasksView({
     if (selectedFilter === "travel") return t.category === "travel";
     return true;
   });
+
+  const sortedTasks = useMemo(() => {
+    return [...filteredTasks].sort((a, b) => {
+      // Remaining (incomplete) tasks always on top
+      if (!a.checked && b.checked) return -1;
+      if (a.checked && !b.checked) return 1;
+
+      // Secondary sorting for incomplete tasks: priority first, overdue first, due today next
+      if (!a.checked && !b.checked) {
+        if (a.priority && !b.priority) return -1;
+        if (!a.priority && b.priority) return 1;
+
+        const aOverdue = Boolean(a.dueDate && a.dueDate < todayStr);
+        const bOverdue = Boolean(b.dueDate && b.dueDate < todayStr);
+        if (aOverdue && !bOverdue) return -1;
+        if (!aOverdue && bOverdue) return 1;
+
+        const aToday = Boolean(a.dueDate === todayStr);
+        const bToday = Boolean(b.dueDate === todayStr);
+        if (aToday && !bToday) return -1;
+        if (!aToday && bToday) return 1;
+      }
+
+      return 0;
+    });
+  }, [filteredTasks, todayStr]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
@@ -302,7 +328,7 @@ export function TasksView({
 
       {/* Task List */}
       <div className="rounded-2xl border border-line bg-white shadow-card overflow-hidden">
-        {filteredTasks.length === 0 ? (
+        {sortedTasks.length === 0 ? (
           <div className="py-16 text-center">
             <ListTodo size={32} className="mx-auto text-muted/40 mb-3" />
             <p className="text-[13px] font-semibold text-ink">No tasks match your criteria</p>
@@ -310,14 +336,22 @@ export function TasksView({
           </div>
         ) : (
           <div className="divide-y divide-[#eff1ec]">
-            {filteredTasks.map((task) => {
+            {sortedTasks.map((task, idx) => {
               const hasSubtasks = Boolean(task.subtasks && task.subtasks.length > 0);
               const completedSubCount = task.subtasks?.filter((s) => s.completed).length || 0;
               const totalSubCount = task.subtasks?.length || 0;
               const isExpanded = expandedTasks[task.id];
+              const isFirstCompleted =
+                task.checked && (idx === 0 || !sortedTasks[idx - 1].checked) && selectedFilter !== "completed";
 
               return (
-                <div key={task.id} className="group hover:bg-[#fbfcf9] transition">
+                <div key={task.id}>
+                  {isFirstCompleted && (
+                    <div className="bg-[#fafbf8] px-4 py-2 border-b border-[#eff1ec] flex items-center justify-between text-[10.5px] font-bold text-muted uppercase tracking-wider">
+                      <span>Completed ({sortedTasks.filter((t) => t.checked).length})</span>
+                    </div>
+                  )}
+                  <div className="group hover:bg-[#fbfcf9] transition">
                   <div className="flex items-center justify-between gap-3 p-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <button
@@ -439,6 +473,7 @@ export function TasksView({
                       ))}
                     </div>
                   )}
+                </div>
                 </div>
               );
             })}

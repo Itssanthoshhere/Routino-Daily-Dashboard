@@ -636,6 +636,19 @@ export default function Home() {
   const rangeEnd = new Date();
   rangeEnd.setDate(rangeEnd.getDate() + 6);
 
+  const sortedOverviewTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      // Remaining (incomplete) tasks first
+      if (!a.checked && b.checked) return -1;
+      if (a.checked && !b.checked) return 1;
+      if (!a.checked && !b.checked) {
+        if (a.priority && !b.priority) return -1;
+        if (!a.priority && b.priority) return 1;
+      }
+      return 0;
+    });
+  }, [tasks]);
+
   /* ── Keyboard shortcuts ── */
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -1624,7 +1637,7 @@ export default function Home() {
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      {tasks.map(task => {
+                      {sortedOverviewTasks.map(task => {
                         const hasSubtasks = Boolean(task.subtasks && task.subtasks.length > 0);
                         const completedSubCount = task.subtasks?.filter(s => s.completed).length || 0;
                         const totalSubCount = task.subtasks?.length || 0;
