@@ -17,8 +17,13 @@ import type {
   InvestmentContributor,
 } from "@/types/dashboard";
 
-export const GOOGLE_SHEET_ID = "1bGxy0pgNx0nlO09pqdhYi_ZwNVqBcX4z1rkPWoIpeSw";
-export const GOOGLE_SHEET_URL = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/edit?usp=sharing`;
+export const GOOGLE_SHEET_ID =
+  process.env.TRACKERS_SPREADSHEET_ID ||
+  process.env.NEXT_PUBLIC_TRACKERS_SPREADSHEET_ID ||
+  "";
+export const GOOGLE_SHEET_URL = GOOGLE_SHEET_ID
+  ? `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/edit?usp=sharing`
+  : "";
 
 type GVizCell = {
   v?: string | number | boolean | null;
@@ -37,6 +42,7 @@ type GVizResponse = {
 };
 
 async function fetchGVizSheet(sheetName: string): Promise<GVizResponse | null> {
+  if (!GOOGLE_SHEET_ID) return null;
   try {
     const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
     const res = await fetch(url, {
@@ -185,42 +191,42 @@ const SEED_2026_EXPENSES: TrackerExpense[] = [
 ];
 
 export const SEED_ANTIGRAVITY_TOKENS: TrackerAntigravityToken[] = [
-  { id: "token-0", email: "doctormutualfund@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Dr MF", isAvailable: false },
-  { id: "token-1", email: "ipadphotobackup03@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Feasto Admin", isAvailable: false },
-  { id: "token-2", email: "minecraftbackup07@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Feasto Admin", isAvailable: false },
-  { id: "token-3", email: "myashika2005@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Santhosh", isAvailable: false },
-  { id: "token-4", email: "aptiwings08@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknown", isAvailable: false },
-  { id: "token-5", email: "hereunknown07@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknow", isAvailable: false },
-  { id: "token-6", email: "aptiwings03@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Github", isAvailable: false },
-  { id: "token-7", email: "aptiwings05@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknown", isAvailable: false },
-  { id: "token-8", email: "aptiwings04@gmail.com", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Github", isAvailable: false },
-  { id: "token-9", email: "aptiwings02@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
-  { id: "token-10", email: "iamsanthu02@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
-  { id: "token-11", email: "iamsanthu07@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
-  { id: "token-12", email: "iamsanthu08@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
-  { id: "token-13", email: "kvigbuspass@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
-  { id: "token-14", email: "itssanthoo@gmail.com", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
-  { id: "token-15", email: "sundarjanane@gmail.com", lastUsed: "4/11/26", cooldownDays: 7, availableAgain: "11-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
-  { id: "token-16", email: "cpl.codechef@gmail.com", lastUsed: "3/11/26", cooldownDays: 6, availableAgain: "09-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
-  { id: "token-17", email: "githubmanger@gmail.com", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
-  { id: "token-18", email: "santhosh02vs@gmail.com", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
-  { id: "token-19", email: "vaniphonephotobackup@gmail.com", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
-  { id: "token-20", email: "itssanthoshhere02@gmail.com", lastUsed: "12/10/26", cooldownDays: 7, availableAgain: "19-Oct-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
-  { id: "token-21", email: "ipadphotobackup04@gmail.com", lastUsed: "25/9/26", cooldownDays: 7, availableAgain: "02-Oct-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
-  { id: "token-22", email: "ranthuranthu66@gmail.com", lastUsed: "19/9/26", cooldownDays: 7, availableAgain: "26-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
-  { id: "token-23", email: "jananesundar09@gmail.com", lastUsed: "18/9/26", cooldownDays: 7, availableAgain: "25-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
-  { id: "token-24", email: "vani78678ssr@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
-  { id: "token-25", email: "aptiwings01@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
-  { id: "token-26", email: "aptiwings07@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
-  { id: "token-27", email: "iamsanthoshvs2005@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
-  { id: "token-28", email: "iphonephotobackupstorage@gmail.com", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
-  { id: "token-29", email: "photosaving07@gmail.com", lastUsed: "16/9/26", cooldownDays: 7, availableAgain: "23-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
-  { id: "token-30", email: "whatsapobackupaccstorage@gmail.com", lastUsed: "30/6/26", cooldownDays: 7, availableAgain: "07-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
-  { id: "token-31", email: "aptiwings09@gmail.com", lastUsed: "7/7/26", cooldownDays: 7, availableAgain: "14-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknow", isAvailable: true },
-  { id: "token-32", email: "aptiwings03@gmail.com", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
-  { id: "token-33", email: "whatsappbackstorage@gmail.com", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
-  { id: "token-34", email: "vaniwhatsappback@gmail.com", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
-  { id: "token-35", email: "vaniphonephotos@gmail.com", lastUsed: "28/6/26", cooldownDays: 7, availableAgain: "05-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-0", email: "token.drmf.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Dr MF", isAvailable: false },
+  { id: "token-1", email: "token.feasto.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Feasto Admin", isAvailable: false },
+  { id: "token-2", email: "token.feasto.02@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Feasto Admin", isAvailable: false },
+  { id: "token-3", email: "token.santhosh.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Santhosh", isAvailable: false },
+  { id: "token-4", email: "token.profile.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknown", isAvailable: false },
+  { id: "token-5", email: "token.profile.02@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknow", isAvailable: false },
+  { id: "token-6", email: "token.github.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Github", isAvailable: false },
+  { id: "token-7", email: "token.profile.03@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Unknown", isAvailable: false },
+  { id: "token-8", email: "token.github.02@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Github", isAvailable: false },
+  { id: "token-9", email: "token.github.03@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-10", email: "token.github.04@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-11", email: "token.github.05@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-12", email: "token.github.06@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-13", email: "token.github.07@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-14", email: "token.santhosh.02@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-15", email: "token.santhosh.03@routino.dev", lastUsed: "4/11/26", cooldownDays: 7, availableAgain: "11-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-16", email: "token.feasto.03@routino.dev", lastUsed: "3/11/26", cooldownDays: 6, availableAgain: "09-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-17", email: "token.github.08@routino.dev", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-18", email: "token.santhosh.04@routino.dev", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-19", email: "token.santhosh.05@routino.dev", lastUsed: "1/11/26", cooldownDays: 7, availableAgain: "08-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
+  { id: "token-20", email: "token.feasto.04@routino.dev", lastUsed: "12/10/26", cooldownDays: 7, availableAgain: "19-Oct-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-21", email: "token.feasto.05@routino.dev", lastUsed: "25/9/26", cooldownDays: 7, availableAgain: "02-Oct-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-22", email: "token.profile.04@routino.dev", lastUsed: "19/9/26", cooldownDays: 7, availableAgain: "26-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-23", email: "token.github.09@routino.dev", lastUsed: "18/9/26", cooldownDays: 7, availableAgain: "25-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-24", email: "token.profile.05@routino.dev", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-25", email: "token.profile.06@routino.dev", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-26", email: "token.profile.07@routino.dev", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-27", email: "token.feasto.06@routino.dev", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-28", email: "token.feasto.07@routino.dev", lastUsed: "17/9/26", cooldownDays: 7, availableAgain: "24-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-29", email: "token.profile.08@routino.dev", lastUsed: "16/9/26", cooldownDays: 7, availableAgain: "23-Sep-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknown", isAvailable: true },
+  { id: "token-30", email: "token.feasto.08@routino.dev", lastUsed: "30/6/26", cooldownDays: 7, availableAgain: "07-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-31", email: "token.profile.09@routino.dev", lastUsed: "7/7/26", cooldownDays: 7, availableAgain: "14-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Unknow", isAvailable: true },
+  { id: "token-32", email: "token.github.10@routino.dev", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Github", isAvailable: true },
+  { id: "token-33", email: "token.feasto.09@routino.dev", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-34", email: "token.feasto.10@routino.dev", lastUsed: "29/6/26", cooldownDays: 7, availableAgain: "06-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Feasto Admin", isAvailable: true },
+  { id: "token-35", email: "token.santhosh.06@routino.dev", lastUsed: "28/6/26", cooldownDays: 7, availableAgain: "05-Jul-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Santhosh", isAvailable: true },
 ];
 
 export const SEED_ANTIGRAVITY_TOKEN_SUMMARY: TrackerAntigravityTokenSummary = {
@@ -695,7 +701,7 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       lastUpdatedDate: "2026-09-01",
       recruiter: "LinkedIn Recruiter",
       interviewStage: "Application",
-      notes: "Entry-level/fresher front end internship, fully remote, flexible duration. Stipend Rs 14,500-15,900/month. Stack: HTML, CSS, JavaScript, React (component-level work, responsive layouts, cross-device testing). LinkedIn flagged profile as a high match. Over 100 applicants clicked apply. Resume used: MediNex_Workforce_Resume.pdf. CAUTION: Post-submission form asked to email personal details to recruiter@enerzcloud.com and recruiter@wellbridge.in - domains unrelated to 'Medinex'/'MediNex Workforce'. Classic sign of a recruitment scam/phishing pattern. Verify company legitimacy before sending any further personal info.",
+      notes: "Entry-level/fresher front end internship, fully remote, flexible duration. Stipend Rs 14,500-15,900/month. Stack: HTML, CSS, JavaScript, React (component-level work, responsive layouts, cross-device testing). LinkedIn flagged profile as a high match. Over 100 applicants clicked apply. Resume used: MediNex_Workforce_Resume.pdf. CAUTION: Post-submission form asked to email personal details to unverified third-party external domains unrelated to 'Medinex'/'MediNex Workforce'. Classic sign of a recruitment scam/phishing pattern. Verify company legitimacy before sending any further personal info.",
       nextAction: "Verify Legitimacy",
     },
     {
@@ -794,13 +800,13 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       role: "Front End Developer",
       location: "Bangalore / Remote",
       appliedDate: "2026-09-12",
-      source: "Inbound Email (hr@hireflux.in)",
+      source: "Inbound Recruiter Email",
       status: "Applied",
       lastUpdate: "Unsolicited outreach received. Verification pending.",
       lastUpdatedDate: "2026-09-12",
-      recruiter: "hr@hireflux.in",
+      recruiter: "Hireflux Recruiter",
       interviewStage: "Application",
-      notes: "Unsolicited outreach, not a self-initiated application. Compensation: up to Rs 5 LPA (unspecified exact figure). CAUTION: email does not name the actual hiring company beyond the sender domain 'hireflux.in' - unclear if Hireflux is the employer or a staffing/recruiting agency working on behalf of an unnamed client. Generic 'came across your profile' framing and vague comp range are mild red flags typical of low-quality recruiting outreach. Proceed cautiously - verify company legitimacy before sharing further personal info.",
+      notes: "Unsolicited outreach, not a self-initiated application. Compensation: up to Rs 5 LPA (unspecified exact figure). CAUTION: email does not name the actual hiring company beyond the sender domain - unclear if Hireflux is the employer or a staffing/recruiting agency working on behalf of an unnamed client. Generic 'came across your profile' framing and vague comp range are mild red flags typical of low-quality recruiting outreach. Proceed cautiously - verify company legitimacy before sharing further personal info.",
       nextAction: "Verify Legitimacy",
     },
     {
@@ -854,11 +860,11 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       role: "ChatGPT Power User - Data Licensing Gig",
       location: "Remote (India-based)",
       appliedDate: "2026-09-21",
-      source: "Inbound Email (lorenzocinquina@mercor.com)",
+      source: "Inbound Recruiter Outreach (Mercor)",
       status: "Shortlisted",
       lastUpdate: "Selected 21 Sep -> Sign DocuSign Agreement -> Receive project invite -> $100 initial + $50/hr.",
       lastUpdatedDate: "2026-09-21",
-      recruiter: "Lorenzo Cinquina (Growth @ Mercor)",
+      recruiter: "Mercor Talent Team",
       interviewStage: "Assessment / Contract",
       notes: "NOTE: This is NOT a software engineering role - it's freelance/gig work via Mercor on behalf of an undisclosed 'frontier AI lab' client. The actual ask is to LICENSE your personal ChatGPT conversation history for research/training data, paid $100 for the initial data license, then $50/hr for ongoing task work a few times/month. CONSIDER CAREFULLY before signing: this means handing over your actual ChatGPT conversation content to a third party - read the DocuSign agreement in full before signing. Eligibility: 40+ conversations Jan-Sep 2026, 1+ saved memory, account 3+ months old.",
       nextAction: "Review Agreement Carefully",
@@ -1260,11 +1266,11 @@ export const SEED_TRACKERS_DATA: TrackersData = {
       },
     ],
     contributors: [
-      { name: "Gopal", amount: 100000, status: "Paid" },
-      { name: "Ganesh Uncle", amount: 60000, status: "Paid" },
-      { name: "Vanitha", amount: 50000, status: "Paid" },
-      { name: "Pavithra daddy", amount: 40000, status: "Paid" },
-      { name: "Jayan", amount: 30000, status: "Pending" },
+      { name: "Family Sponsor (Higher Ed Fund)", amount: 100000, status: "Paid" },
+      { name: "Family Contributor (Semester Support)", amount: 60000, status: "Paid" },
+      { name: "Parental Education Allocation", amount: 50000, status: "Paid" },
+      { name: "Family Sponsor (Academic Grant)", amount: 40000, status: "Paid" },
+      { name: "Supporter Pledge (Upcoming Cycle)", amount: 30000, status: "Pending" },
     ],
   },
   antigravityTokens: SEED_ANTIGRAVITY_TOKENS,
@@ -1273,6 +1279,16 @@ export const SEED_TRACKERS_DATA: TrackersData = {
 
 /* ── Live Syncer ── */
 export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
+  if (!GOOGLE_SHEET_ID) {
+    return {
+      ...SEED_TRACKERS_DATA,
+      spreadsheetId: "",
+      spreadsheetUrl: "",
+      lastSyncedAt: new Date().toISOString(),
+      isLive: false,
+    };
+  }
+
   try {
     const [
       budgetData,
