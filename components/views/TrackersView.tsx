@@ -66,11 +66,35 @@ export function TrackersView() {
   const [tokenProfileFilter, setTokenProfileFilter] = useState("all");
   const [tokenSort, setTokenSort] = useState<"cooldown-first" | "available-first" | "days-asc" | "email">("cooldown-first");
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [tokenBatchCopied, setTokenBatchCopied] = useState<string | null>(null);
 
   const handleCopyEmail = (email: string) => {
     navigator.clipboard.writeText(email);
     setCopiedEmail(email);
     setTimeout(() => setCopiedEmail(null), 1800);
+  };
+
+  const handleCopyNextReady = () => {
+    const readyList = (data.antigravityTokens || []).filter((t) => t.isAvailable);
+    if (readyList.length === 0) return;
+    const next = readyList[0];
+    navigator.clipboard.writeText(next.email);
+    setCopiedEmail(next.email);
+    setTokenBatchCopied(`Copied next ready: ${next.email}`);
+    setTimeout(() => {
+      setCopiedEmail(null);
+      setTokenBatchCopied(null);
+    }, 2500);
+  };
+
+  const handleCopyAllReady = () => {
+    const readyEmails = (data.antigravityTokens || [])
+      .filter((t) => t.isAvailable)
+      .map((t) => t.email);
+    if (readyEmails.length === 0) return;
+    navigator.clipboard.writeText(readyEmails.join("\n"));
+    setTokenBatchCopied(`Copied ${readyEmails.length} ready emails!`);
+    setTimeout(() => setTokenBatchCopied(null), 2500);
   };
 
   // Modals
@@ -1174,36 +1198,78 @@ export function TrackersView() {
             </div>
           </div>
 
-          {/* Chrome Profiles Quick Filter Chips */}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <span className="text-[11px] font-semibold text-muted">Profiles:</span>
-            <button
-              onClick={() => setTokenProfileFilter("all")}
-              className={`rounded-xl px-3 py-1 text-[11px] font-semibold transition ${
-                tokenProfileFilter === "all"
-                  ? "bg-forest text-white shadow-xs"
-                  : "bg-white border border-line text-muted hover:bg-[#f1f3ed] hover:text-ink"
-              }`}
-            >
-              All Profiles ({data.antigravityTokens?.length || 0})
-            </button>
-            {tokenProfiles.map((prof) => {
-              const count = (data.antigravityTokens || []).filter((t) => t.chromeProfile === prof).length;
-              return (
-                <button
-                  key={prof}
-                  onClick={() => setTokenProfileFilter(prof)}
-                  className={`rounded-xl px-3 py-1 text-[11px] font-semibold transition ${
-                    tokenProfileFilter === prof
-                      ? "bg-forest text-white shadow-xs"
-                      : "bg-white border border-line text-muted hover:bg-[#f1f3ed] hover:text-ink"
-                  }`}
-                >
-                  {prof} ({count})
-                </button>
-              );
-            })}
+          {/* Chrome Profiles Quick Filter Chips & Batch Actions */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-muted mr-1">Profiles:</span>
+              <button
+                onClick={() => setTokenProfileFilter("all")}
+                className={`rounded-xl px-3 py-1 text-[11px] font-semibold transition ${
+                  tokenProfileFilter === "all"
+                    ? "bg-forest text-white shadow-xs"
+                    : "bg-white border border-line text-muted hover:bg-[#f1f3ed] hover:text-ink"
+                }`}
+              >
+                All Profiles ({data.antigravityTokens?.length || 0})
+              </button>
+              {tokenProfiles.map((prof) => {
+                const totalInProf = (data.antigravityTokens || []).filter((t) => t.chromeProfile === prof);
+                const readyInProf = totalInProf.filter((t) => t.isAvailable).length;
+                return (
+                  <button
+                    key={prof}
+                    onClick={() => setTokenProfileFilter(prof)}
+                    className={`rounded-xl px-3 py-1 text-[11px] font-semibold transition flex items-center gap-1.5 ${
+                      tokenProfileFilter === prof
+                        ? "bg-forest text-white shadow-xs"
+                        : "bg-white border border-line text-muted hover:bg-[#f1f3ed] hover:text-ink"
+                    }`}
+                  >
+                    <span>{prof}</span>
+                    <span
+                      className={`text-[9.5px] px-1.5 py-0.2 rounded-full ${
+                        tokenProfileFilter === prof
+                          ? "bg-white/20 text-white"
+                          : readyInProf > 0
+                          ? "bg-[#ecfdf5] text-[#047857]"
+                          : "bg-[#fffbeb] text-[#b45309]"
+                      }`}
+                    >
+                      {readyInProf}/{totalInProf.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Batch Actions */}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                onClick={handleCopyNextReady}
+                title="Instantly copy the next available token email"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#a7f3d0] bg-[#ecfdf5] px-3 py-1.5 text-[11.5px] font-bold text-[#047857] hover:bg-[#d1fae5] transition shadow-xs cursor-pointer"
+              >
+                <Zap size={13} className="text-[#047857]" />
+                <span>Copy Next Ready</span>
+              </button>
+
+              <button
+                onClick={handleCopyAllReady}
+                title="Copy all available ready emails (newline-separated)"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-1.5 text-[11.5px] font-semibold text-ink hover:bg-[#f8f9f5] transition shadow-xs cursor-pointer"
+              >
+                <Copy size={12} className="text-muted" />
+                <span>Copy All Ready ({data.antigravityTokenSummary?.available ?? 0})</span>
+              </button>
+            </div>
           </div>
+
+          {tokenBatchCopied && (
+            <div className="rounded-xl border border-[#a7f3d0] bg-[#ecfdf5] px-3.5 py-2 text-[12px] font-semibold text-[#047857] flex items-center gap-2 animate-in fade-in">
+              <Check size={14} />
+              <span>{tokenBatchCopied}</span>
+            </div>
+          )}
 
           {/* Search, Status & Sort Controls */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
