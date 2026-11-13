@@ -177,10 +177,10 @@ const seedHabits: Habit[] = [
 const seedLinks: QuickLink[] = [
   { id: "ql-1", title: "Google Calendar", subtitle: "Your schedule", url: appConfig.links.calendar, iconName: "calendar", available: true },
   { id: "ql-2", title: "Gmail", subtitle: "Your inbox", url: appConfig.links.mail, iconName: "mail", available: true },
-  { id: "ql-3", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.live.com/mail", iconName: "outlook", available: true },
+  { id: "ql-3", title: "Google Drive", subtitle: "Recent files & storage", url: appConfig.links.drive, iconName: "drive", available: true },
+  { id: "ql-4", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.live.com/mail", iconName: "outlook", available: true },
   { id: "ql-5", title: "GitHub", subtitle: "Developer profile", url: appConfig.links.github, iconName: "github", available: true },
   { id: "ql-6", title: "Portfolio", subtitle: "Personal website", url: appConfig.links.portfolio, iconName: "globe", available: true },
-  { id: "ql-7", title: "Google Drive", subtitle: "Recent files", url: appConfig.links.drive, iconName: "drive", available: true },
 ];
 
 const seedNotifications: NotificationItem[] = [
@@ -238,22 +238,43 @@ const hues = ["blue", "peach", "green"];
 function normalizeQuickLinks(links: QuickLink[]): QuickLink[] {
   const usedIds = new Set<string>();
 
-  return links.filter((link) =>
-    String(link.iconName).toLowerCase() !== "linkedin" &&
-    !link.url?.toLowerCase().includes("linkedin.com") &&
-    link.title?.trim().toLowerCase() !== "linkedin" &&
-    String(link.iconName).toLowerCase() !== "sites" &&
-    link.title?.trim().toLowerCase() !== "google sites"
-  ).map((link, index) => {
-    const baseId = link.id?.trim() || `quick-link-${index + 1}`;
-    let id = baseId;
-    let suffix = 2;
-    while (usedIds.has(id)) {
-      id = `${baseId}-${suffix++}`;
-    }
-    usedIds.add(id);
-    return id === link.id ? link : { ...link, id };
-  });
+  return links
+    .filter(
+      (link) =>
+        String(link.iconName).toLowerCase() !== "linkedin" &&
+        !link.url?.toLowerCase().includes("linkedin.com") &&
+        link.title?.trim().toLowerCase() !== "linkedin" &&
+        String(link.iconName).toLowerCase() !== "sites" &&
+        link.title?.trim().toLowerCase() !== "google sites"
+    )
+    .map((link, index) => {
+      // Automatically upgrade legacy unintegrated Google Drive link into active integrated link
+      const isDrive =
+        link.title?.trim().toLowerCase() === "google drive" ||
+        link.iconName === "drive" ||
+        link.url?.toLowerCase().includes("drive.google.com");
+
+      const item: QuickLink =
+        isDrive && (!link.available || link.url === "#" || link.subtitle?.toLowerCase().includes("not integrated"))
+          ? {
+              ...link,
+              title: "Google Drive",
+              subtitle: "Recent files & storage",
+              url: appConfig.links.drive,
+              iconName: "drive",
+              available: true,
+            }
+          : link;
+
+      const baseId = item.id?.trim() || `quick-link-${index + 1}`;
+      let id = baseId;
+      let suffix = 2;
+      while (usedIds.has(id)) {
+        id = `${baseId}-${suffix++}`;
+      }
+      usedIds.add(id);
+      return id === item.id ? item : { ...item, id };
+    });
 }
 
 function formatTime(value?: string) {
@@ -278,7 +299,7 @@ const linkIcons: Record<string, typeof CalendarDays> = {
   github: Github,
   portfolio: Globe,
   globe: Globe,
-  drive: FileText,
+  drive: FolderOpen,
   sites: Link2,
   link: Link2,
   file: FileText,
@@ -489,9 +510,12 @@ export default function Home() {
       const storedLinks = localStorage.getItem("routino_links");
       if (storedLinks !== null) {
         const parsed = normalizeQuickLinks(JSON.parse(storedLinks) as QuickLink[]);
-        // Ensure new default links are added if missing
+        // Ensure new default links (including Google Drive) are added if missing
+        const existingTitles = new Set(parsed.map(l => l.title.trim().toLowerCase()));
         const existingUrls = new Set(parsed.map(l => l.url.toLowerCase()));
-        const missingDefaults = seedLinks.filter(s => s.available && !existingUrls.has(s.url.toLowerCase()));
+        const missingDefaults = seedLinks.filter(
+          s => s.available && !existingTitles.has(s.title.trim().toLowerCase()) && !existingUrls.has(s.url.toLowerCase())
+        );
         const merged = normalizeQuickLinks([...parsed, ...missingDefaults]);
         setQuickLinks(merged);
         try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
@@ -1058,8 +1082,14 @@ export default function Home() {
           }
           if (Array.isArray(d.quickLinks) && d.quickLinks.length > 0) {
             const normalizedLinks = normalizeQuickLinks(d.quickLinks);
-            setQuickLinks(normalizedLinks);
-            try { localStorage.setItem("routino_links", JSON.stringify(normalizedLinks)); } catch {}
+            const existingTitles = new Set(normalizedLinks.map(l => l.title.trim().toLowerCase()));
+            const existingUrls = new Set(normalizedLinks.map(l => l.url.toLowerCase()));
+            const missingDefaults = seedLinks.filter(
+              s => s.available && !existingTitles.has(s.title.trim().toLowerCase()) && !existingUrls.has(s.url.toLowerCase())
+            );
+            const merged = normalizeQuickLinks([...normalizedLinks, ...missingDefaults]);
+            setQuickLinks(merged);
+            try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
           }
           if (typeof d.focusMinutes === "number") {
             setFocusMinutes(d.focusMinutes);
@@ -2408,6 +2438,7 @@ export default function Home() {
                             link.iconName === "calendar" ? "bg-[#edf3ff] text-[#6088d1]" :
                             link.iconName === "mail" ? "bg-[#fbefeb] text-[#d16b5b]" :
                             link.iconName === "outlook" ? "bg-[#ebf3fc] text-[#0078d4]" :
+                            link.iconName === "drive" ? "bg-[#edf3ff] text-[#4285f4]" :
                             link.iconName === "github" ? "bg-[#f0f1f3] text-[#24292f]" :
                             (link.iconName === "portfolio" || link.iconName === "globe") ? "bg-[#fef7ee] text-[#d97706]" :
                             "bg-[#fdf2f2] text-forest"

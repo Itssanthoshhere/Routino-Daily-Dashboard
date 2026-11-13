@@ -74,7 +74,36 @@ export function QuickLinkModal({ isOpen, onClose, onAddLink }: QuickLinkModalPro
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        {/* Quick Presets */}
+        <div className="mt-4">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-muted mb-1.5">
+            Quick Presets
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { label: "Google Drive", sub: "Cloud files & storage", url: "https://drive.google.com/drive/my-drive" },
+              { label: "Google Docs", sub: "Documents & drafts", url: "https://docs.google.com" },
+              { label: "Google Sheets", sub: "Spreadsheets & data", url: "https://sheets.google.com" },
+              { label: "GitHub", sub: "Repositories & code", url: "https://github.com" },
+              { label: "Notion", sub: "Workspace & docs", url: "https://notion.so" },
+            ].map((preset) => (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => {
+                  setTitle(preset.label);
+                  setSubtitle(preset.sub);
+                  setUrl(preset.url);
+                }}
+                className="rounded-lg border border-line bg-white px-2.5 py-1 text-[11px] font-medium text-ink hover:border-forest/40 hover:bg-[#fbfcf8] transition cursor-pointer"
+              >
+                + {preset.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
             <label className="block text-[11px] font-semibold text-ink">Title</label>
             <input
