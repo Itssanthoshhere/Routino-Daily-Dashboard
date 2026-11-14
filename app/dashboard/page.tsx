@@ -149,22 +149,86 @@ const sampleMail: DashboardMail[] = [
 
 const seedTasks: Task[] = [
   {
+    id: "t-cs-1",
+    title: "CS400I: Submit 9-Doc Combined PDF to Faculty Evaluator",
+    meta: "Deadline: 15 Nov, 11:00 PM · Dr. Pooja Choudhary",
+    checked: false,
+    priority: true,
+    category: "urgent",
+    dueDate: "2026-11-15T23:00",
+    createdAt: 1,
+    subtasks: [
+      { id: "st-pdf-1", title: "Assemble 9 required documents (5 + 4) in prescribed order", completed: false },
+      { id: "st-pdf-2", title: "Include Evaluation-2 report in appropriate report section", completed: false },
+      { id: "st-pdf-3", title: "Include company attendance log (or attendance proof / email trail)", completed: false },
+      { id: "st-pdf-4", title: "Include Offer Letter & required supporting documents", completed: false },
+      { id: "st-pdf-5", title: "Name combined PDF: E23CSEU1150_SANTHOSH VS.PDF", completed: false },
+      { id: "st-pdf-6", title: "Email combined PDF & HR details to Dr. Pooja Choudhary", completed: false },
+    ],
+  },
+  {
+    id: "t-cs-2",
+    title: "CS400I: Complete & Submit Separate IQAC Form",
+    meta: "Deadline: 16 Nov, 11:00 PM · Bennett Account Submission",
+    checked: false,
+    priority: true,
+    category: "urgent",
+    dueDate: "2026-11-16T23:00",
+    createdAt: 2,
+    subtasks: [
+      { id: "st-iqac-1", title: "Submit IQAC form using official Bennett Microsoft account", completed: false },
+      { id: "st-iqac-2", title: "Save submission confirmation receipt / screenshot", completed: false },
+      { id: "st-iqac-3", title: "Keep submission receipt ready for viva evaluation", completed: false },
+    ],
+  },
+  {
+    id: "t-cs-3",
+    title: "CS400I: Industry HR External Evaluation Coordination",
+    meta: "Deadline: Before 25 Nov · Riya Taneja (Crucial 40 Marks)",
+    checked: false,
+    priority: true,
+    category: "project",
+    dueDate: "2026-11-25T23:59",
+    createdAt: 3,
+    subtasks: [
+      { id: "st-hr-1", title: "Confirm Riya Taneja's full name, designation, official email & contact phone", completed: false },
+      { id: "st-hr-2", title: "Send confirmed HR / Supervisor details to faculty evaluator", completed: false },
+      { id: "st-hr-3", title: "Inform Riya that Bennett University will send external eval form (40 marks)", completed: false },
+      { id: "st-hr-4", title: "Request Riya to complete and submit response before 25 November", completed: false },
+    ],
+  },
+  {
+    id: "t-cs-4",
+    title: "CS400I: Schedule & Prepare for Evaluation-2 Viva",
+    meta: "Viva Window: 16–22 Nov 2026 · Dr. Pooja Choudhary",
+    checked: false,
+    priority: false,
+    category: "project",
+    createdAt: 4,
+    subtasks: [
+      { id: "st-viva-1", title: "Look up faculty evaluator email in Student–Faculty Allotment List", completed: false },
+      { id: "st-viva-2", title: "Contact Dr. Pooja Choudhary to mutually schedule viva date & time", completed: false },
+      { id: "st-viva-3", title: "Prepare to explain project, technical contributions and work done", completed: false },
+      { id: "st-viva-4", title: "Keep Report, attendance evidence and IQAC receipt ready for panel", completed: false },
+    ],
+  },
+  {
     id: "t-1",
     title: "Review the Q4 proposal",
     meta: "Before project review · 11:00 AM",
     checked: false,
     priority: true,
     category: "project",
-    createdAt: 1,
+    createdAt: 5,
     subtasks: [
       { id: "st-1", title: "Outline key milestones", completed: true },
       { id: "st-2", title: "Verify budget projection table", completed: false },
       { id: "st-3", title: "Format executive summary", completed: false },
     ],
   },
-  { id: "t-2", title: "Reply to Riya about the scope", meta: "Today · Email follow-up", checked: false, priority: false, category: "personal", createdAt: 2 },
-  { id: "t-3", title: "Send invoice to finance", meta: "Due Friday · 2 days left", checked: false, priority: false, category: "urgent", createdAt: 3 },
-  { id: "t-4", title: "Block focus time for roadmap", meta: "Suggested · 90 min", checked: true, priority: false, category: "project", createdAt: 4 },
+  { id: "t-2", title: "Reply to Riya about the scope", meta: "Today · Email follow-up", checked: false, priority: false, category: "personal", createdAt: 6 },
+  { id: "t-3", title: "Send invoice to finance", meta: "Due Friday · 2 days left", checked: false, priority: false, category: "urgent", createdAt: 7 },
+  { id: "t-4", title: "Block focus time for roadmap", meta: "Suggested · 90 min", checked: true, priority: false, category: "project", createdAt: 8 },
 ];
 
 const seedHabits: Habit[] = [
@@ -503,7 +567,13 @@ export default function Home() {
             }
             return t;
           });
-          setTasks(migrated);
+          const existingTitles = new Set(migrated.map((t: Task) => t.title.trim().toLowerCase()));
+          const missingSeedTasks = seedTasks.filter(
+            (st) => !existingTitles.has(st.title.trim().toLowerCase())
+          );
+          const finalTasks = missingSeedTasks.length > 0 ? [...missingSeedTasks, ...migrated] : migrated;
+          setTasks(finalTasks);
+          try { localStorage.setItem("routino_tasks", JSON.stringify(finalTasks)); } catch {}
         }
       }
 
@@ -1073,8 +1143,13 @@ export default function Home() {
               }
               return t;
             });
-            setTasks(migrated);
-            try { localStorage.setItem("routino_tasks", JSON.stringify(migrated)); } catch {}
+            const existingTitles = new Set(migrated.map((t: Task) => t.title.trim().toLowerCase()));
+            const missingSeedTasks = seedTasks.filter(
+              (st) => !existingTitles.has(st.title.trim().toLowerCase())
+            );
+            const finalTasks = missingSeedTasks.length > 0 ? [...missingSeedTasks, ...migrated] : migrated;
+            setTasks(finalTasks);
+            try { localStorage.setItem("routino_tasks", JSON.stringify(finalTasks)); } catch {}
           }
           if (Array.isArray(d.customEvents)) {
             setCustomEvents(d.customEvents);
