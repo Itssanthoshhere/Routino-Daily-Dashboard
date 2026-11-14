@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
-  ChevronDown, ChevronUp, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
+  ChevronDown, ChevronUp, CheckCircle2, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
   Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
   StickyNote, Target, Timer, TriangleAlert, Video, X, PieChart, Gauge,
   Key, Zap, Wallet, Briefcase, Copy, ShieldCheck,
@@ -437,6 +437,7 @@ export default function Home() {
   const [showDeskSheet, setShowDeskSheet] = useState(false);
   const [showQuickCapture, setShowQuickCapture] = useState(false);
   const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
+  const [showCompletedInOverview, setShowCompletedInOverview] = useState(false);
 
   /* ── Trackers Snapshot state ── */
   const [trackersData, setTrackersData] = useState<TrackersData>(SEED_TRACKERS_DATA);
@@ -968,6 +969,14 @@ export default function Home() {
       return 0;
     });
   }, [tasks]);
+
+  const activeOverviewTasks = useMemo(() => {
+    return sortedOverviewTasks.filter((t) => !t.checked);
+  }, [sortedOverviewTasks]);
+
+  const completedOverviewTasks = useMemo(() => {
+    return sortedOverviewTasks.filter((t) => t.checked);
+  }, [sortedOverviewTasks]);
 
   /* ── Keyboard shortcuts ── */
   useEffect(() => {
@@ -2220,137 +2229,210 @@ export default function Home() {
                 </section>
 
                 {/* Priorities / Tasks */}
-                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
-                  <SectionHeading
-                    icon={ListTodo}
-                    title="Your priorities"
-                    sub={done + " of " + tasks.length + " complete · Keep it manageable"}
-                    right={
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => setShowTaskModal(true)} aria-label="Add task" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition">
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                    }
-                  />
-                  <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-[#f0f2ed]">
-                    <div className="h-full rounded-full bg-forest transition-all duration-500 ease-out" style={{ width: (tasks.length > 0 ? done / tasks.length * 100 : 0) + "%" }} />
-                  </div>
-                  {tasks.length === 0 ? (
-                    <div className="py-8 text-center">
-                      <ListTodo size={28} className="mx-auto text-muted/40 mb-2" />
-                      <p className="text-[12px] font-semibold text-ink">No priorities planned for today</p>
-                      <p className="mt-1 text-[10px] text-muted">Click below to add a focus task or daily goal.</p>
+                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6 flex flex-col justify-between">
+                  <div>
+                    <SectionHeading
+                      icon={ListTodo}
+                      title="Your priorities"
+                      sub={done + " of " + tasks.length + " complete · Keep it manageable"}
+                      right={
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setShowTaskModal(true)} aria-label="Add task" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition cursor-pointer">
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      }
+                    />
+                    <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-[#f0f2ed]">
+                      <div className="h-full rounded-full bg-forest transition-all duration-500 ease-out" style={{ width: (tasks.length > 0 ? done / tasks.length * 100 : 0) + "%" }} />
                     </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {sortedOverviewTasks.map(task => {
-                        const hasSubtasks = Boolean(task.subtasks && task.subtasks.length > 0);
-                        const completedSubCount = task.subtasks?.filter(s => s.completed).length || 0;
-                        const totalSubCount = task.subtasks?.length || 0;
-                        const isExpanded = expandedOverviewTasks[task.id];
+                    {tasks.length === 0 ? (
+                      <div className="py-8 text-center">
+                        <ListTodo size={28} className="mx-auto text-muted/40 mb-2" />
+                        <p className="text-[12px] font-semibold text-ink">No priorities planned for today</p>
+                        <p className="mt-1 text-[10px] text-muted">Click below to add a focus task or daily goal.</p>
+                      </div>
+                    ) : (
+                      <div className="max-h-[360px] overflow-y-auto pr-1 sidebar-scroll space-y-1">
+                        {/* Pending / Active Priorities */}
+                        {activeOverviewTasks.length === 0 ? (
+                          <div className="rounded-xl border border-dashed border-[#dce3d8] bg-[#fafbf7] p-4 text-center my-1">
+                            <CheckCircle2 size={20} className="mx-auto text-forest mb-1.5" />
+                            <p className="text-[12px] font-semibold text-ink">All priorities caught up! 🎉</p>
+                            <p className="text-[10px] text-muted mt-0.5">Every daily priority has been checked off.</p>
+                          </div>
+                        ) : (
+                          activeOverviewTasks.map(task => {
+                            const hasSubtasks = Boolean(task.subtasks && task.subtasks.length > 0);
+                            const completedSubCount = task.subtasks?.filter(s => s.completed).length || 0;
+                            const totalSubCount = task.subtasks?.length || 0;
+                            const isExpanded = expandedOverviewTasks[task.id];
 
-                        return (
-                          <div key={task.id} className="rounded-xl transition hover:bg-[#f8f9f5]">
-                            <div className="group flex w-full items-start gap-3 px-2.5 py-3 text-left">
-                              <button
-                                onClick={() => toggleTask(task.id)}
-                                className={"mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border transition-all duration-200 " + (task.checked ? "border-forest bg-forest text-white scale-110" : "border-[#d6ddd4] text-transparent group-hover:border-forest/50")}
-                              >
-                                {task.checked ? <Check size={11} /> : <Circle size={10} />}
-                              </button>
-                              <span className="min-w-0 flex-1">
-                                <span className={"block text-[11px] font-medium transition-all duration-200 " + (task.checked ? "text-[#9aa49b] line-through" : "text-[#314239]")}>{task.title}</span>
-                                <span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[#98a198]">
-                                  {task.meta}
-                                  {task.category && (
-                                    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold ${
-                                      task.category === "urgent" ? "bg-[#fce8e6] text-[#c05746]" :
-                                      task.category === "project" ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]" :
-                                      task.category === "travel" ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]" :
-                                      task.category === "meeting" ? "bg-[#edf0ff] text-[#6d76b1]" :
-                                      task.category === "personal" ? "bg-[#eaf3e9] text-[#648266]" :
-                                      "bg-[#f1f2ee] text-[#808a81]"
-                                    }`}>
-                                      {task.category === "travel" && <Plane size={8} />}
-                                      {task.category.toUpperCase()}
-                                    </span>
-                                  )}
-                                  {task.dueDate && (
-                                    <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold ${
-                                      task.dueDate < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
-                                        ? "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]"
-                                        : task.dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
-                                        ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
-                                        : "bg-[#f8fafc] text-[#475569] border border-[#e2e8f0]"
-                                    }`}>
-                                      <Clock3 size={8} />
-                                      {task.dueDate < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
-                                        ? "OVERDUE"
-                                        : task.dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
-                                        ? "DUE TODAY"
-                                        : task.dueDate}
-                                    </span>
-                                  )}
-                                  {hasSubtasks && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setExpandedOverviewTasks(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
-                                      className="inline-flex items-center gap-1 rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[8px] font-semibold text-[#5c6960] hover:bg-[#e2e6df] transition"
-                                    >
-                                      <CheckSquare size={9} />
-                                      {completedSubCount}/{totalSubCount} sub-steps
-                                      {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                                    </button>
-                                  )}
-                                </span>
-                              </span>
-                              {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
-                              <button
-                                onClick={() => deleteTask(task.id)}
-                                className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6]"
-                                aria-label={"Delete " + task.title}
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-
-                            {/* Expanded sub-steps checklist */}
-                            {hasSubtasks && isExpanded && (
-                              <div className="bg-[#f5f7f2] rounded-lg mx-2.5 mb-2 px-3 py-2 space-y-1.5 border border-[#ebeee6]">
-                                {task.subtasks!.map(st => (
-                                  <div
-                                    key={st.id}
-                                    onClick={() => toggleSubTask(task.id, st.id)}
-                                    className="flex items-center gap-2 py-0.5 text-[10px] cursor-pointer group/st"
+                            return (
+                              <div key={task.id} className="rounded-xl transition hover:bg-[#f8f9f5]">
+                                <div className="group flex w-full items-start gap-3 px-2.5 py-2.5 text-left">
+                                  <button
+                                    onClick={() => toggleTask(task.id)}
+                                    className={"mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border transition-all duration-200 " + (task.checked ? "border-forest bg-forest text-white scale-110" : "border-[#d6ddd4] text-transparent group-hover:border-forest/50")}
                                   >
-                                    <span
-                                      className={`grid h-3 w-3 place-items-center rounded-sm border transition ${
-                                        st.completed
-                                          ? "border-forest bg-forest text-white"
-                                          : "border-[#cfd6cd] bg-white group-hover/st:border-forest"
-                                      }`}
-                                    >
-                                      {st.completed && <Check size={8} />}
+                                    {task.checked ? <Check size={11} /> : <Circle size={10} />}
+                                  </button>
+                                  <span className="min-w-0 flex-1">
+                                    <span className={"block text-[11px] font-medium transition-all duration-200 " + (task.checked ? "text-[#9aa49b] line-through" : "text-[#314239]")}>{task.title}</span>
+                                    <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-[#98a198]">
+                                      {task.meta}
+                                      {task.category && (
+                                        <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold ${
+                                          task.category === "urgent" ? "bg-[#fce8e6] text-[#c05746]" :
+                                          task.category === "project" ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]" :
+                                          task.category === "travel" ? "bg-[#f0f9ff] text-[#0284c7] border border-[#bae6fd]" :
+                                          task.category === "meeting" ? "bg-[#edf0ff] text-[#6d76b1]" :
+                                          task.category === "personal" ? "bg-[#eaf3e9] text-[#648266]" :
+                                          "bg-[#f1f2ee] text-[#808a81]"
+                                        }`}>
+                                          {task.category === "travel" && <Plane size={8} />}
+                                          {task.category.toUpperCase()}
+                                        </span>
+                                      )}
+                                      {task.dueDate && (
+                                        <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold ${
+                                          task.dueDate < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
+                                            ? "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]"
+                                            : task.dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
+                                            ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
+                                            : "bg-[#f8fafc] text-[#475569] border border-[#e2e8f0]"
+                                        }`}>
+                                          <Clock3 size={8} />
+                                          {task.dueDate < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
+                                            ? "OVERDUE"
+                                            : task.dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
+                                            ? "DUE TODAY"
+                                            : task.dueDate}
+                                        </span>
+                                      )}
+                                      {hasSubtasks && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setExpandedOverviewTasks(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
+                                          className="inline-flex items-center gap-1 rounded bg-[#f1f3ed] px-1.5 py-0.5 text-[8px] font-semibold text-[#5c6960] hover:bg-[#e2e6df] transition cursor-pointer"
+                                        >
+                                          <CheckSquare size={9} />
+                                          {completedSubCount}/{totalSubCount} sub-steps
+                                          {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                        </button>
+                                      )}
                                     </span>
-                                    <span className={st.completed ? "text-muted line-through" : "text-[#404e45]"}>
-                                      {st.title}
-                                    </span>
+                                  </span>
+                                  {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
+                                  <button
+                                    onClick={() => deleteTask(task.id)}
+                                    className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6] cursor-pointer"
+                                    aria-label={"Delete " + task.title}
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+
+                                {/* Expanded sub-steps checklist */}
+                                {hasSubtasks && isExpanded && (
+                                  <div className="bg-[#f5f7f2] rounded-lg mx-2.5 mb-2 px-3 py-2 space-y-1.5 border border-[#ebeee6]">
+                                    {task.subtasks!.map(st => (
+                                      <div
+                                        key={st.id}
+                                        onClick={() => toggleSubTask(task.id, st.id)}
+                                        className="flex items-center gap-2 py-0.5 text-[10px] cursor-pointer group/st"
+                                      >
+                                        <span
+                                          className={`grid h-3 w-3 place-items-center rounded-sm border transition ${
+                                            st.completed
+                                              ? "border-forest bg-forest text-white"
+                                              : "border-[#cfd6cd] bg-white group-hover/st:border-forest"
+                                          }`}
+                                        >
+                                          {st.completed && <Check size={8} />}
+                                        </span>
+                                        <span className={st.completed ? "text-muted line-through" : "text-[#404e45]"}>
+                                          {st.title}
+                                        </span>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+
+                        {/* Collapsible Completed Tasks Accordion */}
+                        {completedOverviewTasks.length > 0 && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowCompletedInOverview(!showCompletedInOverview)}
+                              className="flex items-center justify-between w-full px-3 py-2 rounded-xl bg-[#fafbf8] border border-[#edf0e9] text-[11px] font-medium text-muted hover:text-ink hover:bg-[#f4f6f1] transition cursor-pointer"
+                            >
+                              <span className="flex items-center gap-2">
+                                <CheckCircle2 size={13} className="text-forest" />
+                                <span>{completedOverviewTasks.length} completed {completedOverviewTasks.length === 1 ? "task" : "tasks"}</span>
+                              </span>
+                              <span className="flex items-center gap-1 text-[10px] font-semibold text-muted">
+                                {showCompletedInOverview ? "Hide" : "Show"}
+                                {showCompletedInOverview ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                              </span>
+                            </button>
+
+                            {showCompletedInOverview && (
+                              <div className="space-y-1 mt-1.5 pt-1 border-t border-[#f0f2eb]">
+                                {completedOverviewTasks.map(task => {
+                                  const hasSubtasks = Boolean(task.subtasks && task.subtasks.length > 0);
+                                  const completedSubCount = task.subtasks?.filter(s => s.completed).length || 0;
+                                  const totalSubCount = task.subtasks?.length || 0;
+
+                                  return (
+                                    <div key={task.id} className="rounded-xl transition hover:bg-[#f8f9f5] opacity-75">
+                                      <div className="group flex w-full items-start gap-3 px-2.5 py-2 text-left">
+                                        <button
+                                          onClick={() => toggleTask(task.id)}
+                                          className="mt-0.5 grid h-[17px] w-[17px] shrink-0 place-items-center rounded-full border border-forest bg-forest text-white transition-all duration-200"
+                                        >
+                                          <Check size={11} />
+                                        </button>
+                                        <span className="min-w-0 flex-1">
+                                          <span className="block text-[11px] font-medium text-[#9aa49b] line-through">{task.title}</span>
+                                          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[9.5px] text-[#a4aca4]">
+                                            {task.meta}
+                                            {hasSubtasks && (
+                                              <span>· {completedSubCount}/{totalSubCount} sub-steps</span>
+                                            )}
+                                          </span>
+                                        </span>
+                                        <button
+                                          onClick={() => deleteTask(task.id)}
+                                          className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6] cursor-pointer"
+                                          aria-label={"Delete " + task.title}
+                                        >
+                                          <X size={12} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 mt-3">
-                    <button onClick={() => setShowTaskModal(true)} className="flex-1 rounded-xl border border-dashed border-[#dfe5dc] py-2.5 text-[10px] font-semibold text-[#79887b] hover:bg-[#fafbf8] hover:border-forest/30 transition">
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div className="flex items-center gap-2 mt-4 pt-3 border-t border-line/60">
+                    <button onClick={() => setShowTaskModal(true)} className="flex-1 rounded-xl border border-dashed border-[#dfe5dc] py-2 text-[10px] font-semibold text-[#79887b] hover:bg-[#fafbf8] hover:border-forest/30 transition cursor-pointer">
                       <Plus size={12} className="mr-1 inline" /> Add a personal task
                     </button>
-                    <button onClick={() => handleSelectNav("Tasks")} className="rounded-xl border border-line bg-white px-3 py-2.5 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition">
-                      Manage all →
+                    <button onClick={() => handleSelectNav("Tasks")} className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2 text-[10px] font-semibold text-forest hover:bg-[#fdf2f2] transition cursor-pointer">
+                      <span>Open Tasks board</span>
+                      <ArrowRight size={11} />
                     </button>
                   </div>
                 </section>
