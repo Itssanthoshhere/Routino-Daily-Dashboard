@@ -170,12 +170,32 @@ export async function GET() {
       }
     }
 
-    let driveStatus: "checked" | "needs_consent" | "failed" = "failed";
+    let driveStatus: "checked" | "needs_consent" | "permission_denied" | "failed" = "failed";
     if (driveRes) {
       if (driveRes.ok) {
         driveStatus = "checked";
       } else if (driveRes.status === 403) {
-        driveStatus = "needs_consent";
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const errData: any = await driveRes.json();
+          const errors: any[] = errData?.error?.errors || [];
+          const errorMsg = String(errData?.error?.message || "").toLowerCase();
+          const reasons = errors.map((e: any) => String(e?.reason || "").toLowerCase());
+
+          const isScopeMissing =
+            reasons.includes("insufficientpermissions") ||
+            reasons.includes("insufficient_scope") ||
+            errorMsg.includes("insufficient authentication scopes") ||
+            errorMsg.includes("insufficientpermissions");
+
+          if (isScopeMissing) {
+            driveStatus = "needs_consent";
+          } else {
+            driveStatus = "permission_denied";
+          }
+        } catch {
+          driveStatus = "permission_denied";
+        }
       } else {
         driveStatus = "failed";
       }

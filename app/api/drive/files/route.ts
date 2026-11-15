@@ -26,10 +26,33 @@ export async function GET() {
     );
 
     if (response.status === 403) {
-      return NextResponse.json(
-        { connected: true, needsConsent: true, files: [] },
-        { status: 403, headers: { "Cache-Control": "private, no-store" } }
-      );
+      try {
+        const errJson = await response.json();
+        const errors: any[] = errJson?.error?.errors || [];
+        const msg = String(errJson?.error?.message || "").toLowerCase();
+        const reasons = errors.map((e: any) => String(e?.reason || "").toLowerCase());
+        const isScopeMissing =
+          reasons.includes("insufficientpermissions") ||
+          reasons.includes("insufficient_scope") ||
+          msg.includes("insufficient authentication scopes") ||
+          msg.includes("insufficientpermissions");
+
+        if (isScopeMissing) {
+          return NextResponse.json(
+            { connected: true, needsConsent: true, files: [] },
+            { status: 403, headers: { "Cache-Control": "private, no-store" } }
+          );
+        }
+        return NextResponse.json(
+          { connected: true, needsConsent: false, error: errJson?.error?.message || "Google Drive API is disabled or access was denied.", files: [] },
+          { status: 403, headers: { "Cache-Control": "private, no-store" } }
+        );
+      } catch {
+        return NextResponse.json(
+          { connected: true, needsConsent: false, error: "Google Drive permission or access was denied.", files: [] },
+          { status: 403, headers: { "Cache-Control": "private, no-store" } }
+        );
+      }
     }
     if (!response.ok) {
       return NextResponse.json(

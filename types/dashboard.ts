@@ -166,8 +166,8 @@ export type SourcesStatus = {
   calendarsTotal: number;
   calendarsChecked: number;
   calendarsFailed: number;
-  drive?: "checked" | "needs_consent" | "failed" | "not_connected";
-  outlook?: "checked" | "failed" | "partial" | "not_connected";
+  drive?: "checked" | "needs_consent" | "permission_denied" | "failed" | "not_connected";
+  outlook?: "checked" | "failed" | "partial" | "unknown" | "not_connected";
 };
 
 export type DashboardData = {

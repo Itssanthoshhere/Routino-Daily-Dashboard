@@ -2892,7 +2892,7 @@ export default function Home() {
         isOutlookConnected={Boolean(outlookData.connected)}
         outlookSyncStatus={
           outlookData.connected
-            ? (outlookData.syncStatus?.overall || "checked")
+            ? (outlookData.syncStatus?.overall || "unknown")
             : "not_connected"
         }
         onCreateTaskFromMail={handleCreateTaskFromEmail}

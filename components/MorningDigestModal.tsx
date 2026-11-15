@@ -36,7 +36,7 @@ type MorningDigestModalProps = {
   calendarsChecked?: CalendarCheckInfo[];
   sourcesStatus?: SourcesStatus;
   isOutlookConnected?: boolean;
-  outlookSyncStatus?: "checked" | "failed" | "partial" | "not_connected";
+  outlookSyncStatus?: "checked" | "failed" | "partial" | "unknown" | "not_connected";
   onCreateTaskFromMail?: (mail: DashboardMail) => void;
   lastSyncedAt?: string;
   onRefresh?: () => void;
@@ -56,7 +56,7 @@ export function MorningDigestModal({
   calendarsChecked = [],
   sourcesStatus,
   isOutlookConnected = false,
-  outlookSyncStatus = "not_connected",
+  outlookSyncStatus = "unknown",
   onCreateTaskFromMail,
   lastSyncedAt,
   onRefresh,
@@ -131,14 +131,16 @@ export function MorningDigestModal({
   );
 
   const isOutlookHealthy = !isOutlookConnected || outlookSyncStatus === "checked";
-  const isDriveHealthy = !sourcesStatus?.drive || sourcesStatus.drive === "checked";
+  const isDriveHealthy = sourcesStatus?.drive === "checked";
 
   const hasSourceFailure =
     calendarsChecked.some((calendar) => calendar.status === "failed") ||
     sourcesStatus?.gmail === "failed" ||
     sourcesStatus?.calendarList === "failed" ||
     unread48hStatus === "failed" ||
-    (sourcesStatus?.drive !== undefined && sourcesStatus.drive !== "checked") ||
+    sourcesStatus?.drive === "failed" ||
+    sourcesStatus?.drive === "needs_consent" ||
+    sourcesStatus?.drive === "permission_denied" ||
     (isOutlookConnected && (outlookSyncStatus === "failed" || outlookSyncStatus === "partial"));
 
   const allSourcesChecked =
@@ -689,6 +691,8 @@ export function MorningDigestModal({
                         ? "bg-muted/40"
                         : outlookSyncStatus === "checked"
                         ? "bg-[#0078d4]"
+                        : outlookSyncStatus === "unknown"
+                        ? "bg-muted/40"
                         : "bg-[#d97706]"
                     }`}
                   />
@@ -700,6 +704,8 @@ export function MorningDigestModal({
                       ? "text-muted"
                       : outlookSyncStatus === "checked"
                       ? "text-[#0078d4]"
+                      : outlookSyncStatus === "unknown"
+                      ? "text-muted"
                       : "text-[#b45309]"
                   }`}
                 >
@@ -709,6 +715,8 @@ export function MorningDigestModal({
                     ? "Connected & Synced"
                     : outlookSyncStatus === "partial"
                     ? "Partial Sync"
+                    : outlookSyncStatus === "unknown"
+                    ? "Status Incomplete"
                     : "Sync Failed"}
                 </span>
               </div>
@@ -720,9 +728,11 @@ export function MorningDigestModal({
                     className={`h-2 w-2 rounded-full ${
                       sourcesStatus?.drive === "checked"
                         ? "bg-forest"
-                        : sourcesStatus?.drive === "needs_consent" || sourcesStatus?.drive === "failed"
+                        : sourcesStatus?.drive === "needs_consent" ||
+                          sourcesStatus?.drive === "failed" ||
+                          sourcesStatus?.drive === "permission_denied"
                         ? "bg-[#d97706]"
-                        : "bg-forest"
+                        : "bg-muted/40"
                     }`}
                   />
                   <span className="text-[#455248]">Google Drive</span>
@@ -731,18 +741,22 @@ export function MorningDigestModal({
                   className={`font-semibold text-[10px] ${
                     sourcesStatus?.drive === "checked"
                       ? "text-forest"
-                      : sourcesStatus?.drive === "needs_consent" || sourcesStatus?.drive === "failed"
+                      : sourcesStatus?.drive === "needs_consent" ||
+                        sourcesStatus?.drive === "failed" ||
+                        sourcesStatus?.drive === "permission_denied"
                       ? "text-[#b45309]"
-                      : "text-forest"
+                      : "text-muted"
                   }`}
                 >
                   {sourcesStatus?.drive === "checked"
                     ? "Metadata Sync Active"
                     : sourcesStatus?.drive === "needs_consent"
                     ? "Re-consent Required"
+                    : sourcesStatus?.drive === "permission_denied"
+                    ? "API Disabled / Access Denied"
                     : sourcesStatus?.drive === "failed"
                     ? "Metadata Check Failed"
-                    : "Metadata Sync Active"}
+                    : "Status unavailable"}
                 </span>
               </div>
 
