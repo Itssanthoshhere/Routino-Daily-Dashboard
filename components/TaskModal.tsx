@@ -138,7 +138,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
               autoFocus
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="e.g. Building Spendo App / Flight to Chennai"
+              placeholder="e.g. Build a sample project / Plan a trip"
               className="mt-1.5 w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[13px] text-ink outline-none focus:border-forest transition"
             />
           </div>

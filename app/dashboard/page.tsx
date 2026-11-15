@@ -48,7 +48,7 @@ import { TasksView } from "@/components/views/TasksView";
 import { NotesView } from "@/components/views/NotesView";
 import { TimeAuditView } from "@/components/views/TimeAuditView";
 import { TrackersView, type TrackersTabKey } from "@/components/views/TrackersView";
-import { SEED_TRACKERS_DATA } from "@/lib/trackersSync";
+import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
@@ -115,13 +115,13 @@ const TRACKER_SHORTCUTS: Record<string, TrackersTabKey> = {
 const sampleSchedule: ScheduleItem[] = [
   { time: "09:30", end: "10:00", name: "Weekly team sync", detail: "Product & design · Meet link", tag: "PREP", color: "#7b8df4" },
   { time: "11:00", end: "12:00", name: "Project review", detail: "Q4 roadmap · 3 guests", tag: "IN 2H", color: "#e7a15a" },
-  { time: "14:30", end: "15:00", name: "Catch up with Maya", detail: "Personal · Google Meet", tag: "", color: "#5fa77d" },
+  { time: "14:30", end: "15:00", name: "Team catch-up", detail: "Example agenda · Google Meet", tag: "", color: "#5fa77d" },
 ];
 
 const sampleMail: DashboardMail[] = [
   {
     id: "sample-1",
-    from: "Riya Kapoor",
+    from: "Example Sender",
     subject: "Updated proposal for your review",
     date: "8:42 AM",
     snippet: "Could you take a look at the revised scope before tomorrow?",
@@ -169,7 +169,7 @@ const seedTasks: Task[] = [
   },
   {
     id: "t-2",
-    title: "Reply to Riya about project scope & timeline",
+    title: "Review project scope and timeline",
     meta: "Today · Email follow-up",
     checked: false,
     priority: false,
@@ -212,14 +212,14 @@ const seedLinks: QuickLink[] = [
   { id: "ql-1", title: "Google Calendar", subtitle: "Your schedule", url: appConfig.links.calendar, iconName: "calendar", available: true },
   { id: "ql-2", title: "Gmail", subtitle: "Your inbox", url: appConfig.links.mail, iconName: "mail", available: true },
   { id: "ql-3", title: "Google Drive", subtitle: "Recent files & storage", url: appConfig.links.drive, iconName: "drive", available: true },
-  { id: "ql-4", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.live.com/mail", iconName: "outlook", available: true },
+  { id: "ql-4", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.cloud.microsoft/mail/", iconName: "outlook", available: true },
   { id: "ql-5", title: "GitHub", subtitle: "Developer profile", url: appConfig.links.github, iconName: "github", available: true },
   { id: "ql-6", title: "Portfolio", subtitle: "Personal website", url: appConfig.links.portfolio, iconName: "globe", available: true },
 ];
 
 const seedNotifications: NotificationItem[] = [
   { id: "n-1", title: "Weekly team sync starts in 30 min", time: "9:00 AM", type: "calendar", read: false, navTarget: "Calendar" },
-  { id: "n-2", title: "Riya Kapoor replied to your thread", time: "8:42 AM", type: "mail", read: false, navTarget: "Inbox" },
+  { id: "n-2", title: "A sample sender replied to your thread", time: "8:42 AM", type: "mail", read: false, navTarget: "Inbox" },
   { id: "n-3", title: "Task 'Q4 proposal' is due today", time: "Yesterday", type: "task", read: false, navTarget: "Tasks" },
 ];
 
@@ -268,48 +268,6 @@ const hueClasses: Record<string, string> = {
 const hues = ["blue", "peach", "green"];
 
 /* ─── Helpers ────────────────────────────────────────────────── */
-
-function normalizeQuickLinks(links: QuickLink[]): QuickLink[] {
-  const usedIds = new Set<string>();
-
-  return links
-    .filter(
-      (link) =>
-        String(link.iconName).toLowerCase() !== "linkedin" &&
-        !link.url?.toLowerCase().includes("linkedin.com") &&
-        link.title?.trim().toLowerCase() !== "linkedin" &&
-        String(link.iconName).toLowerCase() !== "sites" &&
-        link.title?.trim().toLowerCase() !== "google sites"
-    )
-    .map((link, index) => {
-      // Automatically upgrade legacy unintegrated Google Drive link into active integrated link
-      const isDrive =
-        link.title?.trim().toLowerCase() === "google drive" ||
-        link.iconName === "drive" ||
-        link.url?.toLowerCase().includes("drive.google.com");
-
-      const item: QuickLink =
-        isDrive && (!link.available || link.url === "#" || link.subtitle?.toLowerCase().includes("not integrated"))
-          ? {
-              ...link,
-              title: "Google Drive",
-              subtitle: "Recent files & storage",
-              url: appConfig.links.drive,
-              iconName: "drive",
-              available: true,
-            }
-          : link;
-
-      const baseId = item.id?.trim() || `quick-link-${index + 1}`;
-      let id = baseId;
-      let suffix = 2;
-      while (usedIds.has(id)) {
-        id = `${baseId}-${suffix++}`;
-      }
-      usedIds.add(id);
-      return id === item.id ? item : { ...item, id };
-    });
-}
 
 function formatTime(value?: string) {
   if (!value) return "All day";
@@ -404,6 +362,7 @@ export default function Home() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [workspaceSyncReady, setWorkspaceSyncReady] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [dbSource, setDbSource] = useState<string>("Local Storage");
   const [viewingEvent, setViewingEvent] = useState<DashboardEvent | null>(null);
@@ -483,10 +442,10 @@ export default function Home() {
 
     // 2. EB Meter
     const latestEbReadingItem = trackersData.ebReadings?.[0];
-    const latestReading = latestEbReadingItem ? latestEbReadingItem.meterReading : (trackersData.ebMeta?.latestReading ?? 323);
-    const rate = trackersData.ebMeta?.currentRate || 10;
+    const latestReading = latestEbReadingItem ? latestEbReadingItem.meterReading : (trackersData.ebMeta?.latestReading ?? 0);
+    const rate = trackersData.ebMeta?.currentRate ?? 0;
     const runningCycle = trackersData.ebCycles?.find((c) => c.status === "Running" || c.cycle.toLowerCase() === "nov") || trackersData.ebCycles?.[trackersData.ebCycles.length - 1];
-    const unitsUsed = runningCycle?.unitsUsed ?? 23;
+    const unitsUsed = runningCycle?.unitsUsed ?? 0;
     const people = runningCycle?.peopleSharing || 2;
     const daysElapsed = Math.max(1, new Date().getDate());
     const burnRate = Number((unitsUsed / daysElapsed).toFixed(2));
@@ -495,15 +454,16 @@ export default function Home() {
     const projectedShare = Math.round(projectedTotal / people);
 
     // 3. Monthly Budget
-    const budget = trackersData.totalMonthlyBudget || 7500;
-    const spent = trackersData.journals?.["2026"]?.totalSpent ?? trackersData.expenses?.reduce((acc, curr) => acc + (curr.amount || 0), 0) ?? 3420;
-    const spentPct = Math.min(100, Math.round((spent / budget) * 100));
+    const budget = trackersData.totalMonthlyBudget ?? 0;
+    const spent = trackersData.journals?.["2026"]?.totalSpent ?? trackersData.expenses?.reduce((acc, curr) => acc + (curr.amount || 0), 0) ?? 0;
+    const spentPct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
     const remaining = Math.max(0, budget - spent);
 
     // 4. Career Pipelines
     const activeApps = (trackersData.jobApplications || []).filter(
       (j) => !j.status.toLowerCase().includes("reject") && !j.status.toLowerCase().includes("not attend")
     );
+    const featuredApplications = activeApps.slice(0, 2);
 
     return {
       readyCount,
@@ -517,6 +477,7 @@ export default function Home() {
       spentPct,
       remaining,
       activeAppsCount: activeApps.length,
+      featuredApplications,
     };
   }, [trackersData]);
 
@@ -541,41 +502,14 @@ export default function Home() {
       if (storedTasks !== null) {
         const parsed = JSON.parse(storedTasks);
         if (Array.isArray(parsed)) {
-          const migrated = parsed.map((t: Task) => {
-            if (!t.category || t.category === "work" || t.category === "personal") {
-              const detected = inferTaskCategory(t.title);
-              if (detected === "project" || detected === "travel") {
-                const updatedMeta = t.meta && (t.meta.includes("Personal") || t.meta.includes("Work"))
-                  ? t.meta.replace(/Personal|Work/g, detected === "project" ? "Project" : "Travel")
-                  : t.meta;
-                return { ...t, category: detected, meta: updatedMeta };
-              }
-            }
-            return t;
-          });
-          const sanitized = migrated.filter((t: Task) => !t.id?.startsWith("t-cs-"));
-          const existingTitles = new Set(sanitized.map((t: Task) => t.title.trim().toLowerCase()));
-          const missingSeedTasks = seedTasks.filter(
-            (st) => !existingTitles.has(st.title.trim().toLowerCase())
-          );
-          const finalTasks = missingSeedTasks.length > 0 ? [...missingSeedTasks, ...sanitized] : sanitized;
-          setTasks(finalTasks);
-          try { localStorage.setItem("routino_tasks", JSON.stringify(finalTasks)); } catch {}
+          setTasks(parsed);
         }
       }
 
       const storedLinks = localStorage.getItem("routino_links");
       if (storedLinks !== null) {
-        const parsed = normalizeQuickLinks(JSON.parse(storedLinks) as QuickLink[]);
-        // Ensure new default links (including Google Drive) are added if missing
-        const existingTitles = new Set(parsed.map(l => l.title.trim().toLowerCase()));
-        const existingUrls = new Set(parsed.map(l => l.url.toLowerCase()));
-        const missingDefaults = seedLinks.filter(
-          s => s.available && !existingTitles.has(s.title.trim().toLowerCase()) && !existingUrls.has(s.url.toLowerCase())
-        );
-        const merged = normalizeQuickLinks([...parsed, ...missingDefaults]);
-        setQuickLinks(merged);
-        try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
+        const parsed = JSON.parse(storedLinks);
+        if (Array.isArray(parsed)) setQuickLinks(parsed);
       }
 
       const storedEvents = localStorage.getItem("routino_events");
@@ -1138,7 +1072,7 @@ export default function Home() {
       notes?: KeepNote[];
       activeNav?: string;
     }) => {
-      if (!liveData?.connected) return;
+      if (!liveData?.connected || !workspaceSyncReady) return;
       try {
         setIsSyncing(true);
         const payload = {
@@ -1174,7 +1108,7 @@ export default function Home() {
         setIsSyncing(false);
       }
     },
-    [liveData?.connected, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, notes, activeNav]
+    [liveData?.connected, workspaceSyncReady, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, notes, activeNav]
   );
 
   /* ── Load user workspace from Database on session connect ── */
@@ -1188,47 +1122,21 @@ export default function Home() {
       })
       .then((res) => {
         if (!active || !res || !res.authenticated) return;
+        setWorkspaceSyncReady(true);
         if (res.dbStatus?.sourceLabel) {
           setDbSource(res.dbStatus.sourceLabel);
         }
         if (res.exists && res.data) {
           const d = res.data;
-          if (Array.isArray(d.tasks) && d.tasks.length > 0) {
-            const migrated = d.tasks.map((t: Task) => {
-              if (!t.category || t.category === "work" || t.category === "personal") {
-                const detected = inferTaskCategory(t.title);
-                if (detected === "project" || detected === "travel") {
-                  const updatedMeta = t.meta && (t.meta.includes("Personal") || t.meta.includes("Work"))
-                    ? t.meta.replace(/Personal|Work/g, detected === "project" ? "Project" : "Travel")
-                    : t.meta;
-                  return { ...t, category: detected, meta: updatedMeta };
-                }
-              }
-              return t;
-            });
-            const sanitized = migrated.filter((t: Task) => !t.id?.startsWith("t-cs-"));
-            const existingTitles = new Set(sanitized.map((t: Task) => t.title.trim().toLowerCase()));
-            const missingSeedTasks = seedTasks.filter(
-              (st) => !existingTitles.has(st.title.trim().toLowerCase())
-            );
-            const finalTasks = missingSeedTasks.length > 0 ? [...missingSeedTasks, ...sanitized] : sanitized;
-            setTasks(finalTasks);
-            try { localStorage.setItem("routino_tasks", JSON.stringify(finalTasks)); } catch {}
+          if (Array.isArray(d.tasks)) {
+            setTasks(d.tasks);
           }
           if (Array.isArray(d.customEvents)) {
             setCustomEvents(d.customEvents);
             try { localStorage.setItem("routino_events", JSON.stringify(d.customEvents)); } catch {}
           }
-          if (Array.isArray(d.quickLinks) && d.quickLinks.length > 0) {
-            const normalizedLinks = normalizeQuickLinks(d.quickLinks);
-            const existingTitles = new Set(normalizedLinks.map(l => l.title.trim().toLowerCase()));
-            const existingUrls = new Set(normalizedLinks.map(l => l.url.toLowerCase()));
-            const missingDefaults = seedLinks.filter(
-              s => s.available && !existingTitles.has(s.title.trim().toLowerCase()) && !existingUrls.has(s.url.toLowerCase())
-            );
-            const merged = normalizeQuickLinks([...normalizedLinks, ...missingDefaults]);
-            setQuickLinks(merged);
-            try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
+          if (Array.isArray(d.quickLinks)) {
+            setQuickLinks(d.quickLinks);
           }
           if (typeof d.focusMinutes === "number") {
             setFocusMinutes(d.focusMinutes);
@@ -1242,15 +1150,12 @@ export default function Home() {
             setHabits(d.habits);
             try { localStorage.setItem("routino_habits", JSON.stringify(d.habits)); } catch {}
           }
-          if (Array.isArray(d.notes) && d.notes.length > 0) {
+          if (Array.isArray(d.notes)) {
             setNotes(d.notes);
-            try { localStorage.setItem("routino_notes", JSON.stringify(d.notes)); } catch {}
           }
           if (d.updatedAt) {
             setLastSyncedAt(d.updatedAt);
           }
-        } else {
-          syncToDatabase();
         }
       })
       .catch(() => undefined);
@@ -1570,7 +1475,7 @@ export default function Home() {
 
   const addQuickLink = (link: QuickLink) => {
     setQuickLinks(prev => {
-      const next = normalizeQuickLinks([...prev, link]);
+      const next = [...prev, link];
       try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
       syncToDatabase({ quickLinks: next });
       return next;
@@ -1757,9 +1662,8 @@ export default function Home() {
       try { localStorage.setItem("routino_events", JSON.stringify(imported.customEvents)); } catch {}
     }
     if (imported.quickLinks) {
-      const normalizedLinks = normalizeQuickLinks(imported.quickLinks);
-      setQuickLinks(normalizedLinks);
-      try { localStorage.setItem("routino_links", JSON.stringify(normalizedLinks)); } catch {}
+      setQuickLinks(imported.quickLinks);
+      try { localStorage.setItem("routino_links", JSON.stringify(imported.quickLinks)); } catch {}
     }
     if (imported.habits && Array.isArray(imported.habits)) {
       setHabits(imported.habits);
@@ -2382,19 +2286,17 @@ export default function Home() {
                       </div>
 
                       <div className="mt-2 space-y-1.5">
-                        <div className="flex items-center justify-between gap-1 rounded-lg bg-[#eff6ff]/70 border border-[#bfdbfe]/60 px-2 py-1 text-[11px]">
-                          <span className="font-bold text-[#1e40af] truncate">Digiryte</span>
-                          <span className="shrink-0 text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-white text-[#1d4ed8]">
-                            Round 3 Challenge
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-1 rounded-lg bg-[#f0fdf4] border border-[#bbf7d0]/60 px-2 py-1 text-[11px]">
-                          <span className="font-bold text-[#166534] truncate">Josh Talks</span>
-                          <span className="shrink-0 text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-white text-[#15803d]">
-                            Dataset Task
-                          </span>
-                        </div>
+                        {overviewTrackersSummary.featuredApplications.map((application) => (
+                          <div key={application.id} className="flex items-center justify-between gap-1 rounded-lg bg-[#eff6ff]/70 border border-[#bfdbfe]/60 px-2 py-1 text-[11px]">
+                            <span className="font-bold text-[#1e40af] truncate">{application.company}</span>
+                            <span className="shrink-0 text-[9.5px] font-extrabold px-1.5 py-0.2 rounded bg-white text-[#1d4ed8]">
+                              {application.nextAction || application.status}
+                            </span>
+                          </div>
+                        ))}
+                        {overviewTrackersSummary.featuredApplications.length === 0 && (
+                          <p className="rounded-lg bg-[#f8faf7] px-2 py-2 text-[11px] text-muted">No active items in this tracker.</p>
+                        )}
                       </div>
                     </div>
 
@@ -2940,7 +2842,7 @@ export default function Home() {
                         );
                       }
                       return (
-                        <a key={key} href={link.url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 rounded-xl border border-[#edf0e9] p-3 hover:bg-[#fafbf8] hover:border-forest/20 transition group">
+                        <a key={key} href={link.title.trim().toLowerCase() === "outlook" || link.iconName === "outlook" ? "https://outlook.cloud.microsoft/mail/" : link.url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 rounded-xl border border-[#edf0e9] p-3 hover:bg-[#fafbf8] hover:border-forest/20 transition group">
                           <span className={`grid h-7 w-7 place-items-center rounded-lg shadow-sm ${
                             link.iconName === "calendar" ? "bg-[#edf3ff] text-[#6088d1]" :
                             link.iconName === "mail" ? "bg-[#fbefeb] text-[#d16b5b]" :

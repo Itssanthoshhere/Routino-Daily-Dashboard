@@ -80,6 +80,8 @@ const COLOR_RULES = [
       "cs400",
       "fund disclosure",
       "deep work",
+      "engineering",
+      "design review",
     ],
   },
 ];

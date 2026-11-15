@@ -15,7 +15,7 @@ export async function GET() {
           dbStatus,
           message: "Sign in with Google to sync your workspace with the database.",
         },
-        { status: 401 }
+        { status: 401, headers: { "Cache-Control": "private, no-store" } }
       );
     }
 
@@ -26,10 +26,10 @@ export async function GET() {
       exists: !!data,
       data,
       dbStatus,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Internal error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[user-data] Workspace read failed", err);
+    return NextResponse.json({ error: "Could not load workspace data." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (!email) {
       return NextResponse.json(
         { error: "Unauthorized. Please sign in to sync workspace." },
-        { status: 401 }
+        { status: 401, headers: { "Cache-Control": "private, no-store" } }
       );
     }
 
@@ -111,14 +111,16 @@ export async function POST(req: NextRequest) {
     }
 
     const workspaceData = {
-      tasks: Array.isArray(tasks) ? tasks : [],
-      customEvents: Array.isArray(customEvents) ? customEvents : [],
-      quickLinks: Array.isArray(quickLinks) ? quickLinks : [],
-      focusMinutes: typeof focusMinutes === "number" ? focusMinutes : 90,
-      soundEnabled: typeof soundEnabled === "boolean" ? soundEnabled : true,
-      habits: savedHabits,
-      notes: Array.isArray(notes) ? notes : undefined,
-      activeNav: typeof activeNav === "string" ? activeNav : "Overview",
+      // Omitted fields mean "leave as-is". Explicit empty arrays remain valid
+      // user choices and must not be replaced with defaults or sample data.
+      tasks: Array.isArray(tasks) ? tasks : existingWorkspace?.tasks ?? [],
+      customEvents: Array.isArray(customEvents) ? customEvents : existingWorkspace?.customEvents ?? [],
+      quickLinks: Array.isArray(quickLinks) ? quickLinks : existingWorkspace?.quickLinks ?? [],
+      focusMinutes: typeof focusMinutes === "number" ? focusMinutes : existingWorkspace?.focusMinutes ?? 90,
+      soundEnabled: typeof soundEnabled === "boolean" ? soundEnabled : existingWorkspace?.soundEnabled ?? true,
+      habits: savedHabits ?? existingWorkspace?.habits,
+      notes: Array.isArray(notes) ? notes : existingWorkspace?.notes,
+      activeNav: typeof activeNav === "string" ? activeNav : existingWorkspace?.activeNav ?? "Overview",
       updatedAt: new Date().toISOString(),
     };
 
@@ -129,10 +131,10 @@ export async function POST(req: NextRequest) {
       source: result.source,
       savedAt: workspaceData.updatedAt,
       dbStatus,
-      error: result.error,
-    });
+      error: result.success ? undefined : "Could not save workspace data.",
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Invalid payload";
-    return NextResponse.json({ error: message }, { status: 400 });
+    console.error("[user-data] Workspace write failed", err);
+    return NextResponse.json({ error: "Invalid workspace payload." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
   }
 }

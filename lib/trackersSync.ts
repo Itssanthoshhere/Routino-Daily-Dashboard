@@ -1,3 +1,5 @@
+import "server-only";
+import { SEED_TRACKERS_DATA, SEED_ANTIGRAVITY_TOKENS } from "@/lib/trackersSeed";
 import type {
   TrackersData,
   TrackerCategoryBudget,
@@ -18,9 +20,7 @@ import type {
 } from "@/types/dashboard";
 
 export const GOOGLE_SHEET_ID =
-  process.env.TRACKERS_SPREADSHEET_ID ||
-  process.env.NEXT_PUBLIC_TRACKERS_SPREADSHEET_ID ||
-  "";
+  process.env.TRACKERS_SPREADSHEET_ID || "";
 export const GOOGLE_SHEET_URL = GOOGLE_SHEET_ID
   ? `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/edit?usp=sharing`
   : "";
@@ -142,371 +142,6 @@ export function parseExpenseJournalRows(
   return result;
 }
 
-const SEED_2026_EXPENSES: TrackerExpense[] = [
-  {
-    id: "exp-1",
-    year: 2026,
-    item: "Coffee & Snacks",
-    amount: 150,
-    dateStr: "31-Oct-2026",
-    category: "Food & Grocery",
-    balance: 2450,
-  },
-  {
-    id: "exp-2",
-    year: 2026,
-    item: "Team Lunch",
-    amount: 450,
-    dateStr: "31-Oct-2026",
-    category: "Food & Grocery",
-    balance: 2600,
-  },
-  {
-    id: "exp-3",
-    year: 2026,
-    item: "Metro Commute Pass",
-    amount: 400,
-    dateStr: "30-Oct-2026",
-    category: "Commute",
-    balance: 3050,
-  },
-  {
-    id: "exp-4",
-    year: 2026,
-    item: "Cloud Hosting Subscription",
-    amount: 1200,
-    dateStr: "29-Oct-2026",
-    category: "Utilities",
-    balance: 3450,
-  },
-  {
-    id: "exp-5",
-    year: 2026,
-    item: "Stationery & Notebooks",
-    amount: 280,
-    dateStr: "28-Oct-2026",
-    category: "Others",
-    balance: 4650,
-  },
-];
-
-export const SEED_ANTIGRAVITY_TOKENS: TrackerAntigravityToken[] = [
-  { id: "token-0", email: "token.dev.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Development", isAvailable: false },
-  { id: "token-1", email: "token.prod.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Production", isAvailable: false },
-  { id: "token-2", email: "token.stage.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Staging", isAvailable: false },
-  { id: "token-3", email: "token.auto.01@routino.dev", lastUsed: "6/11/26", cooldownDays: 7, availableAgain: "13-Nov-2026", daysLeft: 1, status: "⏳ 1 days left", chromeProfile: "Automation", isAvailable: false },
-  { id: "token-4", email: "token.work.01@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Workspace", isAvailable: true },
-  { id: "token-5", email: "token.work.02@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Workspace", isAvailable: true },
-  { id: "token-6", email: "token.dev.02@routino.dev", lastUsed: "5/11/26", cooldownDays: 7, availableAgain: "12-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Development", isAvailable: true },
-  { id: "token-7", email: "token.prod.02@routino.dev", lastUsed: "4/11/26", cooldownDays: 7, availableAgain: "11-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Production", isAvailable: true },
-  { id: "token-8", email: "token.stage.02@routino.dev", lastUsed: "4/11/26", cooldownDays: 7, availableAgain: "11-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Staging", isAvailable: true },
-  { id: "token-9", email: "token.auto.02@routino.dev", lastUsed: "3/11/26", cooldownDays: 6, availableAgain: "09-Nov-2026", daysLeft: 0, status: "✅ Available", chromeProfile: "Automation", isAvailable: true },
-];
-
-export const SEED_ANTIGRAVITY_TOKEN_SUMMARY: TrackerAntigravityTokenSummary = {
-  total: 10,
-  available: 6,
-  inCooldown: 4,
-  nextAvailableDate: "13-Nov-2026",
-  profiles: [
-    { profile: "Development", count: 2 },
-    { profile: "Production", count: 2 },
-    { profile: "Staging", count: 2 },
-    { profile: "Automation", count: 2 },
-    { profile: "Workspace", count: 2 },
-  ],
-};
-
-/* ── Fallback Demo Seed Data (Safe sample data for unauthenticated preview) ── */
-export const SEED_TRACKERS_DATA: TrackersData = {
-  spreadsheetId: "",
-  spreadsheetUrl: "",
-  lastSyncedAt: new Date().toISOString(),
-  isLive: false,
-  totalMonthlyBudget: 7500,
-  categoryBudgets: [
-    { category: "House Rent", budget: 0 },
-    { category: "Investments", budget: 500 },
-    { category: "Food & Grocery", budget: 1500 },
-    { category: "Commute", budget: 600 },
-    { category: "Entertainment", budget: 500 },
-    { category: "Insurance", budget: 0 },
-    { category: "Mobile", budget: 499 },
-    { category: "Internet", budget: 799 },
-    { category: "Grooming", budget: 500 },
-    { category: "Others", budget: 1602 },
-    { category: "Utilities", budget: 1000 },
-  ],
-  expenses: SEED_2026_EXPENSES,
-  journals: {
-    "2026": {
-      key: "2026",
-      title: "2026 Journal",
-      year: 2026,
-      totalSpent: 2480,
-      totalIncome: 0,
-      latestBalance: 2450,
-      expenses: SEED_2026_EXPENSES,
-    },
-    "2025": {
-      key: "2025",
-      title: "2025 Journal",
-      year: 2025,
-      totalSpent: 2150,
-      totalIncome: 0,
-      latestBalance: 1850,
-      expenses: [],
-    },
-  },
-  ebMeta: {
-    rateTillSep: 10,
-    currentRate: 10,
-    latestReading: 450.0,
-    latestReadingDate: "07 Nov 2026, 10:00 AM",
-  },
-  ebReadings: [
-    {
-      id: "eb-r0",
-      dateTimeStr: "07 Nov 2026, 10:00 AM",
-      meterReading: 450.0,
-      unitsUsed: 3.5,
-      cost: 35.0,
-      daysSincePrevious: 3.0,
-      unitsPerDay: 1.16,
-      billingCycle: "Nov",
-    },
-    {
-      id: "eb-r1",
-      dateTimeStr: "04 Nov 2026, 10:00 AM",
-      meterReading: 446.5,
-      unitsUsed: 2.5,
-      cost: 25.0,
-      daysSincePrevious: 2.0,
-      unitsPerDay: 1.25,
-      billingCycle: "Nov",
-    },
-    {
-      id: "eb-r2",
-      dateTimeStr: "02 Nov 2026, 10:00 AM",
-      meterReading: 444.0,
-      unitsUsed: 4.0,
-      cost: 40.0,
-      daysSincePrevious: 2.0,
-      unitsPerDay: 2.0,
-      billingCycle: "Nov",
-    },
-  ],
-  ebCycles: [
-    {
-      cycle: "Sep",
-      unitsUsed: 65,
-      computedCost: 650,
-      billedAmount: 650,
-      peopleSharing: 2,
-      myShare: 325,
-      status: "Paid",
-      notes: "Sample utility cycle - split equally.",
-    },
-    {
-      cycle: "Oct",
-      unitsUsed: 72,
-      computedCost: 720,
-      billedAmount: 720,
-      peopleSharing: 2,
-      myShare: 360,
-      status: "Paid",
-      notes: "Sample utility cycle - split equally.",
-    },
-    {
-      cycle: "Nov",
-      unitsUsed: 10,
-      computedCost: 100,
-      billedAmount: 100,
-      peopleSharing: 2,
-      myShare: 50,
-      status: "Running",
-      notes: "Current ongoing billing cycle.",
-    },
-  ],
-  jobApplications: [
-    {
-      id: "job-1",
-      company: "Acme Corp",
-      role: "Full Stack Engineer",
-      location: "San Francisco, CA (Remote)",
-      appliedDate: "2026-10-15",
-      source: "Company Careers",
-      status: "Interview",
-      lastUpdate: "Technical round scheduled for next week.",
-      lastUpdatedDate: "2026-11-05",
-      recruiter: "Acme Talent Team",
-      interviewStage: "Technical",
-      notes: "System architecture and live coding session. Prepared portfolio demos and test suites.",
-      nextAction: "Review system design concepts",
-    },
-    {
-      id: "job-2",
-      company: "CloudScale Systems",
-      role: "Frontend Developer",
-      location: "Austin, TX (Hybrid)",
-      appliedDate: "2026-10-22",
-      source: "LinkedIn",
-      status: "Applied",
-      lastUpdate: "Application received and under review.",
-      notes: "Focus on React 19, Next.js, and TypeScript frontend development.",
-      nextAction: "Follow up next Monday",
-    },
-    {
-      id: "job-3",
-      company: "NovaLabs AI",
-      role: "AI / ML Solutions Engineer",
-      location: "Remote",
-      appliedDate: "2026-10-28",
-      source: "AngelList / Wellfound",
-      status: "Applied",
-      lastUpdate: "Screening assignment completed.",
-      notes: "Prompt orchestration, streaming LLM interfaces, and vector index evaluation.",
-      nextAction: "Awaiting assignment feedback",
-    },
-    {
-      id: "job-4",
-      company: "Apex Financial",
-      role: "Software Engineer",
-      location: "New York, NY",
-      appliedDate: "2026-10-10",
-      source: "Referral",
-      status: "Offer",
-      lastUpdate: "Offer letter extended.",
-      lastUpdatedDate: "2026-11-08",
-      recruiter: "Apex People Team",
-      interviewStage: "Offer",
-      notes: "Competitive package with health benefits and remote equipment allowance.",
-      nextAction: "Evaluate offer terms",
-    },
-    {
-      id: "job-5",
-      company: "Pulse Media",
-      role: "Mobile App Developer",
-      location: "Remote",
-      appliedDate: "2026-09-18",
-      source: "Hacker News",
-      status: "Archived",
-      lastUpdate: "Process concluded.",
-      notes: "Position filled internally.",
-      nextAction: "Archived",
-    },
-  ],
-  lifeStats: {
-    birthdate: "January 1, 2002",
-    ageYears: 24,
-    totalDays: 8760,
-    totalMonths: 288,
-    totalWeeks: 1251,
-    totalHours: 210240,
-    totalMinutes: 12614400,
-    totalSeconds: 756864000,
-    daysUntilNextBirthday: 49,
-    planetAges: {
-      mercury: 99.5,
-      venus: 39.0,
-      mars: 12.7,
-      jupiter: 2.02,
-    },
-  },
-  purchases: [
-    {
-      sNo: 1,
-      product: "Mechanical Keyboard",
-      brand: "Keychron",
-      model: "Wireless Custom Mechanical Keyboard",
-      orderDate: "15-Jan-2025",
-      deliveryDate: "17-Jan-2025",
-      seller: "Authorized Store",
-      price: 7499,
-      priceFormatted: "₹7,499.00",
-      paymentMode: "Card",
-      location: "Online",
-      daysSinceDelivery: 665,
-      timeSinceDelivery: "1 Year 9 Months",
-    },
-    {
-      sNo: 2,
-      product: "4K UHD Monitor 27\"",
-      brand: "Dell",
-      model: "UltraSharp 4K USB-C Hub Monitor",
-      orderDate: "10-Mar-2025",
-      deliveryDate: "12-Mar-2025",
-      seller: "Dell Direct",
-      price: 34999,
-      priceFormatted: "₹34,999.00",
-      paymentMode: "Card",
-      location: "Online Store",
-      daysSinceDelivery: 611,
-      timeSinceDelivery: "1 Year 8 Months",
-    },
-    {
-      sNo: 3,
-      product: "Wireless Noise-Canceling Headphones",
-      brand: "Sony",
-      model: "WH-1000XM5 Wireless",
-      orderDate: "20-May-2025",
-      deliveryDate: "21-May-2025",
-      seller: "Electronics Retail",
-      price: 26990,
-      priceFormatted: "₹26,990.00",
-      paymentMode: "UPI",
-      location: "Authorized Retailer",
-      daysSinceDelivery: 540,
-      timeSinceDelivery: "1 Year 5 Months",
-    },
-    {
-      sNo: 4,
-      product: "Ergonomic Standing Desk",
-      brand: "ErgoDesk",
-      model: "Dual-Motor Electric Sit-Stand Desk",
-      orderDate: "15-Aug-2025",
-      deliveryDate: "18-Aug-2025",
-      seller: "Furniture Co",
-      price: 21999,
-      priceFormatted: "₹21,999.00",
-      paymentMode: "Card",
-      location: "Online",
-      daysSinceDelivery: 452,
-      timeSinceDelivery: "1 Year 2 Months",
-    },
-  ],
-  investments: {
-    grandTotal: 1500000,
-    grandTotalFormatted: "₹15,00,000",
-    universityTotal: 1200000,
-    schoolTotal: 300000,
-    scholarshipEarned: 100000,
-    depositFee: 30000,
-    alumniFee: 2000,
-    levels: [
-      { level: "Pre-School (Pre-K to UKG)", totalExpense: 15000, years: "Early Years", notes: "Foundation years" },
-      { level: "Primary School (1st to 8th Grade)", totalExpense: 120000, years: "Primary School", notes: "Elementary education" },
-      { level: "Secondary School (9th & 10th Grade)", totalExpense: 75000, years: "Secondary School", notes: "Secondary certification" },
-      { level: "Higher Secondary (11th & 12th Grade)", totalExpense: 90000, years: "Higher Secondary", notes: "Pre-university coursework" },
-      { level: "University Degree (1st to 4th Year + Charges)", totalExpense: 1200000, years: "Undergraduate", notes: "Tuition, lab facilities & coursework" },
-    ],
-    universityYears: [
-      { year: "Year 1", grade: "1st Year", tuitionFee: 300000, scholarship: 100000, netTuition: 200000, hostelFee: 100000, examCharges: 10000, totalAnnualFee: 310000, cumulativeExpense: 310000 },
-      { year: "Year 2", grade: "2nd Year", tuitionFee: 300000, scholarship: 0, netTuition: 300000, hostelFee: 100000, examCharges: 10000, totalAnnualFee: 410000, cumulativeExpense: 720000 },
-      { year: "Year 3", grade: "3rd Year", tuitionFee: 300000, scholarship: 0, netTuition: 300000, hostelFee: 100000, examCharges: 10000, totalAnnualFee: 410000, cumulativeExpense: 1130000 },
-      { year: "Year 4", grade: "4th Year", tuitionFee: 300000, scholarship: 0, netTuition: 300000, hostelFee: 100000, examCharges: 10000, totalAnnualFee: 410000, cumulativeExpense: 1540000 },
-    ],
-    contributors: [
-      { name: "Academic Merit Grant", amount: 100000, status: "Paid" },
-      { name: "Education Loan Facility", amount: 500000, status: "Paid" },
-      { name: "Internship & Freelance Savings", amount: 250000, status: "Paid" },
-      { name: "Family Education Fund", amount: 650000, status: "Paid" },
-    ],
-  },
-  antigravityTokens: SEED_ANTIGRAVITY_TOKENS,
-  antigravityTokenSummary: SEED_ANTIGRAVITY_TOKEN_SUMMARY,
-};
-
 /* ── Live Syncer ── */
 export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
   if (!GOOGLE_SHEET_ID) {
@@ -607,7 +242,7 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
     };
 
     const journals: Record<string, TrackerExpenseJournal> = {
-      "2026": makeJournal("2026", "2026 Journal", 2026, j2026.length > 0 ? j2026 : SEED_2026_EXPENSES),
+      "2026": makeJournal("2026", "2026 Journal", 2026, j2026),
       "2026-fampay": makeJournal("2026-fampay", "2026 Fam Pay", 2026, j2026FamPay, { isFamPay: true }),
       "2025": makeJournal("2025", "2025 Journal", 2025, j2025),
       "2025-fampay": makeJournal("2025-fampay", "2025 Fam Pay", 2025, j2025FamPay, { isFamPay: true }),
@@ -774,25 +409,6 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         let price = row.c[8] ? parseNumber(row.c[8].v ?? row.c[8].f) : 0;
         let priceFormatted = parseString(row.c[8]);
 
-        const prodLower = prod.toLowerCase();
-        // Exact price correction for Green Soul Surface 2.0 Electric Sit Stand Desk
-        if ((price === 0 || !price) && prodLower.includes("green soul") && (prodLower.includes("surface") || prodLower.includes("desk"))) {
-          price = 23009;
-          priceFormatted = "₹23,009.00";
-          if (!model) {
-            model = "Electric height-adjustable desk, Digital Display, Memory Preset, Sedentary Alarm, Carbon Fibre, Black, 3 Yr Warranty + Desk Mat";
-          }
-        } else if ((price === 0 || !price) && prodLower.includes("furniture installation")) {
-          price = 0;
-          priceFormatted = "Free (Included)";
-          if (!model) {
-            model = "Furniture Installation Service for Green Soul Surface 2.0 Electric Sit Stand Desk";
-          }
-        } else if ((price === 0 || !price) && prodLower.includes("multipurpose runner")) {
-          price = 899;
-          priceFormatted = "₹899.00";
-        }
-
         if (!priceFormatted && price > 0) {
           priceFormatted = `₹${price.toLocaleString("en-IN")}`;
         } else if (!priceFormatted) {
@@ -821,47 +437,66 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       });
     }
 
-    // Parse Life Stats (Dynamically calculate live odometer from birthdate)
-    const birthdate = new Date(2005, 5, 2); // June 2, 2005
+    // Calculate life stats only when a birthday is supplied in the connected sheet.
     const now = new Date();
-    const diffMs = Math.max(0, now.getTime() - birthdate.getTime());
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const ageYears = Math.floor(diffDays / 365.25);
-    const totalWeeks = Math.floor(diffDays / 7);
-    const totalMonths = Math.floor(diffDays / 30.4375);
-    const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const totalMinutes = Math.floor(diffMs / (1000 * 60));
-    const totalSeconds = Math.floor(diffMs / 1000);
-
-    let nextBday = new Date(now.getFullYear(), 5, 2);
-    if (nextBday.getTime() < now.getTime()) {
-      nextBday = new Date(now.getFullYear() + 1, 5, 2);
-    }
-    const daysUntilNextBirthday = Math.ceil((nextBday.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
     const lifeStats: TrackerLifeStats = {
-      birthdate: "June 2, 2005",
-      ageYears,
-      totalDays: diffDays,
-      totalMonths,
-      totalWeeks,
-      totalHours,
-      totalMinutes,
-      totalSeconds,
-      daysUntilNextBirthday,
-      planetAges: {
-        mercury: Math.round((diffDays / 87.97) * 100) / 100,
-        venus: Math.round((diffDays / 224.7) * 100) / 100,
-        mars: Math.round((diffDays / 686.98) * 100) / 100,
-        jupiter: Math.round((diffDays / (11.86 * 365.25)) * 100) / 100,
-      },
+      birthdate: "",
+      ageYears: 0,
+      totalDays: 0,
+      totalMonths: 0,
+      totalWeeks: 0,
+      totalHours: 0,
+      totalMinutes: 0,
+      totalSeconds: 0,
+      daysUntilNextBirthday: 0,
+      planetAges: { mercury: 0, venus: 0, mars: 0, jupiter: 0 },
     };
+
+    const birthdayRow = timeData?.table?.rows?.find((row) =>
+      parseString(row.c[0]).toLowerCase().includes("birthdate")
+    );
+    const birthdateValue = birthdayRow ? parseString(birthdayRow.c[1]) : "";
+    const birthdate = birthdateValue ? new Date(birthdateValue) : null;
+    if (birthdate && !Number.isNaN(birthdate.getTime())) {
+      const diffMs = Math.max(0, now.getTime() - birthdate.getTime());
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const ageYears = Math.floor(diffDays / 365.25);
+      const totalWeeks = Math.floor(diffDays / 7);
+      const totalMonths = Math.floor(diffDays / 30.4375);
+      const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const totalMinutes = Math.floor(diffMs / (1000 * 60));
+      const totalSeconds = Math.floor(diffMs / 1000);
+
+      let nextBday = new Date(now.getFullYear(), birthdate.getMonth(), birthdate.getDate());
+      if (nextBday.getTime() < now.getTime()) {
+        nextBday = new Date(now.getFullYear() + 1, birthdate.getMonth(), birthdate.getDate());
+      }
+      const daysUntilNextBirthday = Math.ceil((nextBday.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      Object.assign(lifeStats, {
+        birthdate: birthdateValue,
+        ageYears,
+        totalDays: diffDays,
+        totalMonths,
+        totalWeeks,
+        totalHours,
+        totalMinutes,
+        totalSeconds,
+        daysUntilNextBirthday,
+        planetAges: {
+          mercury: Math.round((diffDays / 87.97) * 100) / 100,
+          venus: Math.round((diffDays / 224.7) * 100) / 100,
+          mars: Math.round((diffDays / 686.98) * 100) / 100,
+          jupiter: Math.round((diffDays / (11.86 * 365.25)) * 100) / 100,
+        },
+      });
+    }
 
     if (timeData?.table?.rows) {
       timeData.table.rows.forEach((row) => {
         const label = parseString(row.c[0]);
         const val = parseString(row.c[1]);
-        if (label.includes("Birthdate")) lifeStats.birthdate = val || lifeStats.birthdate;
+        if (label.toLowerCase().includes("birthdate")) lifeStats.birthdate = val;
         else if (label.includes("Current Age")) {
           const num = parseNumber(val);
           if (num > 0) lifeStats.ageYears = num;

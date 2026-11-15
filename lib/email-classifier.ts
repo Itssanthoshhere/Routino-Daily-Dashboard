@@ -17,9 +17,8 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
     text.includes("security") ||
     text.includes("sign-in") ||
     text.includes("signin") ||
-    text.includes("famapp") ||
-    text.includes("gitguardian") ||
-    text.includes("1password") ||
+    text.includes("account security") ||
+    text.includes("suspicious sign-in") ||
     text.includes("verification code") ||
     text.includes("password reset") ||
     text.includes("two-factor") ||
@@ -39,11 +38,6 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
 
   // 2. Finance / Banking / UPI / Statements
   if (
-    text.includes("slice") ||
-    text.includes("sbi") ||
-    text.includes("zerodha") ||
-    text.includes("nse") ||
-    text.includes("cdsl") ||
     text.includes("upi") ||
     text.includes("credited") ||
     text.includes("debited") ||
@@ -66,9 +60,6 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
 
   // 3. Cloud / Dev Infra / Vendor policies
   if (
-    text.includes("appwrite") ||
-    text.includes("render") ||
-    text.includes("posthog") ||
     text.includes("vercel") ||
     text.includes("aws") ||
     text.includes("github") ||
@@ -90,7 +81,6 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
 
   // 4. Career / Recruitment / Academics
   if (
-    text.includes("linkedin") ||
     text.includes("internship") ||
     text.includes("job alert") ||
     text.includes("recruiter") ||
@@ -98,7 +88,6 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
     text.includes("application") ||
     text.includes("university") ||
     text.includes("college") ||
-    text.includes("bennett") ||
     text.includes("evaluation") ||
     text.includes("faculty") ||
     text.includes("viva")

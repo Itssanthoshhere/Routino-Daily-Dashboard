@@ -43,7 +43,7 @@ import type {
   TrackerJobApplication,
   TrackerAntigravityToken,
 } from "@/types/dashboard";
-import { SEED_TRACKERS_DATA } from "@/lib/trackersSync";
+import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 
 export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "placements" | "life" | "purchases";
 type TabKey = TrackersTabKey;
@@ -1719,7 +1719,7 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
             <div className="p-4 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#fbfcf8]">
               <div>
                 <h4 className="text-[13px] font-bold text-ink">University Fee Breakdown (1st to 4th Year)</h4>
-                <p className="text-[11px] text-muted">Tuition, 35% scholarship, hostel fee & examination charges</p>
+                <p className="text-[11px] text-muted">Tuition, scholarships, housing, and examination charges</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -1759,7 +1759,7 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
                       <td className="py-3 px-4 text-right text-muted whitespace-nowrap">₹{yr.tuitionFee.toLocaleString("en-IN")}</td>
                       <td className="py-3 px-4 text-right whitespace-nowrap">
                         {yr.scholarship > 0 ? (
-                          <span className="text-[#059669] font-semibold">-₹{yr.scholarship.toLocaleString("en-IN")} (35%)</span>
+                          <span className="text-[#059669] font-semibold">-₹{yr.scholarship.toLocaleString("en-IN")} ({yr.tuitionFee > 0 ? Math.round((yr.scholarship / yr.tuitionFee) * 100) : 0}%)</span>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
@@ -1773,9 +1773,9 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
                   ))}
                   <tr className="bg-[#fbfcf8] font-bold border-t border-line">
                     <td colSpan={2} className="py-2.5 px-4 text-ink">Other Mandatory Charges</td>
-                    <td colSpan={5} className="py-2.5 px-4 text-muted text-[11px]">One-Time Refundable Deposit (₹45,000) + Alumni Contribution (₹1,500)</td>
-                    <td className="py-2.5 px-4 text-right text-forest">₹46,500</td>
-                    <td className="py-2.5 px-4 text-right text-forest">₹21,64,500</td>
+                    <td colSpan={5} className="py-2.5 px-4 text-muted text-[11px]">One-time deposit (₹{(data.investments.depositFee ?? 0).toLocaleString("en-IN")}) + other fees (₹{(data.investments.alumniFee ?? 0).toLocaleString("en-IN")})</td>
+                    <td className="py-2.5 px-4 text-right text-forest">₹{((data.investments.depositFee ?? 0) + (data.investments.alumniFee ?? 0)).toLocaleString("en-IN")}</td>
+                    <td className="py-2.5 px-4 text-right text-forest">₹{data.investments.grandTotal.toLocaleString("en-IN")}</td>
                   </tr>
                 </tbody>
               </table>
@@ -2518,7 +2518,9 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
                 {data.lifeStats.ageYears} Years on Earth
               </h3>
               <p className="mt-1 text-[13px] text-white/70">
-                Born on {data.lifeStats.birthdate}. Every moment recorded is time well lived.
+                {data.lifeStats.birthdate
+                  ? `Born on ${data.lifeStats.birthdate}. Every moment recorded is time well lived.`
+                  : "Add a birthdate to the connected tracker to see this odometer."}
               </p>
 
               <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t border-white/10">

@@ -36,7 +36,7 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSound, setActiveSound] = useState<AmbientSoundType>("off");
   const [soundVolume, setSoundVolume] = useState<number>(35);
-  const [ebInputReading, setEbInputReading] = useState<number>(323);
+  const [ebInputReading, setEbInputReading] = useState<number>(108);
   const [ebRoommateSplit, setEbRoommateSplit] = useState<number>(2);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -63,10 +63,10 @@ export default function LandingPage() {
   };
 
   // EB Calculator logic
-  const currentUnits = Math.max(0, ebInputReading - 315);
+  const currentUnits = Math.max(0, ebInputReading - 100);
   const dailyBurn = (currentUnits / 4).toFixed(1);
   const projected30dUnits = Math.round(Number(dailyBurn) * 30);
-  const projectedTotalCost = Math.round(projected30dUnits * 12);
+  const projectedTotalCost = Math.round(projected30dUnits * 1);
   const myProjectedShare = Math.round(projectedTotalCost / ebRoommateSplit);
 
   return (
@@ -281,18 +281,18 @@ export default function LandingPage() {
                   <div className="mt-2.5 grid grid-cols-2 gap-2 text-[11.5px]">
                     <div className="rounded-lg bg-[#f9faf6] p-2 border border-[#eff1ea]">
                       <span className="text-muted block text-[10px]">Tokens Ready</span>
-                      <strong className="text-forest text-[14px]">27 / 9</strong>
+                      <strong className="text-forest text-[14px]">2 / 2</strong>
                     </div>
                     <div className="rounded-lg bg-[#f9faf6] p-2 border border-[#eff1ea]">
                       <span className="text-muted block text-[10px]">EB Burn</span>
-                      <strong className="text-ink text-[14px]">~1.9 u/d</strong>
+                      <strong className="text-ink text-[14px]">~0.8 u/d</strong>
                     </div>
                   </div>
-                  <p className="mt-2 text-[11px] text-muted">30d Roommate Share: <strong>₹290</strong> · 50% split</p>
+                  <p className="mt-2 text-[11px] text-muted">Demo estimate: <strong>₹96</strong> · illustrative split</p>
                 </div>
                 <div className="mt-3 pt-2.5 border-t border-[#f0f2eb] flex items-center justify-between text-[11px]">
-                  <span className="text-muted">Budget: ₹3,420 / ₹7.5k</span>
-                  <span className="font-semibold text-forest">45% burned</span>
+                  <span className="text-muted">Demo budget: ₹120 / ₹500</span>
+                  <span className="font-semibold text-forest">24% used</span>
                 </div>
               </div>
 
@@ -307,15 +307,15 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-2.5 rounded-xl border border-[#bfdbfe]/70 bg-[#eff6ff]/60 p-2.5">
                     <div className="flex items-center justify-between">
-                      <strong className="text-[12px] text-[#1e40af]">Josh Talks</strong>
-                      <span className="text-[9.5px] font-bold bg-white text-[#1d4ed8] px-1.5 py-0.2 rounded">Task Due</span>
+                      <strong className="text-[12px] text-[#1e40af]">Example Company</strong>
+                      <span className="text-[9.5px] font-bold bg-white text-[#1d4ed8] px-1.5 py-0.2 rounded">Sample task</span>
                     </div>
-                    <p className="text-[10.5px] text-[#3b82f6] mt-0.5 truncate">Speech dataset take-home evaluation</p>
+                    <p className="text-[10.5px] text-[#3b82f6] mt-0.5 truncate">Review a sample project brief</p>
                   </div>
                 </div>
                 <div className="mt-3 pt-2.5 border-t border-[#f0f2eb] flex items-center justify-between text-[11px]">
                   <span className="text-forest font-semibold">1-Click Action Links</span>
-                  <span className="font-semibold text-ink">Applied 3d ago</span>
+                <span className="font-semibold text-ink">Example preview</span>
                 </div>
               </div>
             </div>
@@ -565,7 +565,7 @@ export default function LandingPage() {
                     <h3 className="text-[17px] font-bold text-ink">Interactive PG Electricity Estimator</h3>
                   </div>
                   <span className="rounded-full bg-[#fffbeb] border border-[#fde68a] px-2.5 py-0.5 text-[10px] font-bold text-[#b45309]">
-                    Rate: ₹12/unit
+                    Example rate: ₹1/unit
                   </span>
                 </div>
                 <p className="mt-2 text-[12.5px] text-muted">
@@ -740,7 +740,7 @@ export default function LandingPage() {
                 <h4 className="text-[15px] font-bold text-ink">Placement & Career Hub</h4>
               </div>
               <p className="text-[12.5px] text-muted leading-relaxed">
-                Tracks 31+ job applications with Smart Link Extractor for Drive briefs & Google Forms, 1-click candidate brief copying, and timeline freshness pills.
+                Organizes applications, follow-ups, links, and status changes with search and quick actions.
               </p>
               <div className="mt-3 text-[11px] font-bold text-forest">Shortcut: 6 → Placements Tab</div>
             </div>
@@ -752,7 +752,7 @@ export default function LandingPage() {
                 <h4 className="text-[15px] font-bold text-ink">Education & Investment Ledger</h4>
               </div>
               <p className="text-[12.5px] text-muted leading-relaxed">
-                Visual lifetime breakdown (University 95.1% vs Schooling 4.9%) of ₹22.76L investment, B.Tech fee ledger with merit scholarships, and 100% funded contributor status.
+                Organizes education costs, yearly fee details, scholarships, and funding contributions.
               </p>
               <div className="mt-3 text-[11px] font-bold text-forest">Shortcut: 6 → Investments Tab</div>
             </div>

@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
 import { neon } from "@neondatabase/serverless";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
 
@@ -35,6 +36,65 @@ export type OutlookAccountRecord = {
   connectedAt: string;
 };
 
+const OUTLOOK_TOKEN_PREFIX = "routino:v1:";
+
+function outlookTokenKey(): Buffer {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret || secret.startsWith("your-")) {
+    throw new Error("Set AUTH_SECRET or NEXTAUTH_SECRET before storing Outlook credentials.");
+  }
+  return Buffer.from(
+    hkdfSync("sha256", secret, "routino-outlook-token-v1", "outlook-token-at-rest", 32)
+  );
+}
+
+function encryptOutlookToken(token?: string): string | undefined {
+  if (!token || token.startsWith(OUTLOOK_TOKEN_PREFIX)) return token;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", outlookTokenKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `${OUTLOOK_TOKEN_PREFIX}${iv.toString("base64url")}:${tag.toString("base64url")}:${ciphertext.toString("base64url")}`;
+}
+
+function decryptOutlookToken(token?: string): string | undefined {
+  if (!token || !token.startsWith(OUTLOOK_TOKEN_PREFIX)) return token;
+  const [ivEncoded, tagEncoded, ciphertextEncoded] = token.slice(OUTLOOK_TOKEN_PREFIX.length).split(":");
+  if (!ivEncoded || !tagEncoded || !ciphertextEncoded) {
+    throw new Error("Stored Outlook credential has an invalid encrypted format.");
+  }
+  const decipher = createDecipheriv("aes-256-gcm", outlookTokenKey(), Buffer.from(ivEncoded, "base64url"));
+  decipher.setAuthTag(Buffer.from(tagEncoded, "base64url"));
+  return Buffer.concat([
+    decipher.update(Buffer.from(ciphertextEncoded, "base64url")),
+    decipher.final(),
+  ]).toString("utf8");
+}
+
+function outlookRecordForStorage(record: OutlookAccountRecord): OutlookAccountRecord {
+  return {
+    ...record,
+    accessToken: encryptOutlookToken(record.accessToken)!,
+    refreshToken: encryptOutlookToken(record.refreshToken),
+  };
+}
+
+async function outlookRecordForUse(
+  email: string,
+  storedRecord: OutlookAccountRecord
+): Promise<OutlookAccountRecord> {
+  const needsMigration =
+    (!!storedRecord.accessToken && !storedRecord.accessToken.startsWith(OUTLOOK_TOKEN_PREFIX)) ||
+    (!!storedRecord.refreshToken && !storedRecord.refreshToken.startsWith(OUTLOOK_TOKEN_PREFIX));
+  const record = {
+    ...storedRecord,
+    accessToken: decryptOutlookToken(storedRecord.accessToken)!,
+    refreshToken: decryptOutlookToken(storedRecord.refreshToken),
+  };
+  if (needsMigration) await saveOutlookAccount(email, record);
+  return record;
+}
+
 export async function getOutlookAccount(email: string): Promise<OutlookAccountRecord | null> {
   const normalizedEmail = email.toLowerCase().trim();
   const sql = getNeonClient();
@@ -51,7 +111,7 @@ export async function getOutlookAccount(email: string): Promise<OutlookAccountRe
       const rows = await sql`SELECT profile FROM routino_linked_accounts
         WHERE google_email = ${normalizedEmail} AND provider = 'outlook' LIMIT 1`;
       if (rows.length > 0 && rows[0]?.profile) {
-        return rows[0].profile as OutlookAccountRecord;
+        return await outlookRecordForUse(normalizedEmail, rows[0].profile as OutlookAccountRecord);
       }
     } catch (err) {
       console.error("[db] Error fetching Outlook account from SQL:", err);
@@ -74,7 +134,8 @@ export async function getOutlookAccount(email: string): Promise<OutlookAccountRe
       if (res.ok) {
         const json = await res.json();
         if (json.result) {
-          return (typeof json.result === "string" ? JSON.parse(json.result) : json.result) as OutlookAccountRecord;
+          const record = (typeof json.result === "string" ? JSON.parse(json.result) : json.result) as OutlookAccountRecord;
+          return await outlookRecordForUse(normalizedEmail, record);
         }
       }
     } catch {}
@@ -85,7 +146,7 @@ export async function getOutlookAccount(email: string): Promise<OutlookAccountRe
     const dataDir = path.join(process.cwd(), ".data");
     const safeEmail = encodeURIComponent(normalizedEmail);
     const content = await fs.readFile(path.join(dataDir, `outlook-${safeEmail}.json`), "utf-8");
-    return JSON.parse(content) as OutlookAccountRecord;
+    return await outlookRecordForUse(normalizedEmail, JSON.parse(content) as OutlookAccountRecord);
   } catch {
     return null;
   }
@@ -93,6 +154,7 @@ export async function getOutlookAccount(email: string): Promise<OutlookAccountRe
 
 export async function saveOutlookAccount(email: string, record: OutlookAccountRecord): Promise<void> {
   const normalizedEmail = email.toLowerCase().trim();
+  const encryptedRecord = outlookRecordForStorage(record);
   const sql = getNeonClient();
 
   if (sql) {
@@ -105,7 +167,7 @@ export async function saveOutlookAccount(email: string, record: OutlookAccountRe
         PRIMARY KEY (google_email, provider)
       )`;
       await sql`INSERT INTO routino_linked_accounts (google_email, provider, profile, updated_at)
-        VALUES (${normalizedEmail}, 'outlook', ${JSON.stringify(record)}::jsonb, NOW())
+        VALUES (${normalizedEmail}, 'outlook', ${JSON.stringify(encryptedRecord)}::jsonb, NOW())
         ON CONFLICT (google_email, provider) DO UPDATE
         SET profile = EXCLUDED.profile, updated_at = NOW()`;
       return;
@@ -124,7 +186,7 @@ export async function saveOutlookAccount(email: string, record: OutlookAccountRe
           Authorization: `Bearer ${redis.token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(["SET", `routino:outlook:${normalizedEmail}`, JSON.stringify(record)]),
+        body: JSON.stringify(["SET", `routino:outlook:${normalizedEmail}`, JSON.stringify(encryptedRecord)]),
       });
       return;
     } catch {}
@@ -135,7 +197,7 @@ export async function saveOutlookAccount(email: string, record: OutlookAccountRe
     const dataDir = path.join(process.cwd(), ".data");
     await fs.mkdir(dataDir, { recursive: true });
     const safeEmail = encodeURIComponent(normalizedEmail);
-    await fs.writeFile(path.join(dataDir, `outlook-${safeEmail}.json`), JSON.stringify(record, null, 2), "utf-8");
+    await fs.writeFile(path.join(dataDir, `outlook-${safeEmail}.json`), JSON.stringify(encryptedRecord, null, 2), "utf-8");
   } catch {}
 }
 

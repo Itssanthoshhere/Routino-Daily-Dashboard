@@ -209,7 +209,7 @@ export function TasksView({
           type="text"
           value={quickTitle}
           onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder="Add a task quickly (e.g. 'Building Spendo App' or 'Flight to Chennai')..."
+          placeholder="Add a task quickly (e.g. 'Build a project' or 'Plan a trip')..."
           className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-ink outline-none placeholder:text-muted"
         />
         <div className="flex items-center gap-2">
