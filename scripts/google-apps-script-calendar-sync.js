@@ -29,15 +29,15 @@ const CATEGORY_CONFIG = {
   },
   "Social Media": {
     color: "#D85A30",
-    keys: ["instaa", "instagram", "youtube", "chit chat", "bakchodi", "roaming", "timepass", "time pass", "reels"]
+    keys: ["instaa", "instagram", "youtube", "social", "reels", "twitter", "reddit", "community"]
   },
   "Games / Gaming": {
     color: "#E11D48",
-    keys: ["coc", "clash of clans", "bgmi", "pubg", "games", "game", "gaming", "candy crush", "chess", "valorant", "fifa", "gta", "minecraft", "free fire", "cod", "steam"]
+    keys: ["coc", "clash of clans", "bgmi", "pubg", "games", "game", "gaming", "candy crush", "chess", "valorant", "fifa", "gta", "minecraft", "free fire", "cod", "steam", "playstation"]
   },
   "Study / Work": {
     color: "#1D9E75",
-    keys: ["cset", "assignment", "project", "course", "coursera", "codechef", "leetcode", "web dev", "wavechat", "nlp", "soft computing", "career skills", "ieee", "dcc", "placement", "fastapi", "roomify", "mf360", "codigo", "latest", "nptel", "hackathon", "contest", "linkedin", "certificate"]
+    keys: ["development", "assignment", "project", "course", "coding", "engineering", "leetcode", "web dev", "research", "deep work", "testing", "documentation", "review", "design", "architecture", "hackathon", "contest", "certificate"]
   },
   "Entertainment": {
     color: "#378ADD",
@@ -45,11 +45,11 @@ const CATEGORY_CONFIG = {
   },
   "Daily Routine": {
     color: "#BA7517",
-    keys: ["bath", "lunch", "dinner", "freshup", "fresh up", "maggi", "food", "laundry", "sorting", "vc w", "call w", "breakfast", "snack", "chai", "coffee", "cooking", "utensil", "face wash", "acne", "ance cream", "oil", "trim", "haircut", "head bath"]
+    keys: ["bath", "lunch", "dinner", "freshup", "exercise", "walk", "gym", "workout", "food", "laundry", "chores", "errands", "breakfast", "snack", "chai", "coffee", "cooking", "skincare"]
   },
   "Travel / Outings": {
     color: "#888780",
-    keys: ["manali", "train", "travel", "trip", "ndls", "mas", "bus", "outing", "roaming around", "cab", "metro", "airport", "station", "central", "gate"]
+    keys: ["flight", "train", "travel", "trip", "transit", "hotel", "bus", "outing", "cab", "metro", "airport", "station", "commute"]
   },
   "Other": {
     color: "#D4537E",

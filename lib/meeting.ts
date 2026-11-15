@@ -184,7 +184,7 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
   // 2. BANANA / YELLOW (explicit Google Calendar Banana color or user's banana project sessions)
   if (
     isBanana ||
-    /\b(mf360|fund disclosure|cs400|buddy ai agent|chatgpt work|report prep|spendo|routino)\b/i.test(summary)
+    /\b(deep work|focus session|sprint|project work|report prep|routino)\b/i.test(summary)
   ) {
     return { tag: "BANANA", color: "#eab308" };
   }

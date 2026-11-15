@@ -48,7 +48,7 @@ type MorningDigestModalProps = {
 export function MorningDigestModal({
   isOpen,
   onClose,
-  userName = "Santhosh",
+  userName = appConfig.user.name || "Guest",
   tasks,
   events,
   mail,

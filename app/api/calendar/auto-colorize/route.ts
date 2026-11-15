@@ -67,13 +67,13 @@ const COLOR_RULES = [
     name: "Work & Tasks",
     colorId: "5", // Banana / Yellow
     keywords: [
-      "mf360",
-      "spendo",
-      "routino",
-      "cset",
+      "work",
       "project",
-      "cs400",
-      "fund disclosure",
+      "sprint",
+      "planning",
+      "tasks",
+      "routino",
+      "deep work",
     ],
   },
 ];

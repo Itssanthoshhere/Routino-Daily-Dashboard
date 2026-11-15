@@ -59,12 +59,14 @@ Google sign-in uses Auth.js. When the account holder signs in and approves acces
 | :--- | :--- | :--- |
 | **Public Landing Page** | Glassmorphic landing page with live synthesized ambient sound preview and interactive EB calculator | Pure Web Audio API & client-side math (`/`) |
 | **Workspace Dashboard** | The complete Routino daily operations workspace | Full client & server dashboard (`/dashboard`) |
+| **Morning Brief** | Executive intelligence modal: 48h email urgency triage, cross-source health checks, and unread mail breakdown | `MorningDigestModal`, Gmail, Calendar, Drive & Outlook Graph |
 | **Today's Flow Timeline** | Live daytime progress bar, upcoming meeting markers, and dynamic evening expansion | Google Calendar, Outlook Calendar, or local events |
 | **Daily Summary** | Date, daily intention quote, weather forecast, calendar count, unread email count, and focus card | Google / Outlook Calendar, Gmail, Open-Meteo, and live state |
 | **Daily Desk Sheet** | Single-page printable companion with Top 3 Non-Negotiables, schedule, hydration, and notes | Local storage, Calendar, and printer-optimized CSS |
 | **Today’s Schedule** | Upcoming events with smart "Join Meeting" detection, Travel & Project badges, and time ranges | Google Calendar, Outlook Calendar, or labeled preview events |
 | **The Week Ahead** | A rolling seven-day calendar view with category filters and event creation | Google Calendar, Outlook Calendar, or custom events |
-| **Worth a Look** | Sender, subject, date, and short snippet for unread messages | Gmail, Outlook Mail, or labeled preview messages |
+| **Worth a Look / Inbox** | Multi-provider email triage with Gmail & Outlook Graph pagination, search, and email-to-task creation | Gmail API, Microsoft Graph, and `/api/mail/load-more` |
+| **Google Drive Files** | Recent Drive documents with mime-type indicators, size, and direct links | Read-only Google Drive metadata API (`/api/drive/files`) |
 | **Priorities & Tasks** | Checkable tasks, sub-task checklists, auto-categorization (`Project`, `Travel`, `Work`, `Urgent`), and filters | Local storage & server-side database sync |
 | **Notes & Scratchpad** | Google Keep-style notes, checklists, compressed images, priorities, drag-and-drop, and zero-knowledge AES-256 vault | Web Crypto API, Local storage & database sync |
 | **Focus Plan & Timer** | Focus timer with ambient soundscapes (Rain, Waves, Brown Noise, Forest, Café) and volume control | Synthesized Web Audio API |
@@ -196,14 +198,36 @@ Routino includes a high-impact, modern public landing page inspired by top-tier 
   - `/dashboard` → Complete Workspace Dashboard
   - `/app` → Automatic redirect to `/dashboard`
 
-### 17. 📜 Google Apps Script Calendar Sync & Time Audit
+### 17. 🌅 Morning Brief & Multi-Source Diagnostic Intelligence
+- **Automated 48-Hour Urgency Triage**: Deep-scans recent unread Gmail and Outlook emails, highlighting messages requiring attention within 48 hours.
+- **Granular Multi-Source Health Monitoring**: Separately verifies each connected provider—Google Calendar, Gmail, Google Drive metadata, and Microsoft Outlook.
+- **Accurate Error Diagnosis**: Inspects OAuth 401 reauthorization requirements separately from 403 API disabled or permission-denied errors, guiding users with clear next steps.
+- **Live Sync Confidence**: Distinguishes empty inboxes or calendars from failed API calls, showing "Google Sources Checked", Outlook sync status, and a 1-click **Refresh sources** action.
+
+### 18. ✉️ Reviewable Email-to-Task Workflow & Duplicate Prevention
+- **One-Click Action Queue**: Converts any unread email into a prioritized task with pre-filled sender context, subject line, and deep webmail links.
+- **Explicit User Review**: Opens an interactive pre-filled task modal allowing review of deadlines, priority, and subtasks before adding—ensuring no guessed deadlines automatically become commitments.
+- **Click-Isolated Deep Links**: Generates stable message deep links (`https://mail.google.com/...` and `https://outlook.live.com/mail/0/deeplink/read/<id>`) in task and subtask checklists that trigger direct message opening without toggling completion checkboxes.
+- **Duplicate Prevention Engine (`findTaskForEmail`)**: Inspects existing tasks and subtasks for matching message IDs or canonical links. If already tracked, the email surfaces a direct **"Open Task"** button that jumps to and highlights the existing task. Generic portal roots are blocked from matching to avoid false collisions.
+
+### 19. 📥 Multi-Provider Inbox Pagination & Infinite Load-More
+- **Dedicated Pagination Route (`/api/mail/load-more`)**: Dynamically fetches additional pages of unread emails across Google Gmail (via `nextPageToken`) and Microsoft Graph (via `$skip` pagination).
+- **Permanent Exhaustion Protection**: Tracks `gmailExhausted` and `outlookExhausted` states so that routine 60-second refreshes and tab focus events never reset cursors or repeat already loaded pages.
+- **Transparent Partial Failure Handling**: If one provider succeeds while another encounters a transient error, the user is notified of loaded emails while displaying specific provider error notes.
+
+### 20. 📁 Google Drive Recent Documents Integration
+- **Live Metadata Sync**: Displays recently active Drive files with document type categorization, file size formatting, and modified timestamps.
+- **Zero Content Persistence**: Operates under strict read-only metadata scope (`drive.metadata.readonly`). No document content is ever requested, downloaded, or stored on Routino servers.
+- **Deep Drive Navigation**: Direct 1-click links opening documents straight in Google Docs, Sheets, Slides, or Drive viewer.
+
+### 21. 📜 Google Apps Script Calendar Sync & Time Audit
 - Included script template (`scripts/google-apps-script-calendar-sync.js`) for automated time tracking.
 - Syncs the past 90 days of Google Calendar events into a dedicated `Calendar Events` Google Sheet tab with automated categorization, minutes, and hours calculations for retrospective time auditing.
 
-### 17. 🛡️ Production-Grade Open-Source Security & Privacy
+### 22. 🛡️ Production-Grade Open-Source Security & Privacy
 - **Zero Secrets in Code**: All API credentials, client secrets, and external spreadsheet IDs are loaded strictly from environment variables (`.env.local`).
 - **Zero-Knowledge Encryption**: Notes vault uses Web Crypto API AES-256-GCM + PBKDF2 (100,000 iterations). Plaintext notes and passphrases are never sent to the server.
-- **Sanitized Fallback Data**: Open-source repository contains zero private email addresses or confidential family financial records in seed files.
+- **Sanitized Open-Source Seed Data**: 100% clean, privacy-safe, anonymized demo tasks, notes, and tracker data for unauthenticated preview mode.
 - **HTTP Security Headers**: Configured with `nosniff`, `SAMEORIGIN`, `1; mode=block`, and `strict-origin-when-cross-origin`.
 
 ---
@@ -318,15 +342,19 @@ Routino-Daily-Dashboard/
 │   │   ├── calendar/auto-colorize # Google Calendar smart colorizer endpoint
 │   │   ├── dashboard/             # Authenticated Calendar and Gmail data route
 │   │   ├── drive/files/           # Read-only Drive recent files route
+│   │   ├── mail/load-more/        # Multi-provider email pagination (Gmail + Outlook Graph)
 │   │   ├── outlook/               # Microsoft Graph OAuth connect, callback & data routes
 │   │   ├── trackers/sync/         # Google Sheets live trackers synchronization API
 │   │   └── user-data/             # Multi-device cloud sync endpoint
 │   ├── auth/signout/              # Custom Routino sign-out confirmation page
-│   ├── page.tsx                   # Responsive dashboard interface
+│   ├── dashboard/page.tsx         # Full workspace operations dashboard
+│   ├── page.tsx                   # Public landing page with Web Audio synthesizer
 │   └── globals.css                # Global styles, Tailwind layers & print media rules
 ├── components/                    # Interactive UI modules, modals, and views
 │   ├── DailyDeskSheetModal.tsx    # Single-page printable daily desk planner
 │   ├── FlightTravelCard.tsx       # Flight & travel status card with route and packing list
+│   ├── GoogleDriveFilesCard.tsx   # Google Drive recent files card with metadata preview
+│   ├── MorningDigestModal.tsx     # Morning Brief executive intelligence & multi-source health
 │   ├── QuickCaptureModal.tsx      # Universal quick-capture modal (Q shortcut)
 │   ├── QuickScratchpadCard.tsx    # Scratchpad with 1-click line-to-task conversion
 │   ├── DayTimelineBar.tsx         # Today's Flow daytime progress bar & event blocks
@@ -340,7 +368,7 @@ Routino-Daily-Dashboard/
 │   └── views/                     # Full-page dedicated tab views
 │       ├── CalendarView.tsx       # 7-day calendar view with Project & Travel filters
 │       ├── TasksView.tsx          # Task management with category filters and sub-steps
-│       ├── InboxView.tsx          # Gmail and Outlook unread email manager
+│       ├── InboxView.tsx          # Gmail and Outlook unread email manager with pagination
 │       ├── NotesView.tsx          # Keep-style markdown notes & AES-256 vault
 │       ├── TrackersView.tsx       # Comprehensive Trackers Hub (EB, Expenses, Career, Assets, Tokens)
 │       └── TimeAuditView.tsx      # Retrospective 90-day time allocation auditor
@@ -349,6 +377,8 @@ Routino-Daily-Dashboard/
 │   ├── config.ts                  # Centralized typed configuration
 │   ├── crypto.ts                  # Zero-knowledge PBKDF2 + AES-256-GCM client-side encryption
 │   ├── db.ts                      # Neon Postgres, Upstash Redis & filesystem persistence adapter
+│   ├── email-classifier.ts        # Keyword triage for urgent emails and notifications
+│   ├── email-task.ts              # Duplicate detection & email-to-task link generation
 │   ├── google.ts                  # Server-side token refresh and Google requests
 │   ├── meeting.ts                 # Video URL extraction, category & task inference
 │   ├── outlook.ts                 # Microsoft Graph OAuth token exchange & Graph queries
