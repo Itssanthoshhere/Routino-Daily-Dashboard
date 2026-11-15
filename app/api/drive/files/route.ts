@@ -25,32 +25,62 @@ export async function GET() {
       `https://www.googleapis.com/drive/v3/files?${params.toString()}`
     );
 
-    if (response.status === 403) {
+    if (response.status === 401 || response.status === 403) {
       try {
         const errJson = await response.json();
         const errors: any[] = errJson?.error?.errors || [];
         const msg = String(errJson?.error?.message || "").toLowerCase();
         const reasons = errors.map((e: any) => String(e?.reason || "").toLowerCase());
-        const isScopeMissing =
+
+        const isScopeOrAuthIssue =
+          reasons.includes("autherror") ||
           reasons.includes("insufficientpermissions") ||
           reasons.includes("insufficient_scope") ||
           msg.includes("insufficient authentication scopes") ||
-          msg.includes("insufficientpermissions");
+          msg.includes("insufficientpermissions") ||
+          msg.includes("invalid credentials") ||
+          msg.includes("missing authorization scope") ||
+          response.status === 401;
 
-        if (isScopeMissing) {
+        const isApiDisabled =
+          reasons.includes("accessnotconfigured") ||
+          reasons.includes("servicedisabled") ||
+          msg.includes("has not been used in project") ||
+          msg.includes("is not enabled");
+
+        if (isScopeOrAuthIssue && !isApiDisabled) {
           return NextResponse.json(
-            { connected: true, needsConsent: true, files: [] },
-            { status: 403, headers: { "Cache-Control": "private, no-store" } }
+            {
+              connected: true,
+              needsConsent: true,
+              error: "Drive requires authorization or re-consent. Please reconnect Google with Drive metadata permissions.",
+              files: [],
+            },
+            { status: response.status, headers: { "Cache-Control": "private, no-store" } }
           );
         }
+
         return NextResponse.json(
-          { connected: true, needsConsent: false, error: errJson?.error?.message || "Google Drive API is disabled or access was denied.", files: [] },
-          { status: 403, headers: { "Cache-Control": "private, no-store" } }
+          {
+            connected: true,
+            needsConsent: false,
+            error: errJson?.error?.message || "Google Drive API is disabled or access was denied.",
+            files: [],
+          },
+          { status: response.status, headers: { "Cache-Control": "private, no-store" } }
         );
       } catch {
         return NextResponse.json(
-          { connected: true, needsConsent: false, error: "Google Drive permission or access was denied.", files: [] },
-          { status: 403, headers: { "Cache-Control": "private, no-store" } }
+          {
+            connected: true,
+            needsConsent: response.status === 401,
+            error:
+              response.status === 401
+                ? "Drive authorization expired or missing required scopes. Reconnect Google to re-authorize."
+                : "Google Drive permission or access was denied.",
+            files: [],
+          },
+          { status: response.status, headers: { "Cache-Control": "private, no-store" } }
         );
       }
     }

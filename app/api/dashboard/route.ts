@@ -174,7 +174,7 @@ export async function GET() {
     if (driveRes) {
       if (driveRes.ok) {
         driveStatus = "checked";
-      } else if (driveRes.status === 403) {
+      } else if (driveRes.status === 401 || driveRes.status === 403) {
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const errData: any = await driveRes.json();
@@ -182,19 +182,29 @@ export async function GET() {
           const errorMsg = String(errData?.error?.message || "").toLowerCase();
           const reasons = errors.map((e: any) => String(e?.reason || "").toLowerCase());
 
-          const isScopeMissing =
+          const isScopeOrAuthIssue =
+            reasons.includes("autherror") ||
             reasons.includes("insufficientpermissions") ||
             reasons.includes("insufficient_scope") ||
             errorMsg.includes("insufficient authentication scopes") ||
-            errorMsg.includes("insufficientpermissions");
+            errorMsg.includes("insufficientpermissions") ||
+            errorMsg.includes("invalid credentials") ||
+            errorMsg.includes("missing authorization scope") ||
+            driveRes.status === 401;
 
-          if (isScopeMissing) {
+          const isApiDisabled =
+            reasons.includes("accessnotconfigured") ||
+            reasons.includes("servicedisabled") ||
+            errorMsg.includes("has not been used in project") ||
+            errorMsg.includes("is not enabled");
+
+          if (isScopeOrAuthIssue && !isApiDisabled) {
             driveStatus = "needs_consent";
           } else {
             driveStatus = "permission_denied";
           }
         } catch {
-          driveStatus = "permission_denied";
+          driveStatus = driveRes.status === 401 ? "needs_consent" : "permission_denied";
         }
       } else {
         driveStatus = "failed";
