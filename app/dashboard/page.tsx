@@ -2806,8 +2806,10 @@ export default function Home() {
         events={allEvents}
         mail={mailItems}
         unread48hEstimate={liveData?.unread48hEstimate}
+        unread48hStatus={liveData?.unread48hStatus}
         unreadTotalEstimate={liveData?.unreadEstimate}
         calendarsChecked={liveData?.calendarsChecked}
+        sourcesStatus={liveData?.sourcesStatus}
         lastSyncedAt={liveData?.lastSyncedAt}
         onRefresh={() => fetchDashboard(true)}
         isRefreshing={isSyncingGoogle}

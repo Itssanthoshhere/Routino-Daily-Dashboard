@@ -17,7 +17,7 @@ import {
   ExternalLink,
   ChevronRight,
 } from "lucide-react";
-import type { Task, DashboardEvent, DashboardMail, CalendarCheckInfo } from "@/types/dashboard";
+import type { Task, DashboardEvent, DashboardMail, CalendarCheckInfo, SourcesStatus } from "@/types/dashboard";
 import { classifyEmail } from "@/lib/email-classifier";
 import { appConfig } from "@/lib/config";
 
@@ -29,8 +29,10 @@ type MorningDigestModalProps = {
   events: DashboardEvent[];
   mail: DashboardMail[];
   unread48hEstimate?: number | null;
+  unread48hStatus?: "ok" | "failed" | "not_queried";
   unreadTotalEstimate?: number;
   calendarsChecked?: CalendarCheckInfo[];
+  sourcesStatus?: SourcesStatus;
   lastSyncedAt?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -44,8 +46,10 @@ export function MorningDigestModal({
   events,
   mail,
   unread48hEstimate = null,
+  unread48hStatus = "not_queried",
   unreadTotalEstimate = 0,
   calendarsChecked = [],
+  sourcesStatus,
   lastSyncedAt,
   onRefresh,
   isRefreshing = false,
@@ -117,6 +121,18 @@ export function MorningDigestModal({
     () => classifiedEmails.filter((m) => m.classification?.variant === "career"),
     [classifiedEmails]
   );
+
+  const hasSourceFailure =
+    calendarsChecked.some((calendar) => calendar.status === "failed") ||
+    sourcesStatus?.gmail === "failed" ||
+    sourcesStatus?.calendarList === "failed" ||
+    unread48hStatus === "failed";
+  const allSourcesChecked =
+    sourcesStatus?.gmail === "checked" &&
+    sourcesStatus.calendarList === "checked" &&
+    unread48hStatus === "ok" &&
+    calendarsChecked.length > 0 &&
+    calendarsChecked.every((calendar) => calendar.status === "checked");
 
   // Active and overdue tasks
   const activeTasks = useMemo(() => tasks.filter((t) => !t.checked), [tasks]);
@@ -525,8 +541,8 @@ export function MorningDigestModal({
                 <CheckCircle2 size={13} className="text-forest" />
                 Data Sources Review Checklist
               </h4>
-              <span className={`text-[10px] font-semibold ${calendarsChecked.some(c => c.status === "failed") ? "text-[#b45309]" : "text-forest"}`}>
-                {calendarsChecked.some(c => c.status === "failed") ? "Partial Sync Warning" : "All Systems Checked"}
+              <span className={`text-[10px] font-semibold ${allSourcesChecked ? "text-forest" : "text-[#b45309]"}`}>
+                {allSourcesChecked ? "All Systems Checked" : hasSourceFailure ? "Partial Sync Warning" : "Status Incomplete"}
               </span>
             </div>
 
@@ -567,13 +583,19 @@ export function MorningDigestModal({
                 <div className="flex items-center gap-2">
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      unread48hEstimate !== null ? "bg-forest" : "bg-[#d97706]"
+                    unread48hStatus === "ok" && sourcesStatus?.gmail !== "failed" ? "bg-forest" : "bg-[#d97706]"
                     }`}
                   />
                   <span className="text-[#455248]">Gmail Unread Query</span>
                 </div>
-                <span className="font-semibold text-[10px] text-forest">
-                  {unread48hEstimate !== null ? "48h Est. Active" : "Overall Est. Fallback"}
+                <span className={`font-semibold text-[10px] ${unread48hStatus === "ok" && sourcesStatus?.gmail !== "failed" ? "text-forest" : "text-[#b45309]"}`}>
+                  {sourcesStatus?.gmail === "failed"
+                    ? "Gmail query failed"
+                    : unread48hStatus === "ok"
+                      ? "48h estimate active"
+                      : unread48hStatus === "failed"
+                        ? "48h query unavailable"
+                        : "Not queried"}
                 </span>
               </div>
 
