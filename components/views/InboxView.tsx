@@ -113,6 +113,14 @@ export function InboxView({
         </div>
       </div>
 
+      {/* Scope Disclaimer banner */}
+      <div className="flex items-center gap-2 rounded-xl bg-[#faf6ed] px-3.5 py-2 text-[10.5px] text-[#856c3e] border border-[#f0e7d8]">
+        <Filter size={13} className="shrink-0 text-[#b45309]" />
+        <span>
+          <strong>Preview Scope:</strong> Showing top {mailList.length} recent messages for fast preview. Category filters and action tags reflect these loaded messages, not a full scan of all unread emails in Gmail.
+        </span>
+      </div>
+
       {/* Search and Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">

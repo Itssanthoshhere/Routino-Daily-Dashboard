@@ -23,7 +23,7 @@ type MobileSidebarProps = {
   onClose: () => void;
   activeNav: string;
   onSelectNav: (label: string) => void;
-  unreadCount: number;
+  unreadCount: number | string;
   isConnected: boolean;
   isOutlookConnected?: boolean;
   onOpenPreferences?: () => void;

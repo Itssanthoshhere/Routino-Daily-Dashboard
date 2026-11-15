@@ -54,6 +54,14 @@ export async function GET() {
     }
 
     const targetCals = Array.from(calendarMap.values()).slice(0, 20);
+    const calendarResults: Array<{
+      id: string;
+      summary: string;
+      color?: string;
+      status: "connected" | "checked" | "failed";
+      error?: string;
+      eventCount?: number;
+    }> = [];
 
     if (targetCals.length > 0) {
       const eventsPerCal = await Promise.all(
@@ -63,9 +71,25 @@ export async function GET() {
             const res = await googleFetch(
               `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500`
             );
-            if (!res.ok) return [];
+            if (!res.ok) {
+              calendarResults.push({
+                id: cal.id,
+                summary: cal.summary || (cal.id === "primary" ? "Primary Calendar" : cal.id),
+                color: cal.backgroundColor || "#4a6741",
+                status: "failed",
+                error: `HTTP ${res.status}`,
+              });
+              return [];
+            }
             const data = await res.json();
             const items = Array.isArray(data.items) ? data.items : [];
+            calendarResults.push({
+              id: cal.id,
+              summary: cal.summary || (cal.id === "primary" ? "Primary Calendar" : cal.id),
+              color: cal.backgroundColor || "#4a6741",
+              status: "checked",
+              eventCount: items.length,
+            });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             return items.map((item: any) => ({
               ...item,
@@ -73,7 +97,14 @@ export async function GET() {
               calendarSummary: cal.summary,
               calendarColor: cal.backgroundColor,
             }));
-          } catch {
+          } catch (err: any) {
+            calendarResults.push({
+              id: cal.id,
+              summary: cal.summary || (cal.id === "primary" ? "Primary Calendar" : cal.id),
+              color: cal.backgroundColor || "#4a6741",
+              status: "failed",
+              error: err?.message || "Network error",
+            });
             return [];
           }
         })
@@ -89,6 +120,14 @@ export async function GET() {
       if (primaryRes.ok) {
         const primaryData = await primaryRes.json();
         calendarEvents = Array.isArray(primaryData.items) ? primaryData.items : [];
+        if (!calendarResults.some(c => c.id === "primary")) {
+          calendarResults.push({
+            id: "primary",
+            summary: "Primary Calendar",
+            status: "checked",
+            eventCount: calendarEvents.length,
+          });
+        }
       }
     }
 
@@ -109,16 +148,25 @@ export async function GET() {
     });
 
     const mailData = mail.ok ? await mail.json() : { messages: [], resultSizeEstimate: 0 };
-    let unread48hEstimate = 0;
-    if (mail48hRes && mail48hRes.ok) {
-      try {
-        const d48 = await mail48hRes.json();
-        unread48hEstimate = typeof d48.resultSizeEstimate === "number" ? d48.resultSizeEstimate : (mailData.messages?.length ?? 0);
-      } catch {
-        unread48hEstimate = mailData.messages?.length ?? 0;
+    let unread48hEstimate: number | null = null;
+    let unread48hStatus: "ok" | "failed" | "not_queried" = "not_queried";
+
+    if (mail48hRes) {
+      if (mail48hRes.ok) {
+        try {
+          const d48 = await mail48hRes.json();
+          if (typeof d48.resultSizeEstimate === "number") {
+            unread48hEstimate = d48.resultSizeEstimate;
+            unread48hStatus = "ok";
+          } else {
+            unread48hStatus = "failed";
+          }
+        } catch {
+          unread48hStatus = "failed";
+        }
+      } else {
+        unread48hStatus = "failed";
       }
-    } else {
-      unread48hEstimate = mailData.resultSizeEstimate || (mailData.messages?.length ?? 0);
     }
 
     const messages = await Promise.all((mailData.messages ?? []).slice(0, 8).map(async ({ id }: { id: string }) => {
@@ -129,6 +177,7 @@ export async function GET() {
       const header = (name: string) => headers.find((item) => item.name.toLowerCase() === name.toLowerCase())?.value ?? "";
       return { id: message.id, threadId: message.threadId, from: header("From"), subject: header("Subject"), date: header("Date"), snippet: message.snippet ?? "" };
     }));
+
     return NextResponse.json({
       connected: true,
       user: {
@@ -138,14 +187,18 @@ export async function GET() {
       },
       events: finalEvents,
       unread: messages.filter(Boolean),
-      unreadEstimate: mailData.resultSizeEstimate ?? messages.filter(Boolean).length,
+      unreadEstimate: typeof mailData.resultSizeEstimate === "number" ? mailData.resultSizeEstimate : messages.filter(Boolean).length,
       unread48hEstimate,
+      unread48hStatus,
       lastSyncedAt: new Date().toISOString(),
-      calendarsChecked: targetCals.map((c: any) => ({
-        id: c.id,
-        summary: c.summary || (c.id === "primary" ? "Primary Calendar" : c.id),
-        color: c.backgroundColor || "#4a6741",
-      })),
+      calendarsChecked: calendarResults,
+      sourcesStatus: {
+        gmail: mail.ok ? "checked" : "failed",
+        calendarList: calendarListRes.ok ? "checked" : "failed",
+        calendarsTotal: targetCals.length,
+        calendarsChecked: calendarResults.filter(c => c.status === "checked").length,
+        calendarsFailed: calendarResults.filter(c => c.status === "failed").length,
+      },
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     return NextResponse.json({ connected: true, error: "Could not retrieve dashboard data." }, { status: 502 });

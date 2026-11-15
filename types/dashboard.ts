@@ -153,6 +153,17 @@ export type CalendarCheckInfo = {
   id: string;
   summary: string;
   color?: string;
+  status: "connected" | "checked" | "failed";
+  error?: string;
+  eventCount?: number;
+};
+
+export type SourcesStatus = {
+  gmail: "checked" | "failed";
+  calendarList: "checked" | "failed";
+  calendarsTotal: number;
+  calendarsChecked: number;
+  calendarsFailed: number;
 };
 
 export type DashboardData = {
@@ -165,9 +176,11 @@ export type DashboardData = {
   events: DashboardEvent[];
   unread: DashboardMail[];
   unreadEstimate?: number;
-  unread48hEstimate?: number;
+  unread48hEstimate?: number | null;
+  unread48hStatus?: "ok" | "failed" | "not_queried";
   lastSyncedAt?: string;
   calendarsChecked?: CalendarCheckInfo[];
+  sourcesStatus?: SourcesStatus;
   error?: string;
 };
 

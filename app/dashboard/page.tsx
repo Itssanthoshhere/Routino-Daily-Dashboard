@@ -990,11 +990,14 @@ export default function Home() {
     return sortedOverviewTasks.filter((t) => t.checked);
   }, [sortedOverviewTasks]);
 
+  const is48hEstimateAvailable = liveData?.unread48hEstimate !== null && liveData?.unread48hEstimate !== undefined;
+
   const unreadInboxCount = useMemo(() => {
-    return isConnected
-      ? (liveData?.unread48hEstimate ?? mailItems.filter((m) => !m.read).length)
-      : mailItems.filter((m) => !m.read).length;
-  }, [isConnected, liveData?.unread48hEstimate, mailItems]);
+    if (!isConnected) return mailItems.filter((m) => !m.read).length;
+    if (is48hEstimateAvailable) return `~${liveData!.unread48hEstimate}`;
+    if (typeof liveData?.unreadEstimate === "number") return `~${liveData.unreadEstimate}`;
+    return mailItems.filter((m) => !m.read).length;
+  }, [isConnected, is48hEstimateAvailable, liveData, mailItems]);
 
   /* ── Keyboard shortcuts ── */
   useEffect(() => {
@@ -1901,16 +1904,22 @@ export default function Home() {
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <span className="flex items-center gap-1 font-bold text-forest">
                       <CheckCircle2 size={13} />
-                      Verified Sources:
+                      Sources:
                     </span>
                     <button
                       type="button"
                       onClick={() => setShowMorningDigest(true)}
                       className="inline-flex items-center gap-1 rounded-md bg-[#f1f4ed] px-2 py-0.5 text-[10px] font-medium text-[#404c42] hover:bg-[#e4ebd9] transition cursor-pointer"
-                      title="View all calendars checked"
+                      title="View all calendars checked and failures"
                     >
                       <CalendarDays size={11} className="text-forest" />
-                      {liveData?.calendarsChecked?.length ? `${liveData.calendarsChecked.length} Calendars Checked` : "Google Calendar"}
+                      {(() => {
+                        const checked = liveData?.calendarsChecked?.filter(c => c.status === "checked").length ?? 0;
+                        const failed = liveData?.calendarsChecked?.filter(c => c.status === "failed").length ?? 0;
+                        if (failed > 0) return `${checked} Checked (${failed} Failed)`;
+                        if (checked > 0) return `${checked} Calendars Checked`;
+                        return "Google Calendar";
+                      })()}
                     </button>
                     <button
                       type="button"
@@ -1919,7 +1928,7 @@ export default function Home() {
                       title="Open Inbox"
                     >
                       <Inbox size={11} className="text-[#bd8054]" />
-                      Gmail ({unreadInboxCount} unread / 48h)
+                      Gmail ({unreadInboxCount} unread {is48hEstimateAvailable ? "est. / 48h" : "est."})
                     </button>
                     <button
                       type="button"
@@ -1991,8 +2000,8 @@ export default function Home() {
                 {/* Inbox summary */}
                 <button onClick={() => handleSelectNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">Needs a response</span><Inbox size={16} className="text-[#bd8054] group-hover:text-[#a0622e] transition" /></div>
-                  <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{unreadInboxCount}</span><span className="text-[11px] text-muted">unread (48h)</span></div>
-                  <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? "Filtered across last 48 hours" : "Connect Google to load your inbox"}</div>
+                  <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{unreadInboxCount}</span><span className="text-[11px] text-muted">{is48hEstimateAvailable ? "unread est. (48h)" : "unread est."}</span></div>
+                  <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? (is48hEstimateAvailable ? "Estimated messages in last 48h (Gmail query)" : "Estimated total unread messages") : "Connect Google to load your inbox"}</div>
                 </button>
 
                 {/* Focus summary */}
@@ -2797,6 +2806,7 @@ export default function Home() {
         events={allEvents}
         mail={mailItems}
         unread48hEstimate={liveData?.unread48hEstimate}
+        unreadTotalEstimate={liveData?.unreadEstimate}
         calendarsChecked={liveData?.calendarsChecked}
         lastSyncedAt={liveData?.lastSyncedAt}
         onRefresh={() => fetchDashboard(true)}

@@ -28,7 +28,8 @@ type MorningDigestModalProps = {
   tasks: Task[];
   events: DashboardEvent[];
   mail: DashboardMail[];
-  unread48hEstimate?: number;
+  unread48hEstimate?: number | null;
+  unreadTotalEstimate?: number;
   calendarsChecked?: CalendarCheckInfo[];
   lastSyncedAt?: string;
   onRefresh?: () => void;
@@ -42,7 +43,8 @@ export function MorningDigestModal({
   tasks,
   events,
   mail,
-  unread48hEstimate = 0,
+  unread48hEstimate = null,
+  unreadTotalEstimate = 0,
   calendarsChecked = [],
   lastSyncedAt,
   onRefresh,
@@ -198,12 +200,20 @@ export function MorningDigestModal({
           {/* KPI Snapshot Grid */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-xl border border-line bg-[#fafbf8] p-3.5">
-              <span className="text-[10px] font-semibold text-muted uppercase tracking-wider block">48h Unread Inbox</span>
+              <span className="text-[10px] font-semibold text-muted uppercase tracking-wider block">
+                {unread48hEstimate !== null ? "48h Unread (Est.)" : "Total Unread (Est.)"}
+              </span>
               <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-[20px] font-black text-ink">{unread48hEstimate || mail.length}</span>
-                <span className="text-[10px] text-muted">threads</span>
+                <span className="text-[20px] font-black text-ink">
+                  {unread48hEstimate !== null ? `~${unread48hEstimate}` : (unreadTotalEstimate ? `~${unreadTotalEstimate}` : mail.length)}
+                </span>
+                <span className="text-[10px] text-muted">messages</span>
               </div>
-              <span className="mt-1 block text-[9.5px] text-[#6d7970]">Active in last 2 days</span>
+              <span className="mt-1 block text-[9.5px] text-[#6d7970]">
+                {unread48hEstimate !== null
+                  ? "Estimated messages in last 2 days"
+                  : "Overall unread estimate (48h query unavailable)"}
+              </span>
             </div>
 
             <div className="rounded-xl border border-line bg-[#fafbf8] p-3.5">
@@ -305,14 +315,16 @@ export function MorningDigestModal({
             </div>
           </div>
 
-          {/* Actionable Email Alerts (Classified) */}
+          {/* Actionable Email Alerts (Classified from top preview messages) */}
           <div className="rounded-xl border border-line bg-white p-4">
-            <div className="flex items-center justify-between pb-3 border-b border-line">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-line gap-1">
               <div className="flex items-center gap-2">
                 <Mail size={14} className="text-forest" />
-                <h4 className="text-[12px] font-bold text-ink">Actionable Communications & Vendor Notices</h4>
+                <h4 className="text-[12px] font-bold text-ink">Actionable Communications ({mail.length} Loaded Preview Messages)</h4>
               </div>
-              <span className="text-[10px] text-muted">Filtered from latest inbox scan</span>
+              <span className="text-[10px] text-muted">
+                Classified from recent preview · Not a full scan of all {unread48hEstimate !== null ? `~${unread48hEstimate}` : "unread"} emails
+              </span>
             </div>
 
             <div className="mt-3 space-y-3">
@@ -452,15 +464,20 @@ export function MorningDigestModal({
             </div>
           </div>
 
-          {/* Upcoming Deadlines & Commitments */}
+          {/* Tracked Task Deadlines (Routino Board) */}
           <div className="rounded-xl border border-line bg-white p-4">
-            <div className="flex items-center justify-between pb-3 border-b border-line">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-line gap-1">
               <div className="flex items-center gap-2">
                 <Clock3 size={14} className="text-forest" />
-                <h4 className="text-[12px] font-bold text-ink">Upcoming Deadlines (Next 7 Days)</h4>
+                <h4 className="text-[12px] font-bold text-ink">Tracked Task Deadlines (Routino Board)</h4>
               </div>
-              <span className="text-[10px] text-muted">{urgentDeadlines.length + overdueTasks.length} commitments</span>
+              <span className="text-[10px] text-muted">
+                From your tracked tasks & goals · {urgentDeadlines.length + overdueTasks.length} commitments
+              </span>
             </div>
+            <p className="mt-2 text-[10px] text-muted">
+              Note: Deadlines are sourced from your active tasks in Routino. (Auto-extracting deadlines from raw email bodies is not active; add detected dates as tasks).
+            </p>
 
             <div className="mt-3 space-y-2">
               {overdueTasks.map((t) => (
@@ -503,51 +520,122 @@ export function MorningDigestModal({
 
           {/* Sources Verified & Sync Status Checklist */}
           <div className="rounded-xl border border-line bg-[#f8faf6] p-4">
-            <h4 className="text-[11.5px] font-bold text-ink uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <CheckCircle2 size={13} className="text-forest" />
-              Verified Data Sources & Health Checklist
-            </h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-[11.5px] font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+                <CheckCircle2 size={13} className="text-forest" />
+                Data Sources Review Checklist
+              </h4>
+              <span className={`text-[10px] font-semibold ${calendarsChecked.some(c => c.status === "failed") ? "text-[#b45309]" : "text-forest"}`}>
+                {calendarsChecked.some(c => c.status === "failed") ? "Partial Sync Warning" : "All Systems Checked"}
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              {/* Primary Google */}
               <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 border border-[#edf0e9]">
-                <span className="text-[#455248]">Primary Google Account</span>
-                <span className="font-semibold text-forest">✓ Connected (Read-Only)</span>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-forest" />
+                  <span className="text-[#455248]">Primary Google Account</span>
+                </div>
+                <span className="font-semibold text-forest text-[10px]">Connected (Read-Only)</span>
               </div>
+
+              {/* Calendars */}
               <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 border border-[#edf0e9]">
-                <span className="text-[#455248]">Active Calendars Verified</span>
-                <span className="font-semibold text-forest">
-                  ✓ {calendarsChecked.length > 0 ? `${calendarsChecked.length} Calendars` : "Synced"}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      calendarsChecked.some((c) => c.status === "failed") ? "bg-[#d97706]" : "bg-forest"
+                    }`}
+                  />
+                  <span className="text-[#455248]">Calendar Sources</span>
+                </div>
+                <span
+                  className={`font-semibold text-[10px] ${
+                    calendarsChecked.some((c) => c.status === "failed") ? "text-[#b45309]" : "text-forest"
+                  }`}
+                >
+                  {calendarsChecked.filter((c) => c.status === "checked").length} Checked
+                  {calendarsChecked.some((c) => c.status === "failed")
+                    ? ` · ${calendarsChecked.filter((c) => c.status === "failed").length} Failed`
+                    : " · 0 Failed"}
                 </span>
               </div>
+
+              {/* Gmail API */}
               <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 border border-[#edf0e9]">
-                <span className="text-[#455248]">Gmail Unread Scan (48h)</span>
-                <span className="font-semibold text-forest">✓ Real-time indexed</span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      unread48hEstimate !== null ? "bg-forest" : "bg-[#d97706]"
+                    }`}
+                  />
+                  <span className="text-[#455248]">Gmail Unread Query</span>
+                </div>
+                <span className="font-semibold text-[10px] text-forest">
+                  {unread48hEstimate !== null ? "48h Est. Active" : "Overall Est. Fallback"}
+                </span>
               </div>
+
+              {/* Privacy & Storage */}
               <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 border border-[#edf0e9]">
-                <span className="text-[#455248]">Client-Side Privacy</span>
-                <span className="font-semibold text-forest">✓ Zero Data Stored on Server</span>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-forest" />
+                  <span className="text-[#455248]">Privacy & Data Policy</span>
+                </div>
+                <span className="font-semibold text-forest text-[10px]">AES-256 Client-Encrypted Notes</span>
               </div>
             </div>
 
+            {/* Detailed per-calendar breakdown */}
             {calendarsChecked.length > 0 && (
-              <div className="mt-3 pt-2.5 border-t border-[#edf0e9] flex flex-wrap gap-1.5 items-center">
-                <span className="text-[10px] text-muted mr-1">Calendars checked:</span>
-                {calendarsChecked.map((c) => (
-                  <span
-                    key={c.id}
-                    className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 text-[9.5px] text-[#455248] border border-[#edf0e9]"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color || "#4a6741" }} />
-                    {c.summary}
-                  </span>
-                ))}
+              <div className="mt-3.5 pt-3 border-t border-[#edf0e9] space-y-1.5">
+                <span className="text-[10px] font-semibold text-muted block">Calendar Query Breakdown:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {calendarsChecked.map((c) => {
+                    const isChecked = c.status === "checked";
+                    const isFailed = c.status === "failed";
+                    return (
+                      <span
+                        key={c.id}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[9.5px] border ${
+                          isChecked
+                            ? "bg-white text-[#455248] border-[#edf0e9]"
+                            : isFailed
+                            ? "bg-[#fff5f5] text-[#b91c1c] border-[#fecaca]"
+                            : "bg-[#f5f5f5] text-muted border-line"
+                        }`}
+                        title={
+                          isFailed
+                            ? `Failed to query: ${c.error || "Unknown error"}`
+                            : `Checked: ${c.eventCount ?? 0} events`
+                        }
+                      >
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: isFailed ? "#b91c1c" : c.color || "#4a6741" }}
+                        />
+                        <span>{c.summary}</span>
+                        <span className="font-bold text-[8.5px] opacity-75">
+                          {isChecked ? `(✓ ${c.eventCount ?? 0})` : isFailed ? "(✗ Failed)" : "(Connected)"}
+                        </span>
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {lastSyncedAt && (
-              <p className="mt-2 text-[10px] text-muted text-right">
-                Last refreshed at {new Date(lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </p>
-            )}
+            <div className="mt-3 pt-2.5 border-t border-[#edf0e9] flex flex-col sm:flex-row sm:items-center justify-between text-[10px] text-muted gap-1">
+              <span>
+                Workspace tasks and settings persist securely. Keep Notes are client-side encrypted before storage.
+              </span>
+              {lastSyncedAt && (
+                <span className="shrink-0">
+                  Last refreshed {new Date(lastSyncedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
