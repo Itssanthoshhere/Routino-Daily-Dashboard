@@ -441,6 +441,7 @@ export default function Home() {
   const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
   const [overviewTasksTab, setOverviewTasksTab] = useState<"active" | "completed">("active");
   const [showMorningDigest, setShowMorningDigest] = useState(false);
+  const [taskModalInitialData, setTaskModalInitialData] = useState<Partial<Omit<Task, "id" | "checked" | "createdAt">> | null>(null);
   const [isSyncingGoogle, setIsSyncingGoogle] = useState(false);
   const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
 
@@ -1376,6 +1377,35 @@ export default function Home() {
     toast(`"${newTask.title}" added to priorities`);
   };
 
+  const handleCreateTaskFromEmail = useCallback((mail: DashboardMail) => {
+    const classification = classifyEmail(mail);
+    const cat =
+      classification?.variant === "security" || classification?.variant === "infra"
+        ? "urgent"
+        : classification?.variant === "career"
+        ? "work"
+        : "work";
+
+    const senderClean = mail.from.replace(/<[^>]*>/, "").trim();
+    const directLink = mail.href || (mail.source === "outlook" ? "https://outlook.live.com" : `https://mail.google.com/mail/u/0/#inbox/${mail.id}`);
+
+    setTaskModalInitialData({
+      title: mail.subject ? `Follow up: ${mail.subject}` : "Follow up on email",
+      meta: `From: ${senderClean} · Received ${mail.date || "recently"}`,
+      category: cat,
+      dueDate: "", // Explicit user review; do not guess deadlines!
+      priority: classification?.variant === "security" || classification?.variant === "infra",
+      subtasks: [
+        {
+          id: "sub-1",
+          title: `Review message details (${directLink})`,
+          completed: false,
+        },
+      ],
+    });
+    setShowTaskModal(true);
+  }, []);
+
   const addEvent = (event: DashboardEvent) => {
     setCustomEvents(prev => {
       const next = [...prev, event];
@@ -1823,6 +1853,7 @@ export default function Home() {
               onSelectMail={(m) => setViewingMail(m)}
               onToggleStar={toggleMailStar}
               onToggleRead={toggleMailRead}
+              onCreateTask={handleCreateTaskFromEmail}
               isConnected={isConnected}
             />
           ) : activeNav === "Tasks" ? (
@@ -2810,6 +2841,8 @@ export default function Home() {
         unreadTotalEstimate={liveData?.unreadEstimate}
         calendarsChecked={liveData?.calendarsChecked}
         sourcesStatus={liveData?.sourcesStatus}
+        isOutlookConnected={Boolean(outlookData.connected)}
+        onCreateTaskFromMail={handleCreateTaskFromEmail}
         lastSyncedAt={liveData?.lastSyncedAt}
         onRefresh={() => fetchDashboard(true)}
         isRefreshing={isSyncingGoogle}
@@ -2849,8 +2882,12 @@ export default function Home() {
       />
       <TaskModal
         isOpen={showTaskModal}
-        onClose={() => setShowTaskModal(false)}
+        onClose={() => {
+          setShowTaskModal(false);
+          setTaskModalInitialData(null);
+        }}
         onAddTask={addTask}
+        initialTask={taskModalInitialData}
       />
       <EventModal
         isOpen={showEventModal}
@@ -2864,6 +2901,7 @@ export default function Home() {
         mail={viewingMail}
         onToggleStar={toggleMailStar}
         onToggleRead={toggleMailRead}
+        onCreateTask={handleCreateTaskFromEmail}
       />
       <QuickLinkModal
         isOpen={showQuickLinkModal}

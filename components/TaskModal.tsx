@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, X, AlertCircle, CheckSquare, Trash2, Plane, Sparkles, Calendar } from "lucide-react";
 import { Task, SubTask } from "@/types/dashboard";
 import { inferTaskCategory } from "@/lib/meeting";
@@ -9,9 +9,10 @@ type TaskModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">) => void;
+  initialTask?: Partial<Omit<Task, "id" | "checked" | "createdAt">> | null;
 };
 
-export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModalProps) {
   const [title, setTitle] = useState("");
   const [meta, setMeta] = useState("");
   const [priority, setPriority] = useState(false);
@@ -20,6 +21,29 @@ export function TaskModal({ isOpen, onClose, onAddTask }: TaskModalProps) {
   const [hasUserPickedCategory, setHasUserPickedCategory] = useState(false);
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [subtaskInput, setSubtaskInput] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialTask) {
+        setTitle(initialTask.title || "");
+        setMeta(initialTask.meta || "");
+        setPriority(initialTask.priority ?? false);
+        setCategory(initialTask.category || "work");
+        setDueDate(initialTask.dueDate || "");
+        setHasUserPickedCategory(!!initialTask.category);
+        setSubtasks(initialTask.subtasks || []);
+      } else {
+        setTitle("");
+        setMeta("");
+        setPriority(false);
+        setCategory("work");
+        setDueDate("");
+        setHasUserPickedCategory(false);
+        setSubtasks([]);
+      }
+      setSubtaskInput("");
+    }
+  }, [isOpen, initialTask]);
 
   if (!isOpen) return null;
 

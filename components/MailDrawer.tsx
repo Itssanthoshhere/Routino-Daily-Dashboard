@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Star, ExternalLink, X, Reply, Check, Trash2 } from "lucide-react";
+import { Mail, Star, ExternalLink, X, Reply, Check, Trash2, ListTodo } from "lucide-react";
 import { DashboardMail } from "@/types/dashboard";
 
 type MailDrawerProps = {
@@ -10,9 +10,10 @@ type MailDrawerProps = {
   mail: DashboardMail | null;
   onToggleStar?: (id: string) => void;
   onToggleRead?: (id: string) => void;
+  onCreateTask?: (mail: DashboardMail) => void;
 };
 
-export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead }: MailDrawerProps) {
+export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead, onCreateTask }: MailDrawerProps) {
   const [replyText, setReplyText] = useState("");
   const [replied, setReplied] = useState(false);
 
@@ -45,6 +46,19 @@ export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead }
               </div>
             </div>
             <div className="flex items-center gap-1">
+              {onCreateTask && (
+                <button
+                  onClick={() => {
+                    onCreateTask(mail);
+                    onClose();
+                  }}
+                  className="rounded-lg p-2 text-muted hover:text-forest hover:bg-[#f1f3ed] transition cursor-pointer"
+                  title="Create task from this email"
+                  aria-label="Create task"
+                >
+                  <ListTodo size={16} />
+                </button>
+              )}
               <button
                 onClick={() => onToggleStar?.(mail.id)}
                 className={`rounded-lg p-2 transition ${
@@ -102,6 +116,27 @@ export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead }
                   : "Message snippet provided via Gmail API read-only scope."}
               </div>
             </div>
+
+            {/* Action Queue: Convert to Task */}
+            {onCreateTask && (
+              <div className="flex items-center justify-between rounded-xl border border-[#edf0e9] bg-[#fafbf8] p-3 text-[11px]">
+                <div>
+                  <p className="font-semibold text-ink">Turn into an action item?</p>
+                  <p className="text-[10px] text-muted">Prefill title & link, then pick your deadline.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onCreateTask(mail);
+                    onClose();
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-[10.5px] font-semibold text-white hover:bg-[#8b1116] transition cursor-pointer"
+                >
+                  <ListTodo size={12} />
+                  <span>Convert to Task</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

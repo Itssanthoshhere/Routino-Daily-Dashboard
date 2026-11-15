@@ -16,6 +16,8 @@ import {
   RefreshCw,
   ExternalLink,
   ChevronRight,
+  ListTodo,
+  HardDrive,
 } from "lucide-react";
 import type { Task, DashboardEvent, DashboardMail, CalendarCheckInfo, SourcesStatus } from "@/types/dashboard";
 import { classifyEmail } from "@/lib/email-classifier";
@@ -33,6 +35,8 @@ type MorningDigestModalProps = {
   unreadTotalEstimate?: number;
   calendarsChecked?: CalendarCheckInfo[];
   sourcesStatus?: SourcesStatus;
+  isOutlookConnected?: boolean;
+  onCreateTaskFromMail?: (mail: DashboardMail) => void;
   lastSyncedAt?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -50,6 +54,8 @@ export function MorningDigestModal({
   unreadTotalEstimate = 0,
   calendarsChecked = [],
   sourcesStatus,
+  isOutlookConnected = false,
+  onCreateTaskFromMail,
   lastSyncedAt,
   onRefresh,
   isRefreshing = false,
@@ -208,7 +214,8 @@ export function MorningDigestModal({
             <p className="mt-1 text-[11.5px] text-[#556358] leading-relaxed">
               Your connected Gmail, Google Calendar profiles, and active priorities have been consolidated.
               {securityEmails.length > 0 && " There are security & authentication notices requiring verification."}
-              {infraEmails.length > 0 && " Developer infrastructure alerts have upcoming service deadlines."}
+              {infraEmails.length > 0 && " Developer infrastructure alerts detected in recent preview."}
+              {urgentDeadlines.length > 0 && ` You have ${urgentDeadlines.length} tracked task deadline(s) coming up.`}
               {overdueTasks.length > 0 && ` You have ${overdueTasks.length} overdue task commitment(s).`}
             </p>
           </div>
@@ -362,14 +369,29 @@ export function MorningDigestModal({
                       <p className="mt-1 text-[10.5px] text-[#556358] line-clamp-2">{m.snippet}</p>
                       <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted">
                         <span>From: {m.from}</span>
-                        <a
-                          href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-forest hover:underline inline-flex items-center gap-0.5"
-                        >
-                          Review in Gmail <ExternalLink size={9} />
-                        </a>
+                        <div className="flex items-center gap-2">
+                          {onCreateTaskFromMail && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onCreateTaskFromMail(m);
+                                onClose();
+                              }}
+                              className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
+                            >
+                              <ListTodo size={9} />
+                              <span>+ Create Task</span>
+                            </button>
+                          )}
+                          <a
+                            href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-forest hover:underline inline-flex items-center gap-0.5"
+                          >
+                            Review in Gmail <ExternalLink size={9} />
+                          </a>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -394,14 +416,29 @@ export function MorningDigestModal({
                       <p className="mt-1 text-[10.5px] text-[#556358] line-clamp-2">{m.snippet}</p>
                       <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted">
                         <span>From: {m.from}</span>
-                        <a
-                          href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-forest hover:underline inline-flex items-center gap-0.5"
-                        >
-                          View details <ChevronRight size={9} />
-                        </a>
+                        <div className="flex items-center gap-2">
+                          {onCreateTaskFromMail && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onCreateTaskFromMail(m);
+                                onClose();
+                              }}
+                              className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
+                            >
+                              <ListTodo size={9} />
+                              <span>+ Create Task</span>
+                            </button>
+                          )}
+                          <a
+                            href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-forest hover:underline inline-flex items-center gap-0.5"
+                          >
+                            View details <ChevronRight size={9} />
+                          </a>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -426,14 +463,29 @@ export function MorningDigestModal({
                       <p className="mt-1 text-[10.5px] text-[#556358] line-clamp-2">{m.snippet}</p>
                       <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted">
                         <span>From: {m.from}</span>
-                        <a
-                          href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-forest hover:underline inline-flex items-center gap-0.5"
-                        >
-                          Open message <ExternalLink size={9} />
-                        </a>
+                        <div className="flex items-center gap-2">
+                          {onCreateTaskFromMail && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onCreateTaskFromMail(m);
+                                onClose();
+                              }}
+                              className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
+                            >
+                              <ListTodo size={9} />
+                              <span>+ Create Task</span>
+                            </button>
+                          )}
+                          <a
+                            href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-forest hover:underline inline-flex items-center gap-0.5"
+                          >
+                            Open message <ExternalLink size={9} />
+                          </a>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -458,14 +510,29 @@ export function MorningDigestModal({
                       <p className="mt-1 text-[10.5px] text-[#556358] line-clamp-2">{m.snippet}</p>
                       <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted">
                         <span>From: {m.from}</span>
-                        <a
-                          href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-forest hover:underline inline-flex items-center gap-0.5"
-                        >
-                          View alert <ExternalLink size={9} />
-                        </a>
+                        <div className="flex items-center gap-2">
+                          {onCreateTaskFromMail && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onCreateTaskFromMail(m);
+                                onClose();
+                              }}
+                              className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
+                            >
+                              <ListTodo size={9} />
+                              <span>+ Create Task</span>
+                            </button>
+                          )}
+                          <a
+                            href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-forest hover:underline inline-flex items-center gap-0.5"
+                          >
+                            View alert <ExternalLink size={9} />
+                          </a>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -542,7 +609,11 @@ export function MorningDigestModal({
                 Data Sources Review Checklist
               </h4>
               <span className={`text-[10px] font-semibold ${allSourcesChecked ? "text-forest" : "text-[#b45309]"}`}>
-                {allSourcesChecked ? "All Systems Checked" : hasSourceFailure ? "Partial Sync Warning" : "Status Incomplete"}
+                {allSourcesChecked
+                  ? (isOutlookConnected ? "All Connected Sources Checked" : "Google Sources Checked")
+                  : hasSourceFailure
+                  ? "Partial Sync Warning"
+                  : "Status Incomplete"}
               </span>
             </div>
 
@@ -564,7 +635,7 @@ export function MorningDigestModal({
                       calendarsChecked.some((c) => c.status === "failed") ? "bg-[#d97706]" : "bg-forest"
                     }`}
                   />
-                  <span className="text-[#455248]">Calendar Sources</span>
+                  <span className="text-[#455248]">Google Calendars</span>
                 </div>
                 <span
                   className={`font-semibold text-[10px] ${
@@ -597,6 +668,26 @@ export function MorningDigestModal({
                         ? "48h query unavailable"
                         : "Not queried"}
                 </span>
+              </div>
+
+              {/* Microsoft Outlook */}
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 border border-[#edf0e9]">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${isOutlookConnected ? "bg-[#0078d4]" : "bg-muted/40"}`} />
+                  <span className="text-[#455248]">Microsoft Outlook</span>
+                </div>
+                <span className={`font-semibold text-[10px] ${isOutlookConnected ? "text-[#0078d4]" : "text-muted"}`}>
+                  {isOutlookConnected ? "Connected & Synced" : "Not Connected"}
+                </span>
+              </div>
+
+              {/* Google Drive */}
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 border border-[#edf0e9]">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-forest" />
+                  <span className="text-[#455248]">Google Drive</span>
+                </div>
+                <span className="font-semibold text-forest text-[10px]">Metadata Sync Active</span>
               </div>
 
               {/* Privacy & Storage */}

@@ -14,6 +14,7 @@ import {
   CreditCard,
   Server,
   Briefcase,
+  ListTodo,
 } from "lucide-react";
 import { DashboardMail } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
@@ -35,6 +36,7 @@ type InboxViewProps = {
   onSelectMail: (mail: DashboardMail) => void;
   onToggleStar: (id: string) => void;
   onToggleRead: (id: string) => void;
+  onCreateTask?: (mail: DashboardMail) => void;
   isConnected: boolean;
 };
 
@@ -43,6 +45,7 @@ export function InboxView({
   onSelectMail,
   onToggleStar,
   onToggleRead,
+  onCreateTask,
   isConnected,
 }: InboxViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -347,7 +350,20 @@ export function InboxView({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0 self-center">
+                <div className="flex items-center gap-1.5 shrink-0 self-center">
+                  {onCreateTask && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreateTask(mail);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-[#5c6960] hover:text-forest hover:border-forest/40 hover:bg-[#fafbf7] transition cursor-pointer"
+                      title="Create a reviewable task from this email"
+                    >
+                      <ListTodo size={11} className="text-forest" />
+                      <span>+ Task</span>
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
