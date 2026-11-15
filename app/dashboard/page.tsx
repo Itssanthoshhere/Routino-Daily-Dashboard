@@ -419,7 +419,9 @@ export default function Home() {
   const [focusMinutes, setFocusMinutes] = useState(appConfig.defaults.focusMinutes);
   const [hydrated, setHydrated] = useState(false);
   const [gmailNextPageToken, setGmailNextPageToken] = useState<string | null>(null);
+  const [gmailExhausted, setGmailExhausted] = useState(false);
   const [outlookNextSkip, setOutlookNextSkip] = useState<number | null>(null);
+  const [outlookExhausted, setOutlookExhausted] = useState(false);
   const [isLoadingMoreMail, setIsLoadingMoreMail] = useState(false);
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
@@ -738,9 +740,15 @@ export default function Home() {
           const deeper = prev.filter((m) => !freshIds.has(m.id));
           return [...freshUnread, ...deeper];
         });
-        setGmailNextPageToken((prev) =>
-          resetPages ? (result.nextPageToken || null) : (prev ?? result.nextPageToken ?? null)
-        );
+        if (resetPages) {
+          setGmailExhausted(!result.nextPageToken);
+          setGmailNextPageToken(result.nextPageToken || null);
+        } else {
+          setGmailNextPageToken((prev) => {
+            if (gmailExhausted) return null;
+            return prev ?? result.nextPageToken ?? null;
+          });
+        }
         const syncDate = result.lastSyncedAt ? new Date(result.lastSyncedAt) : new Date();
         setLastSyncedTime(syncDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
         if (notify) {
@@ -752,7 +760,7 @@ export default function Home() {
     } finally {
       setIsSyncingGoogle(false);
     }
-  }, [toast]);
+  }, [toast, gmailExhausted]);
 
   useEffect(() => {
     fetchDashboard(false);
@@ -793,16 +801,19 @@ export default function Home() {
               syncStatus: data.syncStatus,
             };
           });
-          setOutlookNextSkip((prev) => {
-            if (resetPages) {
-              return freshUnread.length >= 8 ? freshUnread.length : null;
-            }
-            return prev && prev > freshUnread.length
-              ? prev
-              : freshUnread.length >= 8
-              ? freshUnread.length
-              : null;
-          });
+          if (resetPages) {
+            setOutlookExhausted(freshUnread.length < 8);
+            setOutlookNextSkip(freshUnread.length >= 8 ? freshUnread.length : null);
+          } else {
+            setOutlookNextSkip((prev) => {
+              if (outlookExhausted) return null;
+              return prev && prev > freshUnread.length
+                ? prev
+                : freshUnread.length >= 8
+                ? freshUnread.length
+                : null;
+            });
+          }
         } else {
           setOutlookData({
             connected: false,
@@ -811,6 +822,7 @@ export default function Home() {
             syncStatus: { calendar: "failed", mail: "failed", overall: "failed" },
           });
           setOutlookNextSkip(null);
+          setOutlookExhausted(true);
         }
       } else {
         setOutlookData((prev) => ({
@@ -824,7 +836,7 @@ export default function Home() {
         syncStatus: { calendar: "failed", mail: "failed", overall: "failed" },
       }));
     }
-  }, []);
+  }, [outlookExhausted]);
 
   useEffect(() => {
     void fetchOutlookData();
@@ -1459,7 +1471,12 @@ export default function Home() {
         : "work";
 
     const senderClean = mail.from.replace(/<[^>]*>/, "").trim();
-    const directLink = mail.href || (mail.source === "outlook" ? "https://outlook.live.com" : `https://mail.google.com/mail/u/0/#inbox/${mail.id}`);
+    const mailIdClean = mail.id.replace(/^outlook-/, "");
+    const directLink =
+      mail.href ||
+      (mail.source === "outlook"
+        ? `https://outlook.live.com/mail/0/deeplink/read/${encodeURIComponent(mailIdClean)}`
+        : `https://mail.google.com/mail/u/0/#inbox/${encodeURIComponent(mail.id)}`);
 
     setTaskModalInitialData({
       title: mail.subject ? `Follow up: ${mail.subject}` : "Follow up on email",
@@ -1504,7 +1521,12 @@ export default function Home() {
               return [...prev, ...fresh];
             });
           }
-          setGmailNextPageToken(data.nextPageToken || null);
+          if (!data.nextPageToken) {
+            setGmailNextPageToken(null);
+            setGmailExhausted(true);
+          } else {
+            setGmailNextPageToken(data.nextPageToken);
+          }
         } else {
           hasError = true;
           try {
@@ -1535,7 +1557,12 @@ export default function Home() {
               };
             });
           }
-          setOutlookNextSkip(data.nextSkip ?? null);
+          if (!data.hasMore || data.nextSkip === undefined) {
+            setOutlookNextSkip(null);
+            setOutlookExhausted(true);
+          } else {
+            setOutlookNextSkip(data.nextSkip);
+          }
         } else {
           hasError = true;
           try {
@@ -1547,7 +1574,9 @@ export default function Home() {
         }
       }
 
-      if (hasError && addedTotal === 0) {
+      if (hasError && addedTotal > 0) {
+        toast(`Loaded ${addedTotal} additional email${addedTotal > 1 ? "s" : ""} (note: ${errorMsg.toLowerCase()})`);
+      } else if (hasError && addedTotal === 0) {
         toast(errorMsg || "Could not load more emails right now");
       } else if (addedTotal > 0) {
         toast(`Loaded ${addedTotal} additional unread email${addedTotal > 1 ? "s" : ""}`);
@@ -1559,7 +1588,7 @@ export default function Home() {
     } finally {
       setIsLoadingMoreMail(false);
     }
-  }, [isLoadingMoreMail, liveData?.connected, gmailNextPageToken, outlookData.connected, outlookNextSkip]);
+  }, [isLoadingMoreMail, liveData?.connected, gmailNextPageToken, outlookData.connected, outlookNextSkip, toast]);
 
   const addEvent = (event: DashboardEvent) => {
     setCustomEvents(prev => {
@@ -2014,7 +2043,7 @@ export default function Home() {
               isConnected={isConnected}
               onLoadMore={handleLoadMoreMail}
               isLoadingMore={isLoadingMoreMail}
-              hasMore={Boolean(gmailNextPageToken || outlookNextSkip !== null)}
+              hasMore={Boolean((gmailNextPageToken && !gmailExhausted) || (outlookNextSkip !== null && !outlookExhausted))}
             />
           ) : activeNav === "Tasks" ? (
             <TasksView
@@ -3037,7 +3066,10 @@ export default function Home() {
         onCreateTaskFromMail={handleCreateTaskFromEmail}
         onOpenTask={handleOpenExistingTask}
         lastSyncedAt={liveData?.lastSyncedAt}
-        onRefresh={() => fetchDashboard(true)}
+        onRefresh={() => {
+          void fetchDashboard(true, true);
+          void fetchOutlookData(true);
+        }}
         isRefreshing={isSyncingGoogle}
       />
       <DailyDeskSheetModal

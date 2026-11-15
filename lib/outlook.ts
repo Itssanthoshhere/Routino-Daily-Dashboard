@@ -201,7 +201,7 @@ export async function fetchOutlookMessages(
       read: false,
       starred: msg.importance === "high",
       category: "outlook",
-      href: msg.webLink || "https://outlook.live.com/mail",
+      href: msg.webLink || `https://outlook.live.com/mail/0/deeplink/read/${encodeURIComponent(msg.id)}`,
       source: "outlook",
     };
   });
