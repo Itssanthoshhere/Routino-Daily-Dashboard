@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ListTodo,
   Plus,
@@ -30,6 +30,7 @@ type TasksViewProps = {
   onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">) => void;
   onOpenTaskModal: () => void;
   onToggleSubTask?: (taskId: string, subtaskId: string) => void;
+  highlightedTaskId?: string | null;
 };
 
 export function TasksView({
@@ -39,6 +40,7 @@ export function TasksView({
   onAddTask,
   onOpenTaskModal,
   onToggleSubTask,
+  highlightedTaskId,
 }: TasksViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "today" | "upcoming" | "priority" | "project" | "travel" | "completed">("all");
@@ -48,6 +50,17 @@ export function TasksView({
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
 
   const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
+
+  useEffect(() => {
+    if (highlightedTaskId) {
+      setExpandedTasks((prev) => ({ ...prev, [highlightedTaskId]: true }));
+      const timer = setTimeout(() => {
+        const el = document.getElementById("task-row-" + highlightedTaskId);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedTaskId]);
 
   const toggleExpand = (id: string) => {
     setExpandedTasks((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -347,7 +360,15 @@ export function TasksView({
                 task.checked && (idx === 0 || !sortedTasks[idx - 1].checked) && selectedFilter !== "completed";
 
               return (
-                <div key={task.id}>
+                <div
+                  key={task.id}
+                  id={"task-row-" + task.id}
+                  className={`transition duration-300 ${
+                    task.id === highlightedTaskId
+                      ? "ring-2 ring-forest/70 bg-[#f4f7ef] rounded-xl my-1 shadow-sm"
+                      : ""
+                  }`}
+                >
                   {isFirstCompleted && (
                     <div className="bg-[#fafbf8] px-4 py-2 border-b border-[#eff1ec] flex items-center justify-between text-[10.5px] font-bold text-muted uppercase tracking-wider">
                       <span>Completed ({sortedTasks.filter((t) => t.checked).length})</span>

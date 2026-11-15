@@ -15,10 +15,12 @@ import {
   Server,
   Briefcase,
   ListTodo,
+  RefreshCw,
 } from "lucide-react";
-import { DashboardMail } from "@/types/dashboard";
+import { DashboardMail, Task } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
 import { classifyEmail } from "@/lib/email-classifier";
+import { findTaskForEmail } from "@/lib/email-task";
 
 type InboxFilterType =
   | "all"
@@ -33,20 +35,30 @@ type InboxFilterType =
 
 type InboxViewProps = {
   mailList: DashboardMail[];
+  tasks?: Task[];
   onSelectMail: (mail: DashboardMail) => void;
   onToggleStar: (id: string) => void;
   onToggleRead: (id: string) => void;
   onCreateTask?: (mail: DashboardMail) => void;
+  onOpenTask?: (taskId: string) => void;
   isConnected: boolean;
+  onLoadMore?: () => void;
+  isLoadingMore?: boolean;
+  hasMore?: boolean;
 };
 
 export function InboxView({
   mailList,
+  tasks = [],
   onSelectMail,
   onToggleStar,
   onToggleRead,
   onCreateTask,
+  onOpenTask,
   isConnected,
+  onLoadMore,
+  isLoadingMore = false,
+  hasMore = false,
 }: InboxViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<InboxFilterType>("all");
@@ -117,11 +129,24 @@ export function InboxView({
       </div>
 
       {/* Scope Disclaimer banner */}
-      <div className="flex items-center gap-2 rounded-xl bg-[#faf6ed] px-3.5 py-2 text-[10.5px] text-[#856c3e] border border-[#f0e7d8]">
-        <Filter size={13} className="shrink-0 text-[#b45309]" />
-        <span>
-          <strong>Preview Scope:</strong> Showing top {mailList.length} recent messages for fast preview. Category filters and action tags reflect these loaded messages, not a full scan of all unread emails in Gmail.
-        </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl bg-[#faf6ed] px-3.5 py-2.5 text-[11px] text-[#856c3e] border border-[#f0e7d8]">
+        <div className="flex items-center gap-2">
+          <Filter size={13} className="shrink-0 text-[#b45309]" />
+          <span>
+            <strong>Loaded Messages:</strong> Showing {mailList.length} recent unread message{mailList.length !== 1 ? "s" : ""}. Category filters reflect these loaded emails.
+          </span>
+        </div>
+        {onLoadMore && hasMore && (
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-lg bg-white/90 border border-[#e2d5c0] px-2.5 py-1 text-[10px] font-bold text-[#856c3e] hover:bg-white hover:border-[#b45309]/40 transition cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw size={10} className={isLoadingMore ? "animate-spin text-[#b45309]" : "text-[#b45309]"} />
+            <span>{isLoadingMore ? "Loading..." : "Load more unread +"}</span>
+          </button>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -351,19 +376,42 @@ export function InboxView({
 
                 {/* Actions */}
                 <div className="flex items-center gap-1.5 shrink-0 self-center">
-                  {onCreateTask && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCreateTask(mail);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-[#5c6960] hover:text-forest hover:border-forest/40 hover:bg-[#fafbf7] transition cursor-pointer"
-                      title="Create a reviewable task from this email"
-                    >
-                      <ListTodo size={11} className="text-forest" />
-                      <span>+ Task</span>
-                    </button>
-                  )}
+                  {(() => {
+                    const existingTask = tasks.length > 0 ? findTaskForEmail(mail, tasks) : undefined;
+                    if (existingTask) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenTask?.(existingTask.id);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-forest/30 bg-[#f4f7ef] px-2 py-1 text-[10px] font-semibold text-forest hover:bg-[#ebf2e3] hover:border-forest/50 transition cursor-pointer"
+                          title={`Task already tracked: "${existingTask.title}" (${existingTask.checked ? "Completed" : "Active"}). Click to open.`}
+                        >
+                          <CheckCircle2 size={11} className="text-forest" />
+                          <span>View Task</span>
+                        </button>
+                      );
+                    }
+                    if (onCreateTask) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCreateTask(mail);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-line bg-white px-2 py-1 text-[10px] font-semibold text-[#5c6960] hover:text-forest hover:border-forest/40 hover:bg-[#fafbf7] transition cursor-pointer"
+                          title="Create a reviewable task from this email"
+                        >
+                          <ListTodo size={11} className="text-forest" />
+                          <span>+ Task</span>
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -385,6 +433,21 @@ export function InboxView({
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Load More Footer */}
+        {filteredMail.length > 0 && onLoadMore && hasMore && (
+          <div className="p-4 text-center border-t border-[#edf0e9] bg-[#fafbf8]">
+            <button
+              type="button"
+              onClick={onLoadMore}
+              disabled={isLoadingMore}
+              className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-4 py-2 text-[11px] font-semibold text-ink hover:bg-[#f1f3ed] hover:border-forest/40 transition disabled:opacity-50 cursor-pointer shadow-sm"
+            >
+              <RefreshCw size={12} className={isLoadingMore ? "animate-spin text-forest" : "text-forest"} />
+              <span>{isLoadingMore ? "Loading more unread messages..." : `Load more unread messages (${mailList.length} loaded)`}</span>
+            </button>
           </div>
         )}
       </div>

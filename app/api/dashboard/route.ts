@@ -232,6 +232,7 @@ export async function GET() {
       unreadEstimate: typeof mailData.resultSizeEstimate === "number" ? mailData.resultSizeEstimate : messages.filter(Boolean).length,
       unread48hEstimate,
       unread48hStatus,
+      nextPageToken: mailData.nextPageToken || null,
       lastSyncedAt: new Date().toISOString(),
       calendarsChecked: calendarResults,
       sourcesStatus: {

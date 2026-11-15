@@ -37,6 +37,7 @@ import { WeatherWidget } from "@/components/WeatherWidget";
 import { MorningDigestModal } from "@/components/MorningDigestModal";
 import { classifyEmail } from "@/lib/email-classifier";
 import { renderLinkedText } from "@/lib/text-links";
+import { findTaskForEmail } from "@/lib/email-task";
 import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
 import { HabitsManagerModal } from "@/components/HabitsManagerModal";
 import { HabitModal } from "@/components/HabitModal";
@@ -417,6 +418,10 @@ export default function Home() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [focusMinutes, setFocusMinutes] = useState(appConfig.defaults.focusMinutes);
   const [hydrated, setHydrated] = useState(false);
+  const [gmailNextPageToken, setGmailNextPageToken] = useState<string | null>(null);
+  const [outlookNextSkip, setOutlookNextSkip] = useState<number | null>(null);
+  const [isLoadingMoreMail, setIsLoadingMoreMail] = useState(false);
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
   /* ── Modal / popover state ── */
   const [showFocusTimer, setShowFocusTimer] = useState(false);
@@ -724,6 +729,7 @@ export default function Home() {
       if (result.connected) {
         setLiveData(result as DashboardData);
         setGoogleMail(result.unread || []);
+        setGmailNextPageToken(result.nextPageToken || null);
         const syncDate = result.lastSyncedAt ? new Date(result.lastSyncedAt) : new Date();
         setLastSyncedTime(syncDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
         if (notify) {
@@ -771,6 +777,11 @@ export default function Home() {
             unread: data.unread || [],
             syncStatus: data.syncStatus,
           });
+          if (data.unread && data.unread.length >= 8) {
+            setOutlookNextSkip(data.unread.length);
+          } else {
+            setOutlookNextSkip(null);
+          }
         } else {
           setOutlookData({
             connected: false,
@@ -778,6 +789,7 @@ export default function Home() {
             unread: [],
             syncStatus: { calendar: "failed", mail: "failed", overall: "failed" },
           });
+          setOutlookNextSkip(null);
         }
       } else {
         setOutlookData((prev) => ({
@@ -1397,7 +1409,26 @@ export default function Home() {
     toast(`"${newTask.title}" added to priorities`);
   };
 
+  const handleOpenExistingTask = useCallback((taskId: string) => {
+    setActiveNav("Tasks");
+    setHighlightedTaskId(taskId);
+    try {
+      localStorage.setItem("routino_active_nav", "Tasks");
+    } catch {}
+    const t = tasks.find((item) => item.id === taskId);
+    if (t) {
+      toast(`Opened tracked task: "${t.title}"`);
+    }
+  }, [tasks]);
+
   const handleCreateTaskFromEmail = useCallback((mail: DashboardMail) => {
+    const existing = findTaskForEmail(mail, tasks);
+    if (existing) {
+      handleOpenExistingTask(existing.id);
+      toast(`Task already exists: "${existing.title}" (${existing.checked ? "Completed" : "Active"})`);
+      return;
+    }
+
     const classification = classifyEmail(mail);
     const cat =
       classification?.variant === "security" || classification?.variant === "infra"
@@ -1426,7 +1457,68 @@ export default function Home() {
       ],
     });
     setShowTaskModal(true);
-  }, []);
+  }, [tasks, handleOpenExistingTask]);
+
+  const handleLoadMoreMail = useCallback(async () => {
+    if (isLoadingMoreMail) return;
+    setIsLoadingMoreMail(true);
+    try {
+      let addedTotal = 0;
+
+      // 1. Google Gmail pagination
+      if (liveData?.connected && gmailNextPageToken) {
+        const res = await fetch(`/api/mail/load-more?source=google&pageToken=${encodeURIComponent(gmailNextPageToken)}`, {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const newMsgs: DashboardMail[] = data.messages || [];
+          if (newMsgs.length > 0) {
+            setGoogleMail((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const fresh = newMsgs.filter((m) => !existingIds.has(m.id));
+              addedTotal += fresh.length;
+              return [...prev, ...fresh];
+            });
+          }
+          setGmailNextPageToken(data.nextPageToken || null);
+        }
+      }
+
+      // 2. Outlook pagination
+      if (outlookData.connected && outlookNextSkip !== null) {
+        const res = await fetch(`/api/mail/load-more?source=outlook&skip=${outlookNextSkip}`, {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const newMsgs: DashboardMail[] = data.messages || [];
+          if (newMsgs.length > 0) {
+            setOutlookData((prev) => {
+              const existingIds = new Set(prev.unread.map((m) => m.id));
+              const fresh = newMsgs.filter((m) => !existingIds.has(m.id));
+              addedTotal += fresh.length;
+              return {
+                ...prev,
+                unread: [...prev.unread, ...fresh],
+              };
+            });
+          }
+          setOutlookNextSkip(data.nextSkip ?? null);
+        }
+      }
+
+      if (addedTotal > 0) {
+        toast(`Loaded ${addedTotal} additional unread email${addedTotal > 1 ? "s" : ""}`);
+      } else {
+        toast("No additional unread emails found");
+      }
+    } catch {
+      toast("Could not load more emails right now");
+    } finally {
+      setIsLoadingMoreMail(false);
+    }
+  }, [isLoadingMoreMail, liveData?.connected, gmailNextPageToken, outlookData.connected, outlookNextSkip]);
 
   const addEvent = (event: DashboardEvent) => {
     setCustomEvents(prev => {
@@ -1872,11 +1964,16 @@ export default function Home() {
           ) : activeNav === "Inbox" ? (
             <InboxView
               mailList={mailItems}
+              tasks={tasks}
               onSelectMail={(m) => setViewingMail(m)}
               onToggleStar={toggleMailStar}
               onToggleRead={toggleMailRead}
               onCreateTask={handleCreateTaskFromEmail}
+              onOpenTask={handleOpenExistingTask}
               isConnected={isConnected}
+              onLoadMore={handleLoadMoreMail}
+              isLoadingMore={isLoadingMoreMail}
+              hasMore={Boolean(gmailNextPageToken || outlookNextSkip !== null)}
             />
           ) : activeNav === "Tasks" ? (
             <TasksView
@@ -1886,6 +1983,7 @@ export default function Home() {
               onAddTask={addTask}
               onOpenTaskModal={() => setShowTaskModal(true)}
               onToggleSubTask={toggleSubTask}
+              highlightedTaskId={highlightedTaskId}
             />
           ) : activeNav === "Notes" ? (
             <NotesView
@@ -2896,6 +2994,7 @@ export default function Home() {
             : "not_connected"
         }
         onCreateTaskFromMail={handleCreateTaskFromEmail}
+        onOpenTask={handleOpenExistingTask}
         lastSyncedAt={liveData?.lastSyncedAt}
         onRefresh={() => fetchDashboard(true)}
         isRefreshing={isSyncingGoogle}
@@ -2952,9 +3051,11 @@ export default function Home() {
         isOpen={!!viewingMail}
         onClose={() => setViewingMail(null)}
         mail={viewingMail}
+        tasks={tasks}
         onToggleStar={toggleMailStar}
         onToggleRead={toggleMailRead}
         onCreateTask={handleCreateTaskFromEmail}
+        onOpenTask={handleOpenExistingTask}
       />
       <QuickLinkModal
         isOpen={showQuickLinkModal}

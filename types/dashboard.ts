@@ -182,6 +182,7 @@ export type DashboardData = {
   unreadEstimate?: number;
   unread48hEstimate?: number | null;
   unread48hStatus?: "ok" | "failed" | "not_queried";
+  nextPageToken?: string | null;
   lastSyncedAt?: string;
   calendarsChecked?: CalendarCheckInfo[];
   sourcesStatus?: SourcesStatus;

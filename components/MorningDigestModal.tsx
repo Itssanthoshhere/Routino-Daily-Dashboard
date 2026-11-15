@@ -22,6 +22,7 @@ import {
 import type { Task, DashboardEvent, DashboardMail, CalendarCheckInfo, SourcesStatus } from "@/types/dashboard";
 import { classifyEmail } from "@/lib/email-classifier";
 import { appConfig } from "@/lib/config";
+import { findTaskForEmail } from "@/lib/email-task";
 
 type MorningDigestModalProps = {
   isOpen: boolean;
@@ -38,6 +39,7 @@ type MorningDigestModalProps = {
   isOutlookConnected?: boolean;
   outlookSyncStatus?: "checked" | "failed" | "partial" | "unknown" | "not_connected";
   onCreateTaskFromMail?: (mail: DashboardMail) => void;
+  onOpenTask?: (taskId: string) => void;
   lastSyncedAt?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
@@ -58,6 +60,7 @@ export function MorningDigestModal({
   isOutlookConnected = false,
   outlookSyncStatus = "unknown",
   onCreateTaskFromMail,
+  onOpenTask,
   lastSyncedAt,
   onRefresh,
   isRefreshing = false,
@@ -382,19 +385,41 @@ export function MorningDigestModal({
                       <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted">
                         <span>From: {m.from}</span>
                         <div className="flex items-center gap-2">
-                          {onCreateTaskFromMail && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onCreateTaskFromMail(m);
-                                onClose();
-                              }}
-                              className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
-                            >
-                              <ListTodo size={9} />
-                              <span>+ Create Task</span>
-                            </button>
-                          )}
+                          {(() => {
+                            const existingTask = findTaskForEmail(m, tasks);
+                            if (existingTask) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onOpenTask?.(existingTask.id);
+                                    onClose();
+                                  }}
+                                  className="font-semibold text-forest hover:bg-[#e9f0e2] inline-flex items-center gap-1 cursor-pointer bg-[#f4f7ef] px-2 py-0.5 rounded border border-forest/30"
+                                  title={`Task already tracked: "${existingTask.title}". Click to open.`}
+                                >
+                                  <CheckCircle2 size={9} />
+                                  <span>View Task</span>
+                                </button>
+                              );
+                            }
+                            if (onCreateTaskFromMail) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onCreateTaskFromMail(m);
+                                    onClose();
+                                  }}
+                                  className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
+                                >
+                                  <ListTodo size={9} />
+                                  <span>+ Create Task</span>
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
                           <a
                             href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
                             target="_blank"
@@ -429,19 +454,41 @@ export function MorningDigestModal({
                       <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted">
                         <span>From: {m.from}</span>
                         <div className="flex items-center gap-2">
-                          {onCreateTaskFromMail && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onCreateTaskFromMail(m);
-                                onClose();
-                              }}
-                              className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
-                            >
-                              <ListTodo size={9} />
-                              <span>+ Create Task</span>
-                            </button>
-                          )}
+                          {(() => {
+                            const existingTask = findTaskForEmail(m, tasks);
+                            if (existingTask) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onOpenTask?.(existingTask.id);
+                                    onClose();
+                                  }}
+                                  className="font-semibold text-forest hover:bg-[#e9f0e2] inline-flex items-center gap-1 cursor-pointer bg-[#f4f7ef] px-2 py-0.5 rounded border border-forest/30"
+                                  title={`Task already tracked: "${existingTask.title}". Click to open.`}
+                                >
+                                  <CheckCircle2 size={9} />
+                                  <span>View Task</span>
+                                </button>
+                              );
+                            }
+                            if (onCreateTaskFromMail) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onCreateTaskFromMail(m);
+                                    onClose();
+                                  }}
+                                  className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
+                                >
+                                  <ListTodo size={9} />
+                                  <span>+ Create Task</span>
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
                           <a
                             href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
                             target="_blank"
@@ -476,19 +523,41 @@ export function MorningDigestModal({
                       <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted">
                         <span>From: {m.from}</span>
                         <div className="flex items-center gap-2">
-                          {onCreateTaskFromMail && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onCreateTaskFromMail(m);
-                                onClose();
-                              }}
-                              className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
-                            >
-                              <ListTodo size={9} />
-                              <span>+ Create Task</span>
-                            </button>
-                          )}
+                          {(() => {
+                            const existingTask = findTaskForEmail(m, tasks);
+                            if (existingTask) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onOpenTask?.(existingTask.id);
+                                    onClose();
+                                  }}
+                                  className="font-semibold text-forest hover:bg-[#e9f0e2] inline-flex items-center gap-1 cursor-pointer bg-[#f4f7ef] px-2 py-0.5 rounded border border-forest/30"
+                                  title={`Task already tracked: "${existingTask.title}". Click to open.`}
+                                >
+                                  <CheckCircle2 size={9} />
+                                  <span>View Task</span>
+                                </button>
+                              );
+                            }
+                            if (onCreateTaskFromMail) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onCreateTaskFromMail(m);
+                                    onClose();
+                                  }}
+                                  className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
+                                >
+                                  <ListTodo size={9} />
+                                  <span>+ Create Task</span>
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
                           <a
                             href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
                             target="_blank"
@@ -523,19 +592,41 @@ export function MorningDigestModal({
                       <div className="mt-2 flex items-center justify-between text-[9.5px] text-muted">
                         <span>From: {m.from}</span>
                         <div className="flex items-center gap-2">
-                          {onCreateTaskFromMail && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                onCreateTaskFromMail(m);
-                                onClose();
-                              }}
-                              className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
-                            >
-                              <ListTodo size={9} />
-                              <span>+ Create Task</span>
-                            </button>
-                          )}
+                          {(() => {
+                            const existingTask = findTaskForEmail(m, tasks);
+                            if (existingTask) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onOpenTask?.(existingTask.id);
+                                    onClose();
+                                  }}
+                                  className="font-semibold text-forest hover:bg-[#e9f0e2] inline-flex items-center gap-1 cursor-pointer bg-[#f4f7ef] px-2 py-0.5 rounded border border-forest/30"
+                                  title={`Task already tracked: "${existingTask.title}". Click to open.`}
+                                >
+                                  <CheckCircle2 size={9} />
+                                  <span>View Task</span>
+                                </button>
+                              );
+                            }
+                            if (onCreateTaskFromMail) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onCreateTaskFromMail(m);
+                                    onClose();
+                                  }}
+                                  className="font-semibold text-forest hover:text-[#8b1116] inline-flex items-center gap-1 cursor-pointer bg-white px-2 py-0.5 rounded border border-line"
+                                >
+                                  <ListTodo size={9} />
+                                  <span>+ Create Task</span>
+                                </button>
+                              );
+                            }
+                            return null;
+                          })()}
                           <a
                             href={m.href || `https://mail.google.com/mail/u/0/#inbox/${m.id}`}
                             target="_blank"

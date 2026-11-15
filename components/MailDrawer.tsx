@@ -1,23 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Star, ExternalLink, X, Reply, Check, Trash2, ListTodo } from "lucide-react";
-import { DashboardMail } from "@/types/dashboard";
+import { Mail, Star, ExternalLink, X, Reply, Check, Trash2, ListTodo, CheckCircle2 } from "lucide-react";
+import { DashboardMail, Task } from "@/types/dashboard";
+import { findTaskForEmail } from "@/lib/email-task";
 
 type MailDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
   mail: DashboardMail | null;
+  tasks?: Task[];
   onToggleStar?: (id: string) => void;
   onToggleRead?: (id: string) => void;
   onCreateTask?: (mail: DashboardMail) => void;
+  onOpenTask?: (taskId: string) => void;
 };
 
-export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead, onCreateTask }: MailDrawerProps) {
+export function MailDrawer({
+  isOpen,
+  onClose,
+  mail,
+  tasks = [],
+  onToggleStar,
+  onToggleRead,
+  onCreateTask,
+  onOpenTask,
+}: MailDrawerProps) {
   const [replyText, setReplyText] = useState("");
   const [replied, setReplied] = useState(false);
 
   if (!isOpen || !mail) return null;
+
+  const existingTask = findTaskForEmail(mail, tasks);
 
   const handleSendReply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,8 +60,22 @@ export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead, 
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {onCreateTask && (
+              {existingTask ? (
                 <button
+                  type="button"
+                  onClick={() => {
+                    onOpenTask?.(existingTask.id);
+                    onClose();
+                  }}
+                  className="rounded-lg p-2 text-forest bg-[#f4f7ef] hover:bg-[#e9f0e2] transition cursor-pointer"
+                  title={`Task already tracked: "${existingTask.title}". Click to open.`}
+                  aria-label="View existing task"
+                >
+                  <CheckCircle2 size={16} />
+                </button>
+              ) : onCreateTask ? (
+                <button
+                  type="button"
                   onClick={() => {
                     onCreateTask(mail);
                     onClose();
@@ -58,7 +86,7 @@ export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead, 
                 >
                   <ListTodo size={16} />
                 </button>
-              )}
+              ) : null}
               <button
                 onClick={() => onToggleStar?.(mail.id)}
                 className={`rounded-lg p-2 transition ${
@@ -118,7 +146,29 @@ export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead, 
             </div>
 
             {/* Action Queue: Convert to Task */}
-            {onCreateTask && (
+            {existingTask ? (
+              <div className="flex items-center justify-between rounded-xl border border-forest/30 bg-[#f4f7ef] p-3 text-[11px]">
+                <div>
+                  <p className="font-semibold text-ink flex items-center gap-1.5">
+                    <CheckCircle2 size={13} className="text-forest" />
+                    <span>Task already tracked</span>
+                  </p>
+                  <p className="text-[10px] text-muted truncate max-w-[240px]">
+                    &quot;{existingTask.title}&quot; ({existingTask.checked ? "Completed" : "Active"})
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenTask?.(existingTask.id);
+                    onClose();
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-forest px-3 py-1.5 text-[10.5px] font-semibold text-white hover:bg-[#344830] transition cursor-pointer"
+                >
+                  <span>Open Task</span>
+                </button>
+              </div>
+            ) : onCreateTask ? (
               <div className="flex items-center justify-between rounded-xl border border-[#edf0e9] bg-[#fafbf8] p-3 text-[11px]">
                 <div>
                   <p className="font-semibold text-ink">Turn into an action item?</p>
@@ -136,7 +186,7 @@ export function MailDrawer({ isOpen, onClose, mail, onToggleStar, onToggleRead, 
                   <span>Convert to Task</span>
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 

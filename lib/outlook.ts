@@ -168,8 +168,13 @@ export async function fetchOutlookEvents(accessToken: string): Promise<Dashboard
 /**
  * Fetch unread inbox messages from Microsoft Outlook via Microsoft Graph.
  */
-export async function fetchOutlookMessages(accessToken: string): Promise<DashboardMail[]> {
-  const url = `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$filter=isRead eq false&$top=8&$orderby=receivedDateTime desc`;
+export async function fetchOutlookMessages(
+  accessToken: string,
+  top = 8,
+  skip = 0
+): Promise<DashboardMail[]> {
+  const skipParam = skip > 0 ? `&$skip=${skip}` : "";
+  const url = `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$filter=isRead eq false&$top=${top}${skipParam}&$orderby=receivedDateTime desc`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
