@@ -70,7 +70,6 @@ const COLOR_RULES = [
       "mf360",
       "building",
       "work",
-      "work",
       "project",
       "sprint",
       "planning",
