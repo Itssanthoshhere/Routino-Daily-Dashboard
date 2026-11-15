@@ -20,9 +20,10 @@ export async function GET() {
 
     const timeMin = encodeURIComponent(pastWindow.toISOString());
     const timeMax = encodeURIComponent(futureWindow.toISOString());
-    const [calendarListRes, mail] = await Promise.all([
+    const [calendarListRes, mail, mail48hRes] = await Promise.all([
       googleFetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader"),
       googleFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+-category:promotions+-category:social&maxResults=8"),
+      googleFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+newer_than:2d+-category:promotions+-category:social&maxResults=1"),
     ]);
 
     if (!mail.ok && !calendarListRes.ok) {
@@ -107,7 +108,19 @@ export async function GET() {
       return aTime - bTime;
     });
 
-    const mailData = mail.ok ? await mail.json() : { messages: [] };
+    const mailData = mail.ok ? await mail.json() : { messages: [], resultSizeEstimate: 0 };
+    let unread48hEstimate = 0;
+    if (mail48hRes && mail48hRes.ok) {
+      try {
+        const d48 = await mail48hRes.json();
+        unread48hEstimate = typeof d48.resultSizeEstimate === "number" ? d48.resultSizeEstimate : (mailData.messages?.length ?? 0);
+      } catch {
+        unread48hEstimate = mailData.messages?.length ?? 0;
+      }
+    } else {
+      unread48hEstimate = mailData.resultSizeEstimate || (mailData.messages?.length ?? 0);
+    }
+
     const messages = await Promise.all((mailData.messages ?? []).slice(0, 8).map(async ({ id }: { id: string }) => {
       const response = await googleFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`);
       if (!response.ok) return null;
@@ -125,6 +138,14 @@ export async function GET() {
       },
       events: finalEvents,
       unread: messages.filter(Boolean),
+      unreadEstimate: mailData.resultSizeEstimate ?? messages.filter(Boolean).length,
+      unread48hEstimate,
+      lastSyncedAt: new Date().toISOString(),
+      calendarsChecked: targetCals.map((c: any) => ({
+        id: c.id,
+        summary: c.summary || (c.id === "primary" ? "Primary Calendar" : c.id),
+        color: c.backgroundColor || "#4a6741",
+      })),
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     return NextResponse.json({ connected: true, error: "Could not retrieve dashboard data." }, { status: 502 });

@@ -46,6 +46,17 @@ export type DashboardEvent = {
   source?: "google" | "outlook" | "custom";
 };
 
+export type EmailActionCategory =
+  | "security"
+  | "finance"
+  | "infra"
+  | "career"
+  | "reply"
+  | "payment"
+  | "update"
+  | "general"
+  | "outlook";
+
 export type DashboardMail = {
   id: string;
   from: string;
@@ -54,9 +65,13 @@ export type DashboardMail = {
   snippet: string;
   read?: boolean;
   starred?: boolean;
-  category?: "reply" | "payment" | "update" | "general" | "outlook";
+  category?: EmailActionCategory;
   href?: string;
   source?: "google" | "outlook";
+  actionBadge?: {
+    label: string;
+    variant: "security" | "finance" | "infra" | "career" | "urgent" | "info";
+  };
 };
 
 export type QuickLink = {
@@ -134,6 +149,12 @@ export type AuditedEvent = {
   isAllDay?: boolean;
 };
 
+export type CalendarCheckInfo = {
+  id: string;
+  summary: string;
+  color?: string;
+};
+
 export type DashboardData = {
   connected: boolean;
   user?: {
@@ -143,6 +164,10 @@ export type DashboardData = {
   };
   events: DashboardEvent[];
   unread: DashboardMail[];
+  unreadEstimate?: number;
+  unread48hEstimate?: number;
+  lastSyncedAt?: string;
+  calendarsChecked?: CalendarCheckInfo[];
   error?: string;
 };
 

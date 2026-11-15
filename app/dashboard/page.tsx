@@ -7,7 +7,7 @@ import {
   ChevronDown, ChevronUp, CheckCircle2, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
   Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
   StickyNote, Target, Timer, TriangleAlert, Video, X, PieChart, Gauge,
-  Key, Zap, Wallet, Briefcase, Copy, ShieldCheck,
+  Key, Zap, Wallet, Briefcase, Copy, ShieldCheck, HardDrive, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { connectGoogle } from "@/app/actions";
@@ -34,6 +34,8 @@ import { QuickCaptureModal } from "@/components/QuickCaptureModal";
 import { QuickScratchpadCard } from "@/components/QuickScratchpadCard";
 import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
+import { MorningDigestModal } from "@/components/MorningDigestModal";
+import { classifyEmail } from "@/lib/email-classifier";
 import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
 import { HabitsManagerModal } from "@/components/HabitsManagerModal";
 import { HabitModal } from "@/components/HabitModal";
@@ -438,6 +440,9 @@ export default function Home() {
   const [showQuickCapture, setShowQuickCapture] = useState(false);
   const [expandedOverviewTasks, setExpandedOverviewTasks] = useState<Record<string, boolean>>({});
   const [overviewTasksTab, setOverviewTasksTab] = useState<"active" | "completed">("active");
+  const [showMorningDigest, setShowMorningDigest] = useState(false);
+  const [isSyncingGoogle, setIsSyncingGoogle] = useState(false);
+  const [lastSyncedTime, setLastSyncedTime] = useState<string | null>(null);
 
   /* ── Trackers Snapshot state ── */
   const [trackersData, setTrackersData] = useState<TrackersData>(SEED_TRACKERS_DATA);
@@ -704,25 +709,33 @@ export default function Home() {
   }, []);
 
   /* ── Fetch live data from Google OAuth ── */
-  useEffect(() => {
-    let active = true;
-    const fetchDashboard = () => {
-      fetch("/api/dashboard", { cache: "no-store" })
-        .then(async (r) => {
-          const result = await r.json();
-          if (active && result.connected) {
-            setLiveData(result as DashboardData);
-            setGoogleMail(result.unread || []);
-          }
-        })
-        .catch(() => undefined);
-    };
+  const fetchDashboard = useCallback(async (notify = false) => {
+    setIsSyncingGoogle(true);
+    try {
+      const r = await fetch("/api/dashboard", { cache: "no-store" });
+      const result = await r.json();
+      if (result.connected) {
+        setLiveData(result as DashboardData);
+        setGoogleMail(result.unread || []);
+        const syncDate = result.lastSyncedAt ? new Date(result.lastSyncedAt) : new Date();
+        setLastSyncedTime(syncDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
+        if (notify) {
+          toast("Google calendars & inbox refreshed", "info");
+        }
+      }
+    } catch {
+      if (notify) toast("Could not refresh Google data", "info");
+    } finally {
+      setIsSyncingGoogle(false);
+    }
+  }, [toast]);
 
-    fetchDashboard();
+  useEffect(() => {
+    fetchDashboard(false);
 
     const onFocusOrVisible = () => {
       if (document.visibilityState === "visible") {
-        fetchDashboard();
+        fetchDashboard(false);
       }
     };
 
@@ -731,12 +744,11 @@ export default function Home() {
     const interval = setInterval(onFocusOrVisible, 60 * 1000);
 
     return () => {
-      active = false;
       window.removeEventListener("focus", onFocusOrVisible);
       document.removeEventListener("visibilitychange", onFocusOrVisible);
       clearInterval(interval);
     };
-  }, []);
+  }, [fetchDashboard]);
 
   /* ── Fetch live data from Microsoft Outlook ── */
   const fetchOutlookData = useCallback(async () => {
@@ -977,6 +989,12 @@ export default function Home() {
   const completedOverviewTasks = useMemo(() => {
     return sortedOverviewTasks.filter((t) => t.checked);
   }, [sortedOverviewTasks]);
+
+  const unreadInboxCount = useMemo(() => {
+    return isConnected
+      ? (liveData?.unread48hEstimate ?? mailItems.filter((m) => !m.read).length)
+      : mailItems.filter((m) => !m.read).length;
+  }, [isConnected, liveData?.unread48hEstimate, mailItems]);
 
   /* ── Keyboard shortcuts ── */
   useEffect(() => {
@@ -1598,7 +1616,7 @@ export default function Home() {
             {nav.map(({ icon: Icon, label }) => (
               <button key={label} onClick={() => handleSelectNav(label)} className={"flex w-full items-center gap-3 rounded-xl px-3 py-2 xl:py-2.5 text-left text-[12px] xl:text-[13px] transition " + (activeNav === label ? "bg-[#fdf2f2] font-semibold text-forest" : "text-[#77827b] hover:bg-[#f1f3ed]")}>
                 <Icon size={16} />{label}
-                {label === "Inbox" && <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{mailItems.filter(m => !m.read).length}</span>}
+                {label === "Inbox" && <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{unreadInboxCount}</span>}
                 {label === "Tasks" && <span className="ml-auto rounded-full bg-[#e8efe4] px-2 py-0.5 text-[10px] font-bold text-forest">{tasks.filter(t => !t.checked).length}</span>}
                 {label === "Notes" && notes.length > 0 && <span className="ml-auto rounded-full bg-[#fdf2f2] px-2 py-0.5 text-[10px] font-bold text-forest">{notes.length}</span>}
               </button>
@@ -1680,7 +1698,7 @@ export default function Home() {
         onClose={() => setShowMobileSidebar(false)}
         activeNav={activeNav}
         onSelectNav={handleSelectNav}
-        unreadCount={mailItems.filter(m => !m.read).length}
+        unreadCount={unreadInboxCount}
         isConnected={!!liveData?.connected}
         isOutlookConnected={Boolean(outlookData?.connected)}
         onOpenPreferences={() => setShowPreferences(true)}
@@ -1845,6 +1863,14 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => setShowMorningDigest(true)}
+                    title="Open Executive Daily Briefing (Consolidated review)"
+                    className="flex items-center gap-1.5 rounded-xl border border-forest/30 bg-[#fdf2f2] px-3.5 py-2.5 text-[11px] font-bold text-forest hover:bg-forest hover:text-white transition shadow-2xs cursor-pointer group"
+                  >
+                    <Sparkles size={13} className="text-forest group-hover:text-white" />
+                    <span>Morning Brief</span>
+                  </button>
+                  <button
                     onClick={() => setShowDeskSheet(true)}
                     title="Preview & print today's Desk Sheet (Cmd+P)"
                     className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2.5 text-[11px] font-semibold text-[#5c6960] hover:bg-[#f1f3ed] hover:text-ink transition shadow-2xs cursor-pointer"
@@ -1868,6 +1894,58 @@ export default function Home() {
                   )}
                 </div>
               </div>
+
+              {/* Sync Health & Verified Sources Indicator */}
+              {isConnected && (
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-[#e6ece1] bg-[#fbfdf9] px-3.5 py-2.5 text-[10.5px] text-[#556358]">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <span className="flex items-center gap-1 font-bold text-forest">
+                      <CheckCircle2 size={13} />
+                      Verified Sources:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowMorningDigest(true)}
+                      className="inline-flex items-center gap-1 rounded-md bg-[#f1f4ed] px-2 py-0.5 text-[10px] font-medium text-[#404c42] hover:bg-[#e4ebd9] transition cursor-pointer"
+                      title="View all calendars checked"
+                    >
+                      <CalendarDays size={11} className="text-forest" />
+                      {liveData?.calendarsChecked?.length ? `${liveData.calendarsChecked.length} Calendars Checked` : "Google Calendar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectNav("Inbox")}
+                      className="inline-flex items-center gap-1 rounded-md bg-[#f1f4ed] px-2 py-0.5 text-[10px] font-medium text-[#404c42] hover:bg-[#e4ebd9] transition cursor-pointer"
+                      title="Open Inbox"
+                    >
+                      <Inbox size={11} className="text-[#bd8054]" />
+                      Gmail ({unreadInboxCount} unread / 48h)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectNav("Drive")}
+                      className="inline-flex items-center gap-1 rounded-md bg-[#f1f4ed] px-2 py-0.5 text-[10px] font-medium text-[#404c42] hover:bg-[#e4ebd9] transition cursor-pointer"
+                      title="Open Drive"
+                    >
+                      <HardDrive size={11} className="text-[#3b82f6]" />
+                      Drive (Metadata)
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted text-[10px]">
+                    {lastSyncedTime && <span>Refreshed {lastSyncedTime}</span>}
+                    <button
+                      type="button"
+                      onClick={() => fetchDashboard(true)}
+                      disabled={isSyncingGoogle}
+                      className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2 py-1 font-semibold text-[#5c6960] hover:text-forest hover:border-forest/40 transition cursor-pointer disabled:opacity-50"
+                      title="Sync all connected Google sources now"
+                    >
+                      <RefreshCw size={11} className={isSyncingGoogle ? "animate-spin text-forest" : ""} />
+                      <span>{isSyncingGoogle ? "Syncing..." : "Sync"}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* ─── Summary cards ─── */}
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -1913,8 +1991,8 @@ export default function Home() {
                 {/* Inbox summary */}
                 <button onClick={() => handleSelectNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">Needs a response</span><Inbox size={16} className="text-[#bd8054] group-hover:text-[#a0622e] transition" /></div>
-                  <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{mailItems.filter(m => !m.read).length}</span><span className="text-[11px] text-muted">unread emails</span></div>
-                  <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? "Filtered to important inbox categories" : "Connect Google to load your inbox"}</div>
+                  <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{unreadInboxCount}</span><span className="text-[11px] text-muted">unread (48h)</span></div>
+                  <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? "Filtered across last 48 hours" : "Connect Google to load your inbox"}</div>
                 </button>
 
                 {/* Focus summary */}
@@ -2532,35 +2610,46 @@ export default function Home() {
                     right={
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => handleSelectNav("Inbox")} className="rounded-full bg-[#f7eee4] px-2.5 py-1 text-[9px] font-bold text-[#a2764b] hover:bg-[#ebdcc9] transition">
-                          {mailItems.filter(m => !m.read).length} UNREAD →
+                          {unreadInboxCount} UNREAD →
                         </button>
                       </div>
                     }
                   />
                   <div className="divide-y divide-[#eff1ec]">
-                    {mailItems.length ? mailItems.slice(0, 3).map((mail, index) => (
-                      <div
-                        key={mail.id || (mail.subject + index)}
-                        className="flex gap-3 py-3 first:pt-0 last:pb-0 cursor-pointer rounded-lg transition hover:bg-[#f8f9f5] px-1 -mx-1"
-                        onClick={() => setViewingMail(mail)}
-                      >
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[9px] font-bold text-[#4d5b52] bg-[#f0c6ae]">
-                          {mail.from.slice(0, 2).toUpperCase()}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="truncate text-[10px] font-semibold text-[#33433a]">{mail.from}</p>
-                            <span className="shrink-0 text-[9px] text-[#a1aaa2]">{mail.date}</span>
+                    {mailItems.length ? mailItems.slice(0, 3).map((mail, index) => {
+                      const actionBadge = classifyEmail(mail);
+                      return (
+                        <div
+                          key={mail.id || (mail.subject + index)}
+                          className="flex gap-3 py-3 first:pt-0 last:pb-0 cursor-pointer rounded-lg transition hover:bg-[#f8f9f5] px-1 -mx-1"
+                          onClick={() => setViewingMail(mail)}
+                        >
+                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[9px] font-bold text-[#4d5b52] bg-[#f0c6ae]">
+                            {mail.from.slice(0, 2).toUpperCase()}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="truncate text-[10px] font-semibold text-[#33433a]">{mail.from}</p>
+                              <span className="shrink-0 text-[9px] text-[#a1aaa2]">{mail.date}</span>
+                            </div>
+                            <p className="mt-1 truncate text-[10px] font-medium text-ink">{mail.subject}</p>
+                            <p className="mt-1 line-clamp-1 text-[9px] text-[#8b968d]">{mail.snippet}</p>
+                            {actionBadge ? (
+                              <span className={`mt-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold tracking-wide uppercase ${actionBadge.colorClass}`}>
+                                {actionBadge.label}
+                              </span>
+                            ) : (
+                              <span className="mt-2 inline-block rounded bg-[#fbf0e5] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#a7764b]">
+                                {mail.category?.toUpperCase() || "INBOX"}
+                              </span>
+                            )}
                           </div>
-                          <p className="mt-1 truncate text-[10px] font-medium text-ink">{mail.subject}</p>
-                          <p className="mt-1 line-clamp-1 text-[9px] text-[#8b968d]">{mail.snippet}</p>
-                          <span className="mt-2 inline-block rounded bg-[#fbf0e5] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#a7764b]">{mail.category?.toUpperCase() || "INBOX"}</span>
+                          <a href={mail.href ?? appConfig.links.mail} target="_blank" rel="noreferrer" aria-label={"Open in Gmail"} className="mt-1 text-[#a0aaa1] hover:text-forest transition" onClick={e => e.stopPropagation()}>
+                            <ExternalLink size={13} />
+                          </a>
                         </div>
-                        <a href={mail.href ?? appConfig.links.mail} target="_blank" rel="noreferrer" aria-label={"Open in Gmail"} className="mt-1 text-[#a0aaa1] hover:text-forest transition" onClick={e => e.stopPropagation()}>
-                          <ExternalLink size={13} />
-                        </a>
-                      </div>
-                    )) : <p className="py-5 text-center text-[11px] text-muted">No unread messages in the selected inbox categories.</p>}
+                      );
+                    }) : <p className="py-5 text-center text-[11px] text-muted">No unread messages in the selected inbox categories.</p>}
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-[#eff1ec] pt-3">
                     <p className="text-[9px] leading-relaxed text-[#9aa49b]">Only sender, subject, date, and short snippet are shown.</p>
@@ -2699,6 +2788,19 @@ export default function Home() {
           }
           toast("Appended to scratchpad!");
         }}
+      />
+      <MorningDigestModal
+        isOpen={showMorningDigest}
+        onClose={() => setShowMorningDigest(false)}
+        userName={liveData?.user?.name || "Santhosh"}
+        tasks={tasks}
+        events={allEvents}
+        mail={mailItems}
+        unread48hEstimate={liveData?.unread48hEstimate}
+        calendarsChecked={liveData?.calendarsChecked}
+        lastSyncedAt={liveData?.lastSyncedAt}
+        onRefresh={() => fetchDashboard(true)}
+        isRefreshing={isSyncingGoogle}
       />
       <DailyDeskSheetModal
         isOpen={showDeskSheet}

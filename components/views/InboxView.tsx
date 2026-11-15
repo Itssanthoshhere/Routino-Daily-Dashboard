@@ -10,9 +10,25 @@ import {
   Filter,
   CheckCircle2,
   Reply,
+  Shield,
+  CreditCard,
+  Server,
+  Briefcase,
 } from "lucide-react";
 import { DashboardMail } from "@/types/dashboard";
 import { connectGoogle } from "@/app/actions";
+import { classifyEmail } from "@/lib/email-classifier";
+
+type InboxFilterType =
+  | "all"
+  | "unread"
+  | "security"
+  | "finance"
+  | "infra"
+  | "career"
+  | "starred"
+  | "reply"
+  | "outlook";
 
 type InboxViewProps = {
   mailList: DashboardMail[];
@@ -30,7 +46,18 @@ export function InboxView({
   isConnected,
 }: InboxViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "unread" | "starred" | "reply" | "outlook">("all");
+  const [selectedFilter, setSelectedFilter] = useState<InboxFilterType>("all");
+
+  const counts = {
+    all: mailList.length,
+    unread: mailList.filter((m) => !m.read).length,
+    security: mailList.filter((m) => classifyEmail(m)?.variant === "security").length,
+    finance: mailList.filter((m) => classifyEmail(m)?.variant === "finance").length,
+    infra: mailList.filter((m) => classifyEmail(m)?.variant === "infra").length,
+    career: mailList.filter((m) => classifyEmail(m)?.variant === "career").length,
+    starred: mailList.filter((m) => m.starred).length,
+    reply: mailList.filter((m) => m.category === "reply").length,
+  };
 
   const filteredMail = mailList.filter((m) => {
     // Search query
@@ -42,6 +69,10 @@ export function InboxView({
 
     // Filter type
     if (selectedFilter === "unread") return !m.read;
+    if (selectedFilter === "security") return classifyEmail(m)?.variant === "security";
+    if (selectedFilter === "finance") return classifyEmail(m)?.variant === "finance";
+    if (selectedFilter === "infra") return classifyEmail(m)?.variant === "infra";
+    if (selectedFilter === "career") return classifyEmail(m)?.variant === "career";
     if (selectedFilter === "starred") return m.starred;
     if (selectedFilter === "reply") return m.category === "reply";
     if (selectedFilter === "outlook") return m.category === "outlook" || m.source === "outlook";
@@ -104,7 +135,7 @@ export function InboxView({
                 : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
             }`}
           >
-            All ({mailList.length})
+            All ({counts.all})
           </button>
           <button
             onClick={() => setSelectedFilter("unread")}
@@ -114,8 +145,60 @@ export function InboxView({
                 : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
             }`}
           >
-            Unread ({mailList.filter((m) => !m.read).length})
+            Unread ({counts.unread})
           </button>
+          {counts.security > 0 && (
+            <button
+              onClick={() => setSelectedFilter("security")}
+              className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition flex items-center gap-1 ${
+                selectedFilter === "security"
+                  ? "bg-[#b91c1c] text-white"
+                  : "bg-[#fff5f5] border border-[#fecaca] text-[#b91c1c] hover:bg-[#fce8e6]"
+              }`}
+            >
+              <Shield size={12} />
+              Security ({counts.security})
+            </button>
+          )}
+          {counts.finance > 0 && (
+            <button
+              onClick={() => setSelectedFilter("finance")}
+              className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition flex items-center gap-1 ${
+                selectedFilter === "finance"
+                  ? "bg-[#b45309] text-white"
+                  : "bg-[#fffbeb] border border-[#fde68a] text-[#b45309] hover:bg-[#fef3c7]"
+              }`}
+            >
+              <CreditCard size={12} />
+              Finance ({counts.finance})
+            </button>
+          )}
+          {counts.infra > 0 && (
+            <button
+              onClick={() => setSelectedFilter("infra")}
+              className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition flex items-center gap-1 ${
+                selectedFilter === "infra"
+                  ? "bg-[#0284c7] text-white"
+                  : "bg-[#f0f9ff] border border-[#bae6fd] text-[#0284c7] hover:bg-[#e0f2fe]"
+              }`}
+            >
+              <Server size={12} />
+              Infra ({counts.infra})
+            </button>
+          )}
+          {counts.career > 0 && (
+            <button
+              onClick={() => setSelectedFilter("career")}
+              className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition flex items-center gap-1 ${
+                selectedFilter === "career"
+                  ? "bg-[#7e22ce] text-white"
+                  : "bg-[#faf5ff] border border-[#e9d5ff] text-[#7e22ce] hover:bg-[#f3e8ff]"
+              }`}
+            >
+              <Briefcase size={12} />
+              Career ({counts.career})
+            </button>
+          )}
           <button
             onClick={() => setSelectedFilter("starred")}
             className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition ${
@@ -227,17 +310,32 @@ export function InboxView({
 
                   <p className="mt-1 line-clamp-1 text-[11px] text-muted">{mail.snippet}</p>
 
-                  {mail.category && (
-                    <span
-                      className={`mt-2 inline-block rounded px-1.5 py-0.5 text-[8px] font-bold tracking-wide ${
-                        mail.category === "outlook" || mail.source === "outlook"
-                          ? "bg-[#ebf3fc] text-[#0078d4]"
-                          : "bg-[#fbf0e5] text-[#a7764b]"
-                      }`}
-                    >
-                      {mail.category.toUpperCase()}
-                    </span>
-                  )}
+                  {(() => {
+                    const actionBadge = classifyEmail(mail);
+                    if (actionBadge) {
+                      return (
+                        <span
+                          className={`mt-2 inline-flex items-center gap-1 rounded px-2 py-0.5 text-[8.5px] font-bold tracking-wide uppercase ${actionBadge.colorClass}`}
+                        >
+                          {actionBadge.label}
+                        </span>
+                      );
+                    }
+                    if (mail.category) {
+                      return (
+                        <span
+                          className={`mt-2 inline-block rounded px-1.5 py-0.5 text-[8px] font-bold tracking-wide ${
+                            mail.category === "outlook" || mail.source === "outlook"
+                              ? "bg-[#ebf3fc] text-[#0078d4]"
+                              : "bg-[#fbf0e5] text-[#a7764b]"
+                          }`}
+                        >
+                          {mail.category.toUpperCase()}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 {/* Actions */}
