@@ -721,15 +721,26 @@ export default function Home() {
   }, []);
 
   /* ── Fetch live data from Google OAuth ── */
-  const fetchDashboard = useCallback(async (notify = false) => {
+  const fetchDashboard = useCallback(async (notify = false, resetPages = false) => {
     setIsSyncingGoogle(true);
     try {
       const r = await fetch("/api/dashboard", { cache: "no-store" });
       const result = await r.json();
       if (result.connected) {
         setLiveData(result as DashboardData);
-        setGoogleMail(result.unread || []);
-        setGmailNextPageToken(result.nextPageToken || null);
+        const freshUnread: DashboardMail[] = result.unread || [];
+        setGoogleMail((prev) => {
+          if (resetPages || prev.length <= freshUnread.length) {
+            return freshUnread;
+          }
+          // Preserve loaded deeper pages while updating/refreshing the top items
+          const freshIds = new Set(freshUnread.map((m) => m.id));
+          const deeper = prev.filter((m) => !freshIds.has(m.id));
+          return [...freshUnread, ...deeper];
+        });
+        setGmailNextPageToken((prev) =>
+          resetPages ? (result.nextPageToken || null) : (prev ?? result.nextPageToken ?? null)
+        );
         const syncDate = result.lastSyncedAt ? new Date(result.lastSyncedAt) : new Date();
         setLastSyncedTime(syncDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }));
         if (notify) {
@@ -764,24 +775,34 @@ export default function Home() {
   }, [fetchDashboard]);
 
   /* ── Fetch live data from Microsoft Outlook ── */
-  const fetchOutlookData = useCallback(async () => {
+  const fetchOutlookData = useCallback(async (resetPages = false) => {
     try {
       const res = await fetch("/api/outlook/data", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (data.connected) {
-          setOutlookData({
-            connected: true,
-            profile: data.profile,
-            events: data.events || [],
-            unread: data.unread || [],
-            syncStatus: data.syncStatus,
+          const freshUnread: DashboardMail[] = data.unread || [];
+          setOutlookData((prev) => {
+            const freshIds = new Set(freshUnread.map((m) => m.id));
+            const deeper = resetPages ? [] : prev.unread.filter((m) => !freshIds.has(m.id));
+            return {
+              connected: true,
+              profile: data.profile,
+              events: data.events || [],
+              unread: [...freshUnread, ...deeper],
+              syncStatus: data.syncStatus,
+            };
           });
-          if (data.unread && data.unread.length >= 8) {
-            setOutlookNextSkip(data.unread.length);
-          } else {
-            setOutlookNextSkip(null);
-          }
+          setOutlookNextSkip((prev) => {
+            if (resetPages) {
+              return freshUnread.length >= 8 ? freshUnread.length : null;
+            }
+            return prev && prev > freshUnread.length
+              ? prev
+              : freshUnread.length >= 8
+              ? freshUnread.length
+              : null;
+          });
         } else {
           setOutlookData({
             connected: false,
@@ -1464,6 +1485,8 @@ export default function Home() {
     setIsLoadingMoreMail(true);
     try {
       let addedTotal = 0;
+      let hasError = false;
+      let errorMsg = "";
 
       // 1. Google Gmail pagination
       if (liveData?.connected && gmailNextPageToken) {
@@ -1482,6 +1505,14 @@ export default function Home() {
             });
           }
           setGmailNextPageToken(data.nextPageToken || null);
+        } else {
+          hasError = true;
+          try {
+            const errData = await res.json();
+            errorMsg = errData.error || "Failed to load additional Gmail messages";
+          } catch {
+            errorMsg = "Failed to load additional Gmail messages";
+          }
         }
       }
 
@@ -1505,10 +1536,20 @@ export default function Home() {
             });
           }
           setOutlookNextSkip(data.nextSkip ?? null);
+        } else {
+          hasError = true;
+          try {
+            const errData = await res.json();
+            errorMsg = errData.error || "Failed to load additional Outlook messages";
+          } catch {
+            errorMsg = "Failed to load additional Outlook messages";
+          }
         }
       }
 
-      if (addedTotal > 0) {
+      if (hasError && addedTotal === 0) {
+        toast(errorMsg || "Could not load more emails right now");
+      } else if (addedTotal > 0) {
         toast(`Loaded ${addedTotal} additional unread email${addedTotal > 1 ? "s" : ""}`);
       } else {
         toast("No additional unread emails found");

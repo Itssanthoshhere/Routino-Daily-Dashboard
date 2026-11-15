@@ -2,7 +2,8 @@ import type { DashboardMail, Task } from "@/types/dashboard";
 
 /**
  * Finds an existing task in Routino that tracks the given email message.
- * Matches by direct link, message ID in subtasks/links, or exact follow-up title.
+ * Matches by direct link or stable message ID in task link or subtask metadata.
+ * Does not match purely on subject title to prevent false-positive collisions across different messages.
  */
 export function findTaskForEmail(mail: DashboardMail, tasks: Task[]): Task | undefined {
   if (!mail || !tasks || tasks.length === 0) return undefined;
@@ -17,7 +18,12 @@ export function findTaskForEmail(mail: DashboardMail, tasks: Task[]): Task | und
 
   return tasks.find((t) => {
     // 1. Direct link matches
-    if (t.link && (t.link === directLink || t.link.includes(mail.id) || t.link.includes(mailIdClean))) {
+    if (
+      t.link &&
+      (t.link === directLink ||
+        t.link.includes(mail.id) ||
+        (mailIdClean && t.link.includes(mailIdClean)))
+    ) {
       return true;
     }
 
@@ -28,19 +34,11 @@ export function findTaskForEmail(mail: DashboardMail, tasks: Task[]): Task | und
           (st.link &&
             (st.link === directLink ||
               st.link.includes(mail.id) ||
-              st.link.includes(mailIdClean))) ||
+              (mailIdClean && st.link.includes(mailIdClean)))) ||
           st.title.includes(mail.id) ||
-          st.title.includes(mailIdClean) ||
+          (mailIdClean && st.title.includes(mailIdClean)) ||
           (directLink && st.title.includes(directLink))
       )
-    ) {
-      return true;
-    }
-
-    // 3. Subject-based exact title match
-    if (
-      mail.subject &&
-      t.title.trim().toLowerCase() === `follow up: ${mail.subject}`.trim().toLowerCase()
     ) {
       return true;
     }
