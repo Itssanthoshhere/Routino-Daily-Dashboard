@@ -18,6 +18,11 @@ export async function GET() {
       connected: false,
       events: [],
       unread: [],
+      syncStatus: {
+        calendar: "not_connected",
+        mail: "not_connected",
+        overall: "not_connected",
+      },
     });
   }
 
@@ -29,6 +34,11 @@ export async function GET() {
         connected: false,
         events: [],
         unread: [],
+        syncStatus: {
+          calendar: "not_connected",
+          mail: "not_connected",
+          overall: "not_connected",
+        },
       });
     }
 
@@ -60,8 +70,22 @@ export async function GET() {
       fetchOutlookMessages(accessToken),
     ]);
 
-    const events = eventsResult.status === "fulfilled" ? eventsResult.value : [];
-    const unread = messagesResult.status === "fulfilled" ? messagesResult.value : [];
+    const eventsOk = eventsResult.status === "fulfilled";
+    const messagesOk = messagesResult.status === "fulfilled";
+
+    const events = eventsOk ? eventsResult.value : [];
+    const unread = messagesOk ? messagesResult.value : [];
+
+    const syncStatus = {
+      calendar: eventsOk ? ("checked" as const) : ("failed" as const),
+      mail: messagesOk ? ("checked" as const) : ("failed" as const),
+      overall:
+        eventsOk && messagesOk
+          ? ("checked" as const)
+          : !eventsOk && !messagesOk
+          ? ("failed" as const)
+          : ("partial" as const),
+    };
 
     return NextResponse.json({
       authenticated: true,
@@ -72,6 +96,7 @@ export async function GET() {
       },
       events,
       unread,
+      syncStatus,
     });
   } catch (error) {
     console.error("[outlook] Failed to load data:", error);
@@ -81,6 +106,11 @@ export async function GET() {
         connected: false,
         events: [],
         unread: [],
+        syncStatus: {
+          calendar: "failed",
+          mail: "failed",
+          overall: "failed",
+        },
         error: "Failed to load Outlook data",
       },
       { status: 500 }

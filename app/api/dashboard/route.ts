@@ -20,10 +20,11 @@ export async function GET() {
 
     const timeMin = encodeURIComponent(pastWindow.toISOString());
     const timeMax = encodeURIComponent(futureWindow.toISOString());
-    const [calendarListRes, mail, mail48hRes] = await Promise.all([
+    const [calendarListRes, mail, mail48hRes, driveRes] = await Promise.all([
       googleFetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader"),
       googleFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+-category:promotions+-category:social&maxResults=8"),
       googleFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+newer_than:2d+-category:promotions+-category:social&maxResults=1"),
+      googleFetch("https://www.googleapis.com/drive/v3/files?pageSize=1&fields=files(id)&spaces=drive").catch(() => null),
     ]);
 
     if (!mail.ok && !calendarListRes.ok) {
@@ -169,6 +170,17 @@ export async function GET() {
       }
     }
 
+    let driveStatus: "checked" | "needs_consent" | "failed" = "failed";
+    if (driveRes) {
+      if (driveRes.ok) {
+        driveStatus = "checked";
+      } else if (driveRes.status === 403) {
+        driveStatus = "needs_consent";
+      } else {
+        driveStatus = "failed";
+      }
+    }
+
     const messages = await Promise.all((mailData.messages ?? []).slice(0, 8).map(async ({ id }: { id: string }) => {
       const response = await googleFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`);
       if (!response.ok) return null;
@@ -198,6 +210,7 @@ export async function GET() {
         calendarsTotal: targetCals.length,
         calendarsChecked: calendarResults.filter(c => c.status === "checked").length,
         calendarsFailed: calendarResults.filter(c => c.status === "failed").length,
+        drive: driveStatus,
       },
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {

@@ -4,6 +4,7 @@ export type SubTask = {
   id: string;
   title: string;
   completed: boolean;
+  link?: string;
 };
 
 export type Task = {
@@ -16,6 +17,7 @@ export type Task = {
   dueDate?: string;
   createdAt: number;
   subtasks?: SubTask[];
+  link?: string;
 };
 
 export type Habit = {
@@ -164,6 +166,8 @@ export type SourcesStatus = {
   calendarsTotal: number;
   calendarsChecked: number;
   calendarsFailed: number;
+  drive?: "checked" | "needs_consent" | "failed" | "not_connected";
+  outlook?: "checked" | "failed" | "partial" | "not_connected";
 };
 
 export type DashboardData = {

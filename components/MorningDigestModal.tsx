@@ -36,6 +36,7 @@ type MorningDigestModalProps = {
   calendarsChecked?: CalendarCheckInfo[];
   sourcesStatus?: SourcesStatus;
   isOutlookConnected?: boolean;
+  outlookSyncStatus?: "checked" | "failed" | "partial" | "not_connected";
   onCreateTaskFromMail?: (mail: DashboardMail) => void;
   lastSyncedAt?: string;
   onRefresh?: () => void;
@@ -55,6 +56,7 @@ export function MorningDigestModal({
   calendarsChecked = [],
   sourcesStatus,
   isOutlookConnected = false,
+  outlookSyncStatus = "not_connected",
   onCreateTaskFromMail,
   lastSyncedAt,
   onRefresh,
@@ -128,17 +130,25 @@ export function MorningDigestModal({
     [classifiedEmails]
   );
 
+  const isOutlookHealthy = !isOutlookConnected || outlookSyncStatus === "checked";
+  const isDriveHealthy = !sourcesStatus?.drive || sourcesStatus.drive === "checked";
+
   const hasSourceFailure =
     calendarsChecked.some((calendar) => calendar.status === "failed") ||
     sourcesStatus?.gmail === "failed" ||
     sourcesStatus?.calendarList === "failed" ||
-    unread48hStatus === "failed";
+    unread48hStatus === "failed" ||
+    (sourcesStatus?.drive !== undefined && sourcesStatus.drive !== "checked") ||
+    (isOutlookConnected && (outlookSyncStatus === "failed" || outlookSyncStatus === "partial"));
+
   const allSourcesChecked =
     sourcesStatus?.gmail === "checked" &&
     sourcesStatus.calendarList === "checked" &&
     unread48hStatus === "ok" &&
     calendarsChecked.length > 0 &&
-    calendarsChecked.every((calendar) => calendar.status === "checked");
+    calendarsChecked.every((calendar) => calendar.status === "checked") &&
+    isDriveHealthy &&
+    isOutlookHealthy;
 
   // Active and overdue tasks
   const activeTasks = useMemo(() => tasks.filter((t) => !t.checked), [tasks]);
@@ -673,21 +683,67 @@ export function MorningDigestModal({
               {/* Microsoft Outlook */}
               <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 border border-[#edf0e9]">
                 <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${isOutlookConnected ? "bg-[#0078d4]" : "bg-muted/40"}`} />
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      !isOutlookConnected
+                        ? "bg-muted/40"
+                        : outlookSyncStatus === "checked"
+                        ? "bg-[#0078d4]"
+                        : "bg-[#d97706]"
+                    }`}
+                  />
                   <span className="text-[#455248]">Microsoft Outlook</span>
                 </div>
-                <span className={`font-semibold text-[10px] ${isOutlookConnected ? "text-[#0078d4]" : "text-muted"}`}>
-                  {isOutlookConnected ? "Connected & Synced" : "Not Connected"}
+                <span
+                  className={`font-semibold text-[10px] ${
+                    !isOutlookConnected
+                      ? "text-muted"
+                      : outlookSyncStatus === "checked"
+                      ? "text-[#0078d4]"
+                      : "text-[#b45309]"
+                  }`}
+                >
+                  {!isOutlookConnected
+                    ? "Not Connected"
+                    : outlookSyncStatus === "checked"
+                    ? "Connected & Synced"
+                    : outlookSyncStatus === "partial"
+                    ? "Partial Sync"
+                    : "Sync Failed"}
                 </span>
               </div>
 
               {/* Google Drive */}
               <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2 border border-[#edf0e9]">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-forest" />
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      sourcesStatus?.drive === "checked"
+                        ? "bg-forest"
+                        : sourcesStatus?.drive === "needs_consent" || sourcesStatus?.drive === "failed"
+                        ? "bg-[#d97706]"
+                        : "bg-forest"
+                    }`}
+                  />
                   <span className="text-[#455248]">Google Drive</span>
                 </div>
-                <span className="font-semibold text-forest text-[10px]">Metadata Sync Active</span>
+                <span
+                  className={`font-semibold text-[10px] ${
+                    sourcesStatus?.drive === "checked"
+                      ? "text-forest"
+                      : sourcesStatus?.drive === "needs_consent" || sourcesStatus?.drive === "failed"
+                      ? "text-[#b45309]"
+                      : "text-forest"
+                  }`}
+                >
+                  {sourcesStatus?.drive === "checked"
+                    ? "Metadata Sync Active"
+                    : sourcesStatus?.drive === "needs_consent"
+                    ? "Re-consent Required"
+                    : sourcesStatus?.drive === "failed"
+                    ? "Metadata Check Failed"
+                    : "Metadata Sync Active"}
+                </span>
               </div>
 
               {/* Privacy & Storage */}

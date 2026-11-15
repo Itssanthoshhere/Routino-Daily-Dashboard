@@ -93,6 +93,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
       category: finalCategory,
       dueDate: dueDate || undefined,
       subtasks: subtasks.length > 0 ? subtasks : undefined,
+      link: initialTask?.link || undefined,
     });
 
     setTitle("");

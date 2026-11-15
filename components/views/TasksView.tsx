@@ -17,9 +17,11 @@ import {
   Plane,
   Clock,
   Calendar,
+  ExternalLink,
 } from "lucide-react";
 import { Task } from "@/types/dashboard";
 import { inferTaskCategory } from "@/lib/meeting";
+import { renderLinkedText } from "@/lib/text-links";
 
 type TasksViewProps = {
   tasks: Task[];
@@ -424,6 +426,19 @@ export function TasksView({
                               {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                             </button>
                           )}
+                          {task.link && (
+                            <a
+                              href={task.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 rounded bg-[#f4f7ef] border border-forest/20 px-1.5 py-0.5 text-[9px] font-semibold text-forest hover:bg-[#ebf2e3] transition cursor-pointer"
+                              title="Open original email"
+                            >
+                              <ExternalLink size={9} />
+                              <span>Email</span>
+                            </a>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -463,11 +478,11 @@ export function TasksView({
                             {st.completed && <Check size={9} />}
                           </span>
                           <span
-                            className={`transition ${
+                            className={`transition flex-1 ${
                               st.completed ? "text-muted line-through" : "text-ink"
                             }`}
                           >
-                            {st.title}
+                            {renderLinkedText(st.title, st.link)}
                           </span>
                         </div>
                       ))}

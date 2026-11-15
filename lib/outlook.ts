@@ -138,8 +138,9 @@ export async function fetchOutlookEvents(accessToken: string): Promise<Dashboard
   });
 
   if (!res.ok) {
-    console.error("[outlook] Error fetching calendar events:", await res.text());
-    return [];
+    const errorBody = await res.text();
+    console.error("[outlook] Error fetching calendar events:", errorBody);
+    throw new Error(`Outlook calendar events fetch failed (HTTP ${res.status}): ${errorBody}`);
   }
 
   const json = await res.json();
@@ -176,8 +177,9 @@ export async function fetchOutlookMessages(accessToken: string): Promise<Dashboa
   });
 
   if (!res.ok) {
-    console.error("[outlook] Error fetching unread messages:", await res.text());
-    return [];
+    const errorBody = await res.text();
+    console.error("[outlook] Error fetching unread messages:", errorBody);
+    throw new Error(`Outlook unread messages fetch failed (HTTP ${res.status}): ${errorBody}`);
   }
 
   const json = await res.json();

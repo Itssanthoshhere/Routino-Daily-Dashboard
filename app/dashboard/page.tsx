@@ -36,6 +36,7 @@ import { PreferencesModal } from "@/components/PreferencesModal";
 import { WeatherWidget } from "@/components/WeatherWidget";
 import { MorningDigestModal } from "@/components/MorningDigestModal";
 import { classifyEmail } from "@/lib/email-classifier";
+import { renderLinkedText } from "@/lib/text-links";
 import { HabitTracker, getLocalDateString } from "@/components/HabitTracker";
 import { HabitsManagerModal } from "@/components/HabitsManagerModal";
 import { HabitModal } from "@/components/HabitModal";
@@ -407,6 +408,11 @@ export default function Home() {
     profile?: { email: string; name?: string };
     events: DashboardEvent[];
     unread: DashboardMail[];
+    syncStatus?: {
+      calendar: "checked" | "failed";
+      mail: "checked" | "failed";
+      overall: "checked" | "failed" | "partial";
+    };
   }>({ connected: false, events: [], unread: [] });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [focusMinutes, setFocusMinutes] = useState(appConfig.defaults.focusMinutes);
@@ -763,13 +769,27 @@ export default function Home() {
             profile: data.profile,
             events: data.events || [],
             unread: data.unread || [],
+            syncStatus: data.syncStatus,
           });
         } else {
-          setOutlookData({ connected: false, events: [], unread: [] });
+          setOutlookData({
+            connected: false,
+            events: [],
+            unread: [],
+            syncStatus: { calendar: "failed", mail: "failed", overall: "failed" },
+          });
         }
+      } else {
+        setOutlookData((prev) => ({
+          ...prev,
+          syncStatus: { calendar: "failed", mail: "failed", overall: "failed" },
+        }));
       }
     } catch {
-      // Ignore
+      setOutlookData((prev) => ({
+        ...prev,
+        syncStatus: { calendar: "failed", mail: "failed", overall: "failed" },
+      }));
     }
   }, []);
 
@@ -1395,11 +1415,13 @@ export default function Home() {
       category: cat,
       dueDate: "", // Explicit user review; do not guess deadlines!
       priority: classification?.variant === "security" || classification?.variant === "infra",
+      link: directLink,
       subtasks: [
         {
           id: "sub-1",
-          title: `Review message details (${directLink})`,
+          title: `Review message details in ${mail.source === "outlook" ? "Outlook" : "Gmail"}`,
           completed: false,
+          link: directLink,
         },
       ],
     });
@@ -2492,6 +2514,19 @@ export default function Home() {
                                         )}
                                       </span>
                                     </span>
+                                    {task.link && (
+                                      <a
+                                        href={task.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="mt-0.5 inline-flex items-center gap-1 rounded bg-[#f4f7ef] border border-forest/20 px-1.5 py-1 text-[8.5px] font-semibold text-forest hover:bg-[#ebf2e3] transition cursor-pointer"
+                                        title="Open linked email"
+                                      >
+                                        <ExternalLink size={9} />
+                                        <span>Email</span>
+                                      </a>
+                                    )}
                                     {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
                                     <button
                                       onClick={() => deleteTask(task.id)}
@@ -2520,8 +2555,8 @@ export default function Home() {
                                           >
                                             {st.completed && <Check size={8} />}
                                           </span>
-                                          <span className={st.completed ? "text-muted line-through" : "text-[#404e45]"}>
-                                            {st.title}
+                                          <span className={st.completed ? "text-muted line-through flex-1" : "text-[#404e45] flex-1"}>
+                                            {renderLinkedText(st.title, st.link)}
                                           </span>
                                         </div>
                                       ))}
@@ -2559,6 +2594,19 @@ export default function Home() {
                                         {task.meta}
                                         {hasSubtasks && (
                                           <span>· {completedSubCount}/{totalSubCount} sub-steps</span>
+                                        )}
+                                        {task.link && (
+                                          <a
+                                            href={task.link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="inline-flex items-center gap-1 rounded bg-[#f4f7ef] border border-forest/20 px-1 py-0.2 text-[8px] font-semibold text-forest/70 hover:text-forest transition cursor-pointer"
+                                            title="Open original email"
+                                          >
+                                            <ExternalLink size={7} />
+                                            <span>Email</span>
+                                          </a>
                                         )}
                                       </span>
                                     </span>
@@ -2842,6 +2890,11 @@ export default function Home() {
         calendarsChecked={liveData?.calendarsChecked}
         sourcesStatus={liveData?.sourcesStatus}
         isOutlookConnected={Boolean(outlookData.connected)}
+        outlookSyncStatus={
+          outlookData.connected
+            ? (outlookData.syncStatus?.overall || "checked")
+            : "not_connected"
+        }
         onCreateTaskFromMail={handleCreateTaskFromEmail}
         lastSyncedAt={liveData?.lastSyncedAt}
         onRefresh={() => fetchDashboard(true)}
