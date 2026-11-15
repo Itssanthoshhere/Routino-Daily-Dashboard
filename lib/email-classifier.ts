@@ -98,6 +98,7 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
     text.includes("application") ||
     text.includes("university") ||
     text.includes("college") ||
+    text.includes("bennett") ||
     text.includes("evaluation") ||
     text.includes("faculty") ||
     text.includes("viva")
