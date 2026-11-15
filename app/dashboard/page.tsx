@@ -420,7 +420,7 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [gmailNextPageToken, setGmailNextPageToken] = useState<string | null>(null);
   const [gmailExhausted, setGmailExhausted] = useState(false);
-  const [outlookNextSkip, setOutlookNextSkip] = useState<number | null>(null);
+  const [outlookNextLink, setOutlookNextLink] = useState<string | null>(null);
   const [outlookExhausted, setOutlookExhausted] = useState(false);
   const [isLoadingMoreMail, setIsLoadingMoreMail] = useState(false);
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
@@ -801,18 +801,12 @@ export default function Home() {
               syncStatus: data.syncStatus,
             };
           });
+          const nextLink = typeof data.unreadNextLink === "string" ? data.unreadNextLink : null;
           if (resetPages) {
-            setOutlookExhausted(freshUnread.length < 8);
-            setOutlookNextSkip(freshUnread.length >= 8 ? freshUnread.length : null);
+            setOutlookExhausted(!nextLink);
+            setOutlookNextLink(nextLink);
           } else {
-            setOutlookNextSkip((prev) => {
-              if (outlookExhausted) return null;
-              return prev && prev > freshUnread.length
-                ? prev
-                : freshUnread.length >= 8
-                ? freshUnread.length
-                : null;
-            });
+            setOutlookNextLink((prev) => (outlookExhausted ? null : prev ?? nextLink));
           }
         } else {
           setOutlookData({
@@ -821,7 +815,7 @@ export default function Home() {
             unread: [],
             syncStatus: { calendar: "failed", mail: "failed", overall: "failed" },
           });
-          setOutlookNextSkip(null);
+          setOutlookNextLink(null);
           setOutlookExhausted(true);
         }
       } else {
@@ -1539,8 +1533,8 @@ export default function Home() {
       }
 
       // 2. Outlook pagination
-      if (outlookData.connected && outlookNextSkip !== null) {
-        const res = await fetch(`/api/mail/load-more?source=outlook&skip=${outlookNextSkip}`, {
+      if (outlookData.connected && outlookNextLink) {
+        const res = await fetch(`/api/mail/load-more?source=outlook&nextLink=${encodeURIComponent(outlookNextLink)}`, {
           cache: "no-store",
         });
         if (res.ok) {
@@ -1557,11 +1551,11 @@ export default function Home() {
               };
             });
           }
-          if (!data.hasMore || data.nextSkip === undefined) {
-            setOutlookNextSkip(null);
+          if (!data.hasMore || typeof data.nextLink !== "string") {
+            setOutlookNextLink(null);
             setOutlookExhausted(true);
           } else {
-            setOutlookNextSkip(data.nextSkip);
+            setOutlookNextLink(data.nextLink);
           }
         } else {
           hasError = true;
@@ -1588,7 +1582,7 @@ export default function Home() {
     } finally {
       setIsLoadingMoreMail(false);
     }
-  }, [isLoadingMoreMail, liveData?.connected, gmailNextPageToken, outlookData.connected, outlookNextSkip, toast]);
+  }, [isLoadingMoreMail, liveData?.connected, gmailNextPageToken, outlookData.connected, outlookNextLink, toast]);
 
   const addEvent = (event: DashboardEvent) => {
     setCustomEvents(prev => {
@@ -2043,7 +2037,7 @@ export default function Home() {
               isConnected={isConnected}
               onLoadMore={handleLoadMoreMail}
               isLoadingMore={isLoadingMoreMail}
-              hasMore={Boolean((gmailNextPageToken && !gmailExhausted) || (outlookNextSkip !== null && !outlookExhausted))}
+              hasMore={Boolean((gmailNextPageToken && !gmailExhausted) || (outlookNextLink && !outlookExhausted))}
             />
           ) : activeNav === "Tasks" ? (
             <TasksView

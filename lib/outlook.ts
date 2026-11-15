@@ -168,13 +168,30 @@ export async function fetchOutlookEvents(accessToken: string): Promise<Dashboard
 /**
  * Fetch unread inbox messages from Microsoft Outlook via Microsoft Graph.
  */
+export type OutlookMessagesPage = {
+  messages: DashboardMail[];
+  nextLink: string | null;
+};
+
 export async function fetchOutlookMessages(
   accessToken: string,
   top = 8,
-  skip = 0
-): Promise<DashboardMail[]> {
-  const skipParam = skip > 0 ? `&$skip=${skip}` : "";
-  const url = `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$filter=isRead eq false&$top=${top}${skipParam}&$orderby=receivedDateTime desc`;
+  nextLink?: string
+): Promise<OutlookMessagesPage> {
+  const initialUrl = `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$filter=isRead eq false&$top=${top}&$orderby=receivedDateTime desc`;
+  let url = initialUrl;
+
+  if (nextLink) {
+    const parsedNextLink = new URL(nextLink);
+    if (
+      parsedNextLink.protocol !== "https:" ||
+      parsedNextLink.hostname !== "graph.microsoft.com" ||
+      parsedNextLink.pathname !== "/v1.0/me/mailFolders/inbox/messages"
+    ) {
+      throw new Error("Invalid Microsoft Graph paging URL.");
+    }
+    url = parsedNextLink.toString();
+  }
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -190,7 +207,7 @@ export async function fetchOutlookMessages(
   const json = await res.json();
   const items = json.value || [];
 
-  return items.map((msg: any): DashboardMail => {
+  const messages = items.map((msg: any): DashboardMail => {
     const sender = msg.from?.emailAddress?.name || msg.from?.emailAddress?.address || "Outlook";
     return {
       id: `outlook-${msg.id}`,
@@ -205,4 +222,9 @@ export async function fetchOutlookMessages(
       source: "outlook",
     };
   });
+
+  return {
+    messages,
+    nextLink: typeof json["@odata.nextLink"] === "string" ? json["@odata.nextLink"] : null,
+  };
 }

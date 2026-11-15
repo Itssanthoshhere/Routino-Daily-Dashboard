@@ -74,7 +74,10 @@ export async function GET() {
     const messagesOk = messagesResult.status === "fulfilled";
 
     const events = eventsOk ? eventsResult.value : [];
-    const unread = messagesOk ? messagesResult.value : [];
+    const unreadPage = messagesOk
+      ? messagesResult.value
+      : { messages: [], nextLink: null };
+    const unread = unreadPage.messages;
 
     const syncStatus = {
       calendar: eventsOk ? ("checked" as const) : ("failed" as const),
@@ -96,6 +99,7 @@ export async function GET() {
       },
       events,
       unread,
+      unreadNextLink: unreadPage.nextLink,
       syncStatus,
     });
   } catch (error) {

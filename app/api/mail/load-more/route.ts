@@ -19,10 +19,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const source = searchParams.get("source") || "google";
   const pageToken = searchParams.get("pageToken") || "";
-  const skip = parseInt(searchParams.get("skip") || "0", 10);
+  const outlookNextLink = searchParams.get("nextLink") || "";
 
   // ─── Microsoft Outlook ───
   if (source === "outlook") {
+    if (!outlookNextLink) {
+      return NextResponse.json({ messages: [], hasMore: false, error: "Missing Outlook paging link" }, { status: 400 });
+    }
     const userEmail = session.user?.email;
     if (!userEmail) return NextResponse.json({ messages: [], hasMore: false });
     const account = await getOutlookAccount(userEmail);
@@ -51,11 +54,11 @@ export async function GET(request: Request) {
     }
 
     try {
-      const messages = await fetchOutlookMessages(accessToken, 10, skip);
+      const page = await fetchOutlookMessages(accessToken, 10, outlookNextLink);
       return NextResponse.json({
-        messages,
-        nextSkip: messages.length === 10 ? skip + 10 : undefined,
-        hasMore: messages.length === 10,
+        messages: page.messages,
+        nextLink: page.nextLink,
+        hasMore: Boolean(page.nextLink),
       });
     } catch (err) {
       console.error("[outlook] Load more error:", err);
