@@ -1132,6 +1132,9 @@ export default function Home() {
       focusMinutes?: number;
       soundEnabled?: boolean;
       habits?: Habit[];
+      deletedHabitIds?: string[];
+      replaceHabitIds?: string[];
+      replaceAllHabits?: boolean;
       notes?: KeepNote[];
       activeNav?: string;
     }) => {
@@ -1145,6 +1148,9 @@ export default function Home() {
           focusMinutes: overrideData?.focusMinutes ?? focusMinutes,
           soundEnabled: overrideData?.soundEnabled ?? soundEnabled,
           habits: overrideData?.habits ?? habits,
+          deletedHabitIds: overrideData?.deletedHabitIds,
+          replaceHabitIds: overrideData?.replaceHabitIds,
+          replaceAllHabits: overrideData?.replaceAllHabits,
           notes: overrideData?.notes ?? notes,
           activeNav: overrideData?.activeNav ?? activeNav,
         };
@@ -1232,7 +1238,7 @@ export default function Home() {
             setSoundEnabled(d.soundEnabled);
             try { localStorage.setItem("routino_sound_enabled", String(d.soundEnabled)); } catch {}
           }
-          if (Array.isArray(d.habits) && d.habits.length > 0) {
+          if (Array.isArray(d.habits)) {
             setHabits(d.habits);
             try { localStorage.setItem("routino_habits", JSON.stringify(d.habits)); } catch {}
           }
@@ -1345,7 +1351,7 @@ export default function Home() {
         return { ...h, completedDates: nextDates, streak: nextStreak };
       });
       try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
-      syncToDatabase({ habits: next });
+      syncToDatabase({ habits: next, replaceHabitIds: [id] });
       return next;
     });
   };
@@ -1361,7 +1367,7 @@ export default function Home() {
     setHabits(prev => {
       const next = [...prev, newHabit];
       try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
-      syncToDatabase({ habits: next });
+      syncToDatabase({ habits: next, replaceHabitIds: [newHabit.id] });
       return next;
     });
     toast(`Habit "${name}" created!`);
@@ -1371,7 +1377,7 @@ export default function Home() {
     setHabits(prev => {
       const next = prev.map(h => (h.id === id ? { ...h, ...updates } : h));
       try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
-      syncToDatabase({ habits: next });
+      syncToDatabase({ habits: next, replaceHabitIds: [id] });
       return next;
     });
     toast("Habit updated!");
@@ -1381,7 +1387,7 @@ export default function Home() {
     setHabits(prev => {
       const next = prev.filter(h => h.id !== id);
       try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
-      syncToDatabase({ habits: next });
+      syncToDatabase({ habits: next, deletedHabitIds: [id] });
       return next;
     });
     toast("Habit deleted", "info");
@@ -1772,6 +1778,7 @@ export default function Home() {
       customEvents: imported.customEvents,
       quickLinks: imported.quickLinks,
       habits: imported.habits,
+      replaceAllHabits: Array.isArray(imported.habits),
       notes: imported.notes,
       focusMinutes: imported.focusMinutes,
     });

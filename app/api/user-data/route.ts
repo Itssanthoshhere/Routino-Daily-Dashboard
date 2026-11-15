@@ -47,7 +47,68 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, notes, activeNav } = body;
+    const {
+      tasks,
+      customEvents,
+      quickLinks,
+      focusMinutes,
+      soundEnabled,
+      habits,
+      notes,
+      activeNav,
+      deletedHabitIds,
+      replaceHabitIds,
+      replaceAllHabits,
+    } = body;
+
+    const existingWorkspace = await getUserWorkspace(email);
+    let savedHabits = existingWorkspace?.habits;
+    if (Array.isArray(habits)) {
+      if (replaceAllHabits === true) {
+        savedHabits = habits;
+      } else {
+        const deletedIds = new Set(
+          Array.isArray(deletedHabitIds)
+            ? deletedHabitIds.filter((id: unknown): id is string => typeof id === "string")
+            : []
+        );
+        const replacedIds = new Set(
+          Array.isArray(replaceHabitIds)
+            ? replaceHabitIds.filter((id: unknown): id is string => typeof id === "string")
+            : []
+        );
+        const merged = new Map(
+          (existingWorkspace?.habits ?? [])
+            .filter((habit) => !deletedIds.has(habit.id))
+            .map((habit) => [habit.id, habit])
+        );
+
+        for (const habit of habits) {
+          if (!habit || typeof habit.id !== "string" || deletedIds.has(habit.id)) continue;
+          const existing = merged.get(habit.id);
+          if (!existing || replacedIds.has(habit.id)) {
+            merged.set(habit.id, habit);
+            continue;
+          }
+
+          const completedDates = Array.from(
+            new Set([
+              ...(Array.isArray(existing.completedDates) ? existing.completedDates : []),
+              ...(Array.isArray(habit.completedDates) ? habit.completedDates : []),
+            ])
+          ).sort();
+
+          merged.set(habit.id, {
+            ...existing,
+            ...habit,
+            completedDates,
+            streak: Math.max(existing.streak || 0, habit.streak || 0),
+          });
+        }
+
+        savedHabits = Array.from(merged.values());
+      }
+    }
 
     const workspaceData = {
       tasks: Array.isArray(tasks) ? tasks : [],
@@ -55,7 +116,7 @@ export async function POST(req: NextRequest) {
       quickLinks: Array.isArray(quickLinks) ? quickLinks : [],
       focusMinutes: typeof focusMinutes === "number" ? focusMinutes : 90,
       soundEnabled: typeof soundEnabled === "boolean" ? soundEnabled : true,
-      habits: Array.isArray(habits) ? habits : undefined,
+      habits: savedHabits,
       notes: Array.isArray(notes) ? notes : undefined,
       activeNav: typeof activeNav === "string" ? activeNav : "Overview",
       updatedAt: new Date().toISOString(),
