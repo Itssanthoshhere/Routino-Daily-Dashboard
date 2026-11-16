@@ -14,5 +14,6 @@ export const appConfig = {
     github: process.env.NEXT_PUBLIC_GITHUB_URL || "https://github.com",
     portfolio: process.env.NEXT_PUBLIC_PORTFOLIO_URL || "https://example.com",
     drive: process.env.NEXT_PUBLIC_DRIVE_URL || "https://drive.google.com/drive/my-drive",
+    keep: process.env.NEXT_PUBLIC_KEEP_URL || "https://keep.google.com",
   },
 };

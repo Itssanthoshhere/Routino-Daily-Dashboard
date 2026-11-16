@@ -27,9 +27,12 @@ export function QuickLinkModal({ isOpen, onClose, onAddLink }: QuickLinkModalPro
     }
 
     const lower = formattedUrl.toLowerCase();
+    const titleLower = title.toLowerCase();
     const detectedIcon = lower.includes("github.com")
       ? "github"
-      : lower.includes("drive.google.com") || lower.includes("docs.google.com")
+      : lower.includes("keep.google.com") || titleLower.includes("keep")
+      ? "keep"
+      : lower.includes("drive.google.com") || lower.includes("docs.google.com") || lower.includes("sheets.google.com")
       ? "drive"
       : lower.includes("outlook") || lower.includes("microsoft") || lower.includes("live.com") || lower.includes("office.com")
       ? "outlook"
@@ -81,6 +84,7 @@ export function QuickLinkModal({ isOpen, onClose, onAddLink }: QuickLinkModalPro
           </label>
           <div className="flex flex-wrap gap-1.5">
             {[
+              { label: "Google Keep", sub: "Notes & lists", url: "https://keep.google.com" },
               { label: "Google Drive", sub: "Cloud files & storage", url: "https://drive.google.com/drive/my-drive" },
               { label: "Google Docs", sub: "Documents & drafts", url: "https://docs.google.com" },
               { label: "Google Sheets", sub: "Spreadsheets & data", url: "https://sheets.google.com" },

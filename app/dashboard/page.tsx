@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckCircle2, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
-  Inbox, Keyboard, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
+  Inbox, Keyboard, Lightbulb, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
   StickyNote, Target, Timer, TriangleAlert, Video, X, PieChart, Gauge,
   Key, Zap, Wallet, Briefcase, Copy, ShieldCheck, HardDrive, RefreshCw,
 } from "lucide-react";
@@ -212,9 +212,10 @@ const seedLinks: QuickLink[] = [
   { id: "ql-1", title: "Google Calendar", subtitle: "Your schedule", url: appConfig.links.calendar, iconName: "calendar", available: true },
   { id: "ql-2", title: "Gmail", subtitle: "Your inbox", url: appConfig.links.mail, iconName: "mail", available: true },
   { id: "ql-3", title: "Google Drive", subtitle: "Recent files & storage", url: appConfig.links.drive, iconName: "drive", available: true },
-  { id: "ql-4", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.cloud.microsoft/mail/", iconName: "outlook", available: true },
-  { id: "ql-5", title: "GitHub", subtitle: "Developer profile", url: appConfig.links.github, iconName: "github", available: true },
-  { id: "ql-6", title: "Portfolio", subtitle: "Personal website", url: appConfig.links.portfolio, iconName: "globe", available: true },
+  { id: "ql-4", title: "Google Keep", subtitle: "Notes & lists", url: appConfig.links.keep, iconName: "keep", available: true },
+  { id: "ql-5", title: "Outlook", subtitle: "Mail & calendar", url: "https://outlook.cloud.microsoft/mail/", iconName: "outlook", available: true },
+  { id: "ql-6", title: "GitHub", subtitle: "Developer profile", url: appConfig.links.github, iconName: "github", available: true },
+  { id: "ql-7", title: "Portfolio", subtitle: "Personal website", url: appConfig.links.portfolio, iconName: "globe", available: true },
 ];
 
 const seedNotifications: NotificationItem[] = [
@@ -292,6 +293,7 @@ const linkIcons: Record<string, typeof CalendarDays> = {
   portfolio: Globe,
   globe: Globe,
   drive: FolderOpen,
+  keep: Lightbulb,
   sites: Link2,
   link: Link2,
   file: FileText,
@@ -509,7 +511,28 @@ export default function Home() {
       const storedLinks = localStorage.getItem("routino_links");
       if (storedLinks !== null) {
         const parsed = JSON.parse(storedLinks);
-        if (Array.isArray(parsed)) setQuickLinks(parsed);
+        if (Array.isArray(parsed)) {
+          const hasKeep = parsed.some(
+            (l: QuickLink) =>
+              l.title?.toLowerCase().includes("keep") ||
+              l.url?.toLowerCase().includes("keep.google.com")
+          );
+          if (!hasKeep) {
+            const keepLink: QuickLink = {
+              id: "ql-keep",
+              title: "Google Keep",
+              subtitle: "Notes & lists",
+              url: appConfig.links.keep,
+              iconName: "keep",
+              available: true,
+            };
+            const updated = [...parsed, keepLink];
+            setQuickLinks(updated);
+            try { localStorage.setItem("routino_links", JSON.stringify(updated)); } catch {}
+          } else {
+            setQuickLinks(parsed);
+          }
+        }
       }
 
       const storedEvents = localStorage.getItem("routino_events");
@@ -1136,7 +1159,26 @@ export default function Home() {
             try { localStorage.setItem("routino_events", JSON.stringify(d.customEvents)); } catch {}
           }
           if (Array.isArray(d.quickLinks)) {
-            setQuickLinks(d.quickLinks);
+            const hasKeep = d.quickLinks.some(
+              (l: QuickLink) =>
+                l.title?.toLowerCase().includes("keep") ||
+                l.url?.toLowerCase().includes("keep.google.com")
+            );
+            const merged = hasKeep
+              ? d.quickLinks
+              : [
+                  ...d.quickLinks,
+                  {
+                    id: "ql-keep",
+                    title: "Google Keep",
+                    subtitle: "Notes & lists",
+                    url: appConfig.links.keep,
+                    iconName: "keep" as const,
+                    available: true,
+                  },
+                ];
+            setQuickLinks(merged);
+            try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
           }
           if (typeof d.focusMinutes === "number") {
             setFocusMinutes(d.focusMinutes);
@@ -2848,6 +2890,7 @@ export default function Home() {
                             link.iconName === "mail" ? "bg-[#fbefeb] text-[#d16b5b]" :
                             link.iconName === "outlook" ? "bg-[#ebf3fc] text-[#0078d4]" :
                             link.iconName === "drive" ? "bg-[#edf3ff] text-[#4285f4]" :
+                            link.iconName === "keep" ? "bg-[#fef9c3] text-[#ca8a04]" :
                             link.iconName === "github" ? "bg-[#f0f1f3] text-[#24292f]" :
                             (link.iconName === "portfolio" || link.iconName === "globe") ? "bg-[#fef7ee] text-[#d97706]" :
                             "bg-[#fdf2f2] text-forest"

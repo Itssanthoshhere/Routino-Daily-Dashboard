@@ -81,7 +81,7 @@ export type QuickLink = {
   title: string;
   subtitle: string;
   url: string;
-  iconName: "calendar" | "mail" | "drive" | "sites" | "link" | "file" | "github" | "portfolio" | "globe" | "outlook";
+  iconName: "calendar" | "mail" | "drive" | "keep" | "sites" | "link" | "file" | "github" | "portfolio" | "globe" | "outlook";
   available: boolean;
 };
 
