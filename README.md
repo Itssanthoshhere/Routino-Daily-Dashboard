@@ -23,13 +23,10 @@
     </a>
   </p>
 
-  <br />
-
   <a href="https://routino-daily-dashboard.vercel.app" target="_blank">
     <img src="https://img.shields.io/badge/🚀_OPEN_LIVE_DASHBOARD-routino--daily--dashboard.vercel.app-a4161a?style=for-the-badge&logo=vercel&logoColor=white" alt="Open Live Dashboard" />
   </a>
 
-  <br /><br />
 
   <p align="center">
     <em>A calm, responsive workspace for your schedule, messages, tasks, notes, routines, and focus. Bring Google Calendar, Gmail, Drive file metadata, and Microsoft Outlook together with subscription management and recharge history.</em>
