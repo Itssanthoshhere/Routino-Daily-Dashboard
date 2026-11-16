@@ -10,11 +10,12 @@ type TaskModalProps = {
   editing?: boolean;
   isOpen: boolean;
   onClose: () => void;
-  onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">) => void;
+  onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">, scope?: "occurrence" | "future") => void;
   initialTask?: Partial<Omit<Task, "id" | "checked" | "createdAt">> | null;
 };
 
 export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = false }: TaskModalProps) {
+  const [editScope, setEditScope] = useState<"occurrence" | "future">("future");
   const [title, setTitle] = useState("");
   const [meta, setMeta] = useState("");
   const [priority, setPriority] = useState(false);
@@ -29,6 +30,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
 
   useEffect(() => {
     if (isOpen) {
+      setEditScope("future");
       setRepeat(initialTask?.recurrence?.frequency || "none");
       setRepeatInterval(String(initialTask?.recurrence?.interval || 1));
       setRepeatUntil(initialTask?.recurrence?.until || "");
@@ -105,7 +107,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
       recurrence: repeat === "none" ? undefined : { frequency: repeat, interval: repeat === "weekdays" ? 1 : interval, until: repeatUntil || undefined, anchorDate: dueDate === initialTask?.dueDate?.slice(0, 10) ? initialTask.recurrence?.anchorDate || dueDate : dueDate },
       subtasks: subtasks.length > 0 ? subtasks : undefined,
       link: initialTask?.link || undefined,
-    });
+    }, editScope);
 
     setTitle("");
     setMeta("");
@@ -214,6 +216,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
             </div>
           </div>
 
+          {editing && (initialTask?.recurrence || initialTask?.recurrenceTemplate) && <label className="block text-xs font-semibold">Apply changes to<select className="mt-1 w-full rounded-lg border border-line px-3 py-2" value={editScope} onChange={event => setEditScope(event.target.value as typeof editScope)}><option value="future">This and future occurrences</option><option value="occurrence">Only this occurrence</option></select><span className="mt-1 block font-normal text-muted">Completed history is preserved. Existing future dates and checklist progress stay intact.</span></label>}
           <div className="rounded-xl border border-line bg-white p-3 space-y-3">
             <label className="block text-xs font-semibold">
               Repeat

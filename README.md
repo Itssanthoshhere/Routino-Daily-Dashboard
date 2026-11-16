@@ -179,6 +179,18 @@ Never use `NEXT_PUBLIC_` for secrets, OAuth tokens, database credentials, or pri
 
 The Vercel project should not expose deployment environment variables to the client. Preview and production environments should use separate OAuth credentials and databases where practical.
 
+## 🛟 Backups, reminders, and repeating tasks
+
+Signed-in core workspace records refresh every 30 seconds and when the browser regains focus. Pending local edits are merged before applying a refresh, and older reads cannot replace newer edits. Tracker writes retain revision checks; conflicting changes still require review.
+
+**Settings → Data → Database backups** provides manual snapshots, a record-count preview, JSON download, and restore. Neon saves capture the first pre-change state each UTC day. Production also schedules a daily snapshot at **02:30 IST** through `vercel.json`; this requires the server-only `CRON_SECRET` and deployment of this version. The scheduled job retains up to 30 days. Restores require an unchanged workspace version and create a safety snapshot atomically before replacement. Pending local changes must be saved or exported first. Snapshots live in a separate table in the **same Neon database**; download copies for protection outside that database. Other storage providers do not support this backup history.
+
+Expiry reminders appear in Overview and Trackers for the next seven days and up to 30 days overdue. Bundled services linked to the current recharge share its reminder. These are dashboard reminders; they do not send push notifications or assume a renewal payment.
+
+When editing a repeating task, choose **Only this occurrence** or **This and future occurrences**. An occurrence-only edit keeps the original template for the next task. Future edits update open later occurrences in the same series, preserving their scheduled dates and checklist progress; completed history stays intact. Repeat settings control newly generated occurrences.
+
+**Airtel Recharge → Import Airtel transactions** previews pasted Airtel history or CSV/JSON before saving selected successful payments. Enter your number to exclude other numbers. Duplicates, previously removed import records, failed payments, and unsupported statuses are excluded. Choose main plan or data top-up for each imported payment; the saved current plan is not replaced. CSV begins with `date` and supports `number,amount,status,kind,method,time,notes`; JSON accepts an array with the same keys. Dates accept ISO or day/month/year. Same-date, same-amount, same-status transactions are conservatively treated as duplicates and can be entered manually if they are distinct.
+
 ## 💳 Subscription and Airtel trackers
 
 Trackers includes a Subscription Manager and a separate Airtel Recharge history view. Subscriptions support editing, status filters, active-first ordering, renewal dates, recorded payment history, and a total-expense dialog. Plans marked **Needs review** can be marked **Completed**; completed plans retain their payment history and stay out of active spending projections. Workspace backups include subscriptions and Airtel records; older backups and API writes that omit subscriptions leave the saved records intact.

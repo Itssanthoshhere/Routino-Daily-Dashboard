@@ -88,7 +88,51 @@ async function routes() {
   const trackerApi = load("app/api/tracker-workspace/route.ts", mocks);
   assert.equal((await trackerApi.PATCH({ json: async () => ({ revision: 0, patch: { subscriptions: [plan] } }) })).options.status, 409);
   assert.equal((await trackerApi.PATCH({ json: async () => ({ revision: 0, patch: { airtel: { records: [null] } } }) })).options.status, 400);
+  assert.equal((await api.POST({ json: async () => ({ tasks: [{ id: "invalid", recurrenceTemplate: { title: "Bad" } }] }) })).options.status, 400);
+  const backupsApi = load("app/api/workspace-backups/route.ts", { ...mocks, "@/lib/auth": { auth: async () => null } });
+  assert.equal((await backupsApi.GET({ nextUrl: new URL("https://example.test/api/workspace-backups") })).options.status, 401);
+  assert.equal((await backupsApi.POST({ json: async () => ({ action: "restore", id: "private" }) })).options.status, 401);
+  const cronApi = load("app/api/cron/workspace-backup/route.ts", { "@/lib/workspaceBackups": { backupAllWorkspaces: async () => { throw new Error("Unauthenticated cron must never reach storage"); } } });
+  const previousSecret = process.env.CRON_SECRET;
+  process.env.CRON_SECRET = "test-secret";
+  try { assert.equal((await cronApi.GET(new Request("https://example.test/api/cron/workspace-backup"))).status, 401); }
+  finally { if (previousSecret === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = previousSecret; }
   const unauthenticated = load("app/api/tracker-workspace/route.ts", { ...mocks, "@/lib/auth": { auth: async () => null } });
   assert.equal((await unauthenticated.GET()).options.status, 401);
 }
 routes().then(() => console.log("Passed: tracker validation, imports, editable history, deduplication, bundle expiry, recurring tasks, stale/offline task merging, route authorization and workspace preservation."), error => { console.error(error); process.exitCode = 1; });
+
+// Import preview must never silently add another number or count failed/duplicate payments.
+const { previewAirtelImport } = load("lib/airtelImport.ts");
+const csvImport = 'date,number,amount,status,kind,notes\n2026-11-10,9000000001,1729,success,plan,"84 days, included benefits"\n2026-11-10,9000000001,1729,success,plan,duplicate\n2026-11-09,9000000002,199,success,topup,other\n2026-11-08,9000000001,49,failed,topup,failed';
+const importPreview = previewAirtelImport(csvImport, "9000000001", []);
+assert.equal(importPreview.filter(row => !row.excluded).length, 1);
+assert.equal(importPreview[0].record.notes, "84 days, included benefits");
+assert.match(importPreview[1].excluded, /Duplicate/);
+assert.match(importPreview[2].excluded, /Different/);
+assert.match(importPreview[3].excluded, /Failed/);
+assert.equal(previewAirtelImport(csvImport, "9000000001", [importPreview[0].record]).filter(row => !row.excluded).length, 0);
+assert.throws(() => previewAirtelImport(csvImport, "", []));
+const pasted = previewAirtelImport('Recharge · PREPAID\n9000000001\n10 Nov 2026 · 3:53 PM\nPaid via Euronet\nSuccess\n₹1,729.00', '9000000001', []);
+assert.equal(pasted[0].record.date, '2026-11-10');
+assert.equal(pasted[0].record.method, 'Euronet');
+assert.equal(pasted[0].record.amount, 1729);
+assert.equal(previewAirtelImport('[{"date":"31/2/2026","number":"9000000001","amount":49,"status":"success"}]', '9000000001', [])[0].record, undefined);
+
+const { editTaskOccurrences } = load("lib/taskRecurrence.ts");
+const originalTask = { id: 'series', title: 'Original', meta: '', checked: false, createdAt: 1, priority: false, dueDate: '2026-11-17', recurrence: { frequency: 'daily', interval: 1 } };
+const originalFuture = { ...originalTask, id: 'future', recurrenceSeriesId: 'series', dueDate: '2026-11-18' };
+const historyTask = { ...originalTask, id: 'history', recurrenceSeriesId: 'series', checked: true, dueDate: '2026-11-16' };
+const updates = { title: 'Changed', meta: '', priority: true, dueDate: '2026-11-17', recurrence: originalTask.recurrence };
+const only = editTaskOccurrences([originalTask, originalFuture, historyTask], 'series', updates, 'occurrence');
+assert.equal(only[0].title, 'Changed'); assert.deepEqual(only[1], originalFuture); assert.deepEqual(only[2], historyTask);
+const nextOnly = completeRepeatingTask([only[0]], 'series', '2026-11-17', 2);
+assert.equal(nextOnly[1].title, 'Original'); assert.equal(nextOnly[1].recurrenceTemplate, undefined);
+const future = editTaskOccurrences([originalTask, originalFuture, historyTask], 'series', updates, 'future');
+assert.equal(future[1].title, 'Changed'); assert.equal(future[1].dueDate, originalFuture.dueDate); assert.deepEqual(future[2], historyTask);
+const { expiryReminders } = load('lib/expiryReminders.ts');
+const reminderPlan = { ...rechargePlan, endDate: '2027-02-05' };
+assert.equal(expiryReminders([], { records: [], deletedIds: [], plan: reminderPlan }, '2027-02-01').length, 1);
+assert.equal(expiryReminders([{ ...plan, cycle: 'bundled', bundleRechargeId: reminderPlan.id, bundleEndDate: reminderPlan.endDate }], { records: [], deletedIds: [], plan: reminderPlan }, '2027-02-01').length, 1);
+assert.equal(expiryReminders([], { records: [], deletedIds: [], plan: reminderPlan }, '2026-11-17').length, 0);
+console.log('Passed: Airtel import review, occurrence/future editing, completed-history preservation, and expiry reminder deduplication.');

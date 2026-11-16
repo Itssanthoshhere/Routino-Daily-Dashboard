@@ -1,5 +1,6 @@
 "use client";
 
+import { AirtelImport } from "@/components/AirtelImport";
 import { useState } from "react";
 import type { TrackerExpenseJournal } from "@/types/dashboard";
 import { airtelRecharges, airtelTotals } from "@/lib/airtelRecharges";
@@ -58,6 +59,7 @@ export function AirtelRechargeTracker({ journals, isLive, saved, onChange, disab
       <div><h3 className="text-xl font-bold text-ink">Airtel Recharge</h3><p className="mt-1 text-xs text-muted">Editable recharge history, saved with your account. Main plans and small data top-ups stay separate.</p></div>
       <div className="flex gap-2"><button disabled={disabled} className={button} onClick={() => { setDraft({ id: "", date: today, amount: 0, kind: "topup", notes: "", source: "Saved recharge", paidByOther: false, status: "success" }); setPlanDraft(null); }}>Add recharge</button><button disabled={disabled} className={button} onClick={() => { setPlanDraft({ id: "", provider: "Airtel", amount: 0, paymentDate: today, startDate: today, endDate: today, validityDays: 1 }); setDraft(null); }}>New plan</button></div>
     </div>
+    <AirtelImport existing={rows} deletedIds={saved.deletedIds} disabled={disabled} onImport={records => persist({ ...saved, records: [...rows, ...records] })} />
     {!isLive && <p className="text-xs text-muted">Showing saved records. Journal history will join them when the connected sheet is available.</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {draft && <form onSubmit={saveRecord} className="rounded-2xl border border-line bg-white p-5"><h4 className="mb-4 font-semibold">{draft.id ? "Edit recharge" : "Add recharge"}</h4><div className="grid gap-3 sm:grid-cols-2">

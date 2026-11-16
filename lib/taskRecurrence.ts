@@ -45,17 +45,33 @@ export function completeRepeatingTask(tasks: Task[], id: string, today: string, 
   const task = tasks.find(item => item.id === id);
   if (!task) return tasks;
   const next = tasks.map(item => item.id === id ? { ...item, checked: !item.checked } : item);
-  if (task.checked || !task.recurrence) return next;
-  const dueDate = nextTaskDueDate(task, today);
+  if (task.checked || (!task.recurrence && !task.recurrenceTemplate?.recurrence)) return next;
+  const template = task.recurrenceTemplate ? { ...task, ...task.recurrenceTemplate } : task;
+  const dueDate = nextTaskDueDate(template, task.dueDate && task.dueDate.slice(0, 10) > today ? task.dueDate.slice(0, 10) : today);
   if (!dueDate) return next;
   const series = task.recurrenceSeriesId || task.id;
   const nextId = `${series}:repeat:${dueDate}`;
   if (next.some(item => item.id === nextId)) return next;
-  return [...next, { ...task, id: nextId, recurrenceSeriesId: series, dueDate, createdAt: now, checked: false, recurrence: { ...task.recurrence, anchorDate: task.recurrence.anchorDate || task.dueDate?.slice(0, 10) }, subtasks: task.subtasks?.map(subtask => ({ ...subtask, completed: false })), meta: task.meta ? task.meta.replace(/\b(?:Due )?Today\b|Due \d{4}-\d{2}-\d{2}/g, `Due ${dueDate.slice(0, 10)}`) : `Due ${dueDate.slice(0, 10)} · Repeating` }];
+  return [...next, { ...template, recurrenceTemplate: undefined, id: nextId, recurrenceSeriesId: series, dueDate, createdAt: now, checked: false, recurrence: { ...template.recurrence!, anchorDate: template.recurrence?.anchorDate || template.dueDate?.slice(0, 10) }, subtasks: template.subtasks?.map(subtask => ({ ...subtask, completed: false })), meta: template.meta ? template.meta.replace(/\b(?:Due )?Today\b|Due \d{4}-\d{2}-\d{2}/g, `Due ${dueDate.slice(0, 10)}`) : `Due ${dueDate.slice(0, 10)} · Repeating` }];
 }
 
 export function recurrenceLabel(rule: TaskRecurrence): string {
   if (rule.frequency === "weekdays") return "Every weekday";
   const unit = { daily: "day", weekly: "week", monthly: "month", yearly: "year" }[rule.frequency];
   return rule.interval === 1 ? `Every ${unit}` : `Every ${rule.interval} ${unit}s`;
+}
+
+export function editTaskOccurrences(tasks: Task[], id: string, updates: Omit<Task, "id" | "checked" | "createdAt">, scope: "occurrence" | "future" = "future"): Task[] {
+  const current = tasks.find(task => task.id === id);
+  if (!current) return tasks;
+  const series = current.recurrenceSeriesId || current.id;
+  return tasks.map(task => {
+    if (task.id === id) {
+      const { id: _id, checked: _checked, createdAt: _created, recurrenceTemplate: _template, ...template } = current;
+      return { ...task, ...updates, recurrenceTemplate: scope === "occurrence" && (current.recurrence || current.recurrenceTemplate) ? current.recurrenceTemplate || template : undefined };
+    }
+    if (scope !== "future" || task.checked || (task.recurrenceSeriesId || task.id) !== series || (task.dueDate || "") < (current.dueDate || "")) return task;
+    // Keep individually scheduled dates and checklist progress on existing future occurrences.
+    return { ...task, title: updates.title, meta: updates.meta, priority: updates.priority, category: updates.category, link: updates.link, recurrence: updates.recurrence, recurrenceTemplate: undefined };
+  });
 }

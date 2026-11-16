@@ -3,9 +3,9 @@ const fs = require("node:fs");
 const { randomUUID } = require("node:crypto");
 const ts = require("typescript");
 const { neon } = require("@neondatabase/serverless");
-require("@next/env").loadEnvConfig(process.cwd());
+require("@next/env").loadEnvConfig(process.cwd(), true);
 if (!process.env.DATABASE_URL && fs.existsSync(".env.database.local")) process.env.DATABASE_URL = JSON.parse(fs.readFileSync(".env.database.local", "utf8").match(/^DATABASE_URL=(.+)$/m)[1]);
-function load(file) { const module = { exports: {} }; new Function("require", "module", "exports", ts.transpileModule(fs.readFileSync(file, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText)(require, module, module.exports); return module.exports; }
+function load(file) { const module = { exports: {} }; new Function("require", "module", "exports", ts.transpileModule(fs.readFileSync(file, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText)(name => name.startsWith("@/") ? load(`${name.slice(2)}.ts`) : require(name), module, module.exports); return module.exports; }
 async function run() {
   const clientA = neon(process.env.DATABASE_URL), clientB = neon(process.env.DATABASE_URL);
   const owner = process.env.TRACKERS_OWNER_EMAIL.toLowerCase().trim();
@@ -43,9 +43,26 @@ async function run() {
     const [concurrent] = await clientB`SELECT data FROM routino_workspaces WHERE email = ${email}`;
     assert.deepEqual(concurrent.data.tasks.map(task => task.id).sort(), ["device-a", "device-b", "keep-task"]);
     assert.equal(concurrent.data.trackerRevision, 1);
+    const backups = load("lib/workspaceBackups.ts");
+    const snapshotId = await backups.backupWorkspace(email, "manual");
+    assert.ok(snapshotId);
+    assert.equal(await backups.readWorkspaceBackup(owner, snapshotId), null);
+    await db.saveUserWorkspace(email, { ...fixture, focusMinutes: 90 }, ["focusMinutes"]);
+    const [changed] = await clientA`SELECT data FROM routino_workspaces WHERE email = ${email}`;
+    const staleRestore = await backups.restoreWorkspaceBackup(email, snapshotId, "stale-version");
+    assert.equal(staleRestore.conflict, true);
+    const restored = await backups.restoreWorkspaceBackup(email, snapshotId, changed.data.updatedAt);
+    assert.equal(restored.success, true);
+    assert.equal(restored.data.focusMinutes, concurrent.data.focusMinutes);
+    assert.equal(restored.data.trackerRevision, concurrent.data.trackerRevision + 1);
+    assert.deepEqual(restored.data.tasks, concurrent.data.tasks);
+    const history = await backups.listWorkspaceBackups(email);
+    assert.ok(history.some(row => row.reason === "before-restore"));
+    const ownerSnapshot = await backups.backupWorkspace(owner, "daily");
+    assert.ok((await backups.listWorkspaceBackups(owner)).length > 0);
     const [ownerAfter] = await clientB`SELECT data FROM routino_workspaces WHERE email = ${owner}`;
     assert.deepEqual(ownerAfter.data, before.data);
-    console.log(JSON.stringify({ database: "verified", independentConnectionsAgree: true, ownerCoreDataPreserved: true, staleTrackerWriteRejected: true, unrelatedSavePreservesTrackers: true, concurrentTaskChangesPreserved: true, activeBenefits: before.data.airtel.plan.benefits?.filter(benefit => benefit.using).map(benefit => `${benefit.name} ${benefit.planName}`), savedRechargeCount: before.data.airtel.records.length, successfulPayments: totals.count, total: totals.total, currentPlan: { amount: before.data.airtel.plan.amount, startDate: before.data.airtel.plan.startDate, endDate: before.data.airtel.plan.endDate } }));
-  } finally { await clientA`DELETE FROM routino_workspaces WHERE email = ${email}`; }
+    console.log(JSON.stringify({ database: "verified", independentConnectionsAgree: true, ownerCoreDataPreserved: true, staleTrackerWriteRejected: true, unrelatedSavePreservesTrackers: true, concurrentTaskChangesPreserved: true, backupRestoreVerified: true, restoreRejectsStaleVersion: true, backupOwnershipEnforced: true, ownerBackupAvailable: true, activeBenefits: before.data.airtel.plan.benefits?.filter(benefit => benefit.using).map(benefit => `${benefit.name} ${benefit.planName}`), savedRechargeCount: before.data.airtel.records.length, successfulPayments: totals.count, total: totals.total, currentPlan: { amount: before.data.airtel.plan.amount, startDate: before.data.airtel.plan.startDate, endDate: before.data.airtel.plan.endDate } }));
+  } finally { await clientA`DELETE FROM routino_workspace_backups WHERE email = ${email}`; await clientA`DELETE FROM routino_workspaces WHERE email = ${email}`; }
 }
-run().catch(() => { console.error("Database verification failed; credentials were not logged."); process.exitCode = 1; });
+run().catch(error => { console.error("Database verification failed:", error.name, String(error.message).replace(/postgres(?:ql)?:\/\/[^\s]+/g, "[database URL redacted]"), (error.stack || "").split("\n").filter(line => line.includes("verify-tracker-database.cjs:")).join("\n")); process.exitCode = 1; });

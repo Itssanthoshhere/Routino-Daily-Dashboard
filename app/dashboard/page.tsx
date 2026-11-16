@@ -2,8 +2,9 @@
 
 import { mergeTaskRecords } from "@/lib/taskMerge";
 import { queueWorkspacePatch } from "@/lib/workspacePatch";
-import { completeRepeatingTask } from "@/lib/taskRecurrence";
+import { completeRepeatingTask, editTaskOccurrences } from "@/lib/taskRecurrence";
 import { isSubscriptionList } from "@/lib/subscriptionValidation";
+import { ExpiryReminders } from "@/components/ExpiryReminders";
 import { useTrackerWorkspace } from "@/hooks/useTrackerWorkspace";
 import { isAirtelData } from "@/lib/airtelValidation";
 import type { AirtelData } from "@/types/airtel";
@@ -380,6 +381,7 @@ export default function Home() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const coreSyncVersion = useRef(0);
   const coreSaveChain = useRef<Promise<boolean>>(Promise.resolve(true));
   const [workspaceSaveError, setWorkspaceSaveError] = useState(false);
   const [workspaceSyncReady, setWorkspaceSyncReady] = useState(false);
@@ -1114,6 +1116,7 @@ export default function Home() {
       activeNav?: string;
     }) => {
       if (!liveData?.connected || !workspaceSyncReady) return false;
+      coreSyncVersion.current += 1;
       const account = liveData.user?.email?.toLowerCase();
       const accountKey = `routino_workspace_pending:${account}`;
       const incoming = { ...overrideData, ...(overrideData?.tasks ? {
@@ -1131,6 +1134,7 @@ export default function Home() {
           const snapshot = localStorage.getItem(accountKey) || "{}";
           const res = await fetch("/api/user-data", { method: "POST", headers: { "Content-Type": "application/json" }, body: snapshot });
           const json = await res.json();
+          coreSyncVersion.current += 1;
           if (!res.ok || !json.success) { setWorkspaceSaveError(true); return false; }
           // A newer local patch stays pending for the queued request; never clear it accidentally.
           if (localStorage.getItem(accountKey) === snapshot) localStorage.removeItem(accountKey);
@@ -1164,13 +1168,17 @@ export default function Home() {
     if (!liveData?.connected) { setWorkspaceSyncReady(false); return; }
     setWorkspaceSyncReady(false);
     let active = true;
-    fetch("/api/user-data", { cache: "no-store" })
+    let readSequence = 0;
+    const loadWorkspace = () => {
+      const readVersion = coreSyncVersion.current;
+      const sequence = ++readSequence;
+      return fetch("/api/user-data", { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) return null;
         return r.json();
       })
       .then((res) => {
-        if (!active || !res || !res.authenticated) return;
+        if (!active || !res || !res.authenticated || readVersion !== coreSyncVersion.current || sequence !== readSequence) return;
         setWorkspaceSyncReady(true);
         if (res.dbStatus?.sourceLabel) {
           setDbSource(res.dbStatus.sourceLabel);
@@ -1231,9 +1239,12 @@ export default function Home() {
         }
       })
       .catch(() => undefined);
-    return () => {
-      active = false;
     };
+    void loadWorkspace();
+    const onVisible = () => { if (document.visibilityState === "visible") void loadWorkspace(); };
+    const interval = window.setInterval(onVisible, 30000);
+    window.addEventListener("focus", onVisible); document.addEventListener("visibilitychange", onVisible);
+    return () => { active = false; clearInterval(interval); window.removeEventListener("focus", onVisible); document.removeEventListener("visibilitychange", onVisible); };
   }, [liveData?.connected, liveData?.user?.email]);
 
   const handleManualSync = async () => {
@@ -1261,10 +1272,10 @@ export default function Home() {
     setShowTaskModal(true);
   };
 
-  const saveTaskEdits = (updates: Omit<Task, "id" | "checked" | "createdAt">) => {
+  const saveTaskEdits = (updates: Omit<Task, "id" | "checked" | "createdAt">, scope: "occurrence" | "future" = "future") => {
     if (!editingTaskId) return;
     setTasks(previous => {
-      const next = previous.map(task => task.id === editingTaskId ? { ...task, ...updates } : task);
+      const next = editTaskOccurrences(previous, editingTaskId, updates, scope);
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       void syncToDatabase({ tasks: next });
       return next;
@@ -1977,6 +1988,8 @@ export default function Home() {
             </div>
           )}
 
+          {(activeNav === "Overview" || activeNav === "Trackers") && trackerWorkspace.ready && <ExpiryReminders subscriptions={subscriptions} airtel={trackerWorkspace.airtel} onOpen={handleOpenTrackersTab} />}
+
           {/* ─── CONDITIONAL VIEWS BASED ON ACTIVE NAV ─── */}
           {activeNav === "Calendar" ? (
             <CalendarView
@@ -2036,7 +2049,7 @@ export default function Home() {
               onDeleteTask={deleteTask}
               onEditTask={editTask}
               onUpdateTaskRecurrence={(id, recurrence) => {
-                const next = tasks.map(task => task.id === id ? { ...task, recurrence, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task);
+                const next = tasks.map(task => task.id === id ? { ...task, recurrence, recurrenceTemplate: undefined, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task);
                 setTasks(next);
                 try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
                 void syncToDatabase({ tasks: next });

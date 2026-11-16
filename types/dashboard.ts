@@ -19,6 +19,7 @@ export type Task = {
   dueDate?: string;
   recurrence?: TaskRecurrence;
   recurrenceSeriesId?: string;
+  recurrenceTemplate?: Omit<Task, "id" | "checked" | "createdAt" | "recurrenceTemplate">;
   createdAt: number;
   subtasks?: SubTask[];
   link?: string;

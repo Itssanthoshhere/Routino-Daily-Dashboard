@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
+import { WorkspaceBackups } from "@/components/WorkspaceBackups";
 import { OutlookConnectionCard } from "@/components/OutlookConnectionCard";
 
 import { isSubscriptionList } from "@/lib/subscriptionValidation";
@@ -380,6 +381,8 @@ export function PreferencesModal({
                   </p>
                 )}
               </div>
+
+              <WorkspaceBackups email={userEmail} />
 
               <OutlookConnectionCard
                 googleConnected={Boolean(userEmail)}
