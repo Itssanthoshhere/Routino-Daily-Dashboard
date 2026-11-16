@@ -1,10 +1,15 @@
 "use client";
 
+import { mergeTaskRecords } from "@/lib/taskMerge";
+import { queueWorkspacePatch } from "@/lib/workspacePatch";
+import { completeRepeatingTask } from "@/lib/taskRecurrence";
 import { isSubscriptionList } from "@/lib/subscriptionValidation";
-import { applyJournalCorrections } from "@/lib/subscriptionJournal";
+import { useTrackerWorkspace } from "@/hooks/useTrackerWorkspace";
+import { isAirtelData } from "@/lib/airtelValidation";
+import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckCircle2, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
@@ -327,12 +332,14 @@ let globalToastSeq = 0;
 export default function Home() {
   /* ── Core state ── */
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [subscriptionStorageError, setSubscriptionStorageError] = useState(false);
   const [notes, setNotes] = useState<KeepNote[]>(seedNotes);
   const [activeNav, setActiveNav] = useState("Overview");
   const [notice, setNotice] = useState(true);
   const [liveData, setLiveData] = useState<DashboardData | null>(null);
+  const trackerWorkspace = useTrackerWorkspace(liveData?.connected ? liveData.user?.email : null);
+  const subscriptions = trackerWorkspace.subscriptions;
+  const currentAccount = useRef<string | null>(null);
+  currentAccount.current = liveData?.connected ? liveData.user?.email?.toLowerCase() || null : null;
   const [customEvents, setCustomEvents] = useState<DashboardEvent[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(seedLinks);
   const [notifications, setNotifications] = useState<NotificationItem[]>(seedNotifications);
@@ -361,6 +368,7 @@ export default function Home() {
 
   /* ── Modal / popover state ── */
   const [showFocusTimer, setShowFocusTimer] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showQuickLinkModal, setShowQuickLinkModal] = useState(false);
@@ -372,6 +380,8 @@ export default function Home() {
   const [showPreferences, setShowPreferences] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const coreSaveChain = useRef<Promise<boolean>>(Promise.resolve(true));
+  const [workspaceSaveError, setWorkspaceSaveError] = useState(false);
   const [workspaceSyncReady, setWorkspaceSyncReady] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [dbSource, setDbSource] = useState<string>("Local Storage");
@@ -508,10 +518,6 @@ export default function Home() {
   /* ── LocalStorage Hydration ── */
   useEffect(() => {
     try {
-      const storedSubscriptions = localStorage.getItem("routino_subscriptions_v1");
-      if (storedSubscriptions) {
-        try { const parsed = JSON.parse(storedSubscriptions); if (isSubscriptionList(parsed)) setSubscriptions(parsed); else setSubscriptionStorageError(true); } catch { setSubscriptionStorageError(true); }
-      }
       const storedTasks = localStorage.getItem("routino_tasks");
       if (storedTasks !== null) {
         const parsed = JSON.parse(storedTasks);
@@ -1104,56 +1110,59 @@ export default function Home() {
       deletedHabitIds?: string[];
       replaceHabitIds?: string[];
       replaceAllHabits?: boolean;
-      subscriptions?: Subscription[];
       notes?: KeepNote[];
       activeNav?: string;
     }) => {
       if (!liveData?.connected || !workspaceSyncReady) return false;
+      const account = liveData.user?.email?.toLowerCase();
+      const accountKey = `routino_workspace_pending:${account}`;
+      const incoming = { ...overrideData, ...(overrideData?.tasks ? {
+        replaceTaskIds: overrideData.tasks.filter(task => JSON.stringify(task) !== JSON.stringify(tasks.find(existing => existing.id === task.id))).map(task => task.id),
+        deletedTaskIds: tasks.filter(task => !overrideData.tasks!.some(next => next.id === task.id)).map(task => task.id),
+      } : {}) };
       try {
+        const pending = JSON.parse(localStorage.getItem(accountKey) || "{}");
+        localStorage.setItem(accountKey, JSON.stringify(queueWorkspacePatch(pending, incoming)));
+      } catch { setWorkspaceSaveError(true); return false; }
+      const operation = async () => {
+        if (currentAccount.current !== account) return false;
         setIsSyncing(true);
-        const payload = {
-          tasks: overrideData?.tasks ?? tasks,
-          customEvents: overrideData?.customEvents ?? customEvents,
-          quickLinks: overrideData?.quickLinks ?? quickLinks,
-          focusMinutes: overrideData?.focusMinutes ?? focusMinutes,
-          soundEnabled: overrideData?.soundEnabled ?? soundEnabled,
-          habits: overrideData?.habits ?? habits,
-          deletedHabitIds: overrideData?.deletedHabitIds,
-          replaceHabitIds: overrideData?.replaceHabitIds,
-          replaceAllHabits: overrideData?.replaceAllHabits,
-          ...(overrideData?.subscriptions !== undefined ? { subscriptions: overrideData.subscriptions } : {}),
-          notes: overrideData?.notes ?? notes,
-          activeNav: overrideData?.activeNav ?? activeNav,
-        };
-
-        const res = await fetch("/api/user-data", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
+        try {
+          const snapshot = localStorage.getItem(accountKey) || "{}";
+          const res = await fetch("/api/user-data", { method: "POST", headers: { "Content-Type": "application/json" }, body: snapshot });
           const json = await res.json();
-          if (!json.success) return false;
-          setLastSyncedAt(json.savedAt || new Date().toISOString());
-          if (json.dbStatus?.sourceLabel) {
-            setDbSource(json.dbStatus.sourceLabel);
-          }
+          if (!res.ok || !json.success) { setWorkspaceSaveError(true); return false; }
+          // A newer local patch stays pending for the queued request; never clear it accidentally.
+          if (localStorage.getItem(accountKey) === snapshot) localStorage.removeItem(accountKey);
+          setLastSyncedAt(json.savedAt);
+          if (json.dbStatus?.sourceLabel) setDbSource(json.dbStatus.sourceLabel);
+          setWorkspaceSaveError(false);
           return true;
-        }
-        return false;
-      } catch {
-        return false;
-      } finally {
-        setIsSyncing(false);
-      }
+        } catch { setWorkspaceSaveError(true); return false; }
+        finally { setIsSyncing(false); }
+      };
+      const queued = coreSaveChain.current.then(operation, operation);
+      coreSaveChain.current = queued;
+      return queued;
     },
     [liveData?.connected, workspaceSyncReady, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, notes, activeNav]
   );
 
+  useEffect(() => {
+    if (!workspaceSyncReady || !liveData?.user?.email) return;
+    const retryPending = () => {
+      try { if (localStorage.getItem(`routino_workspace_pending:${liveData.user!.email!.toLowerCase()}`)) void syncToDatabase(); } catch {}
+    };
+    retryPending();
+    window.addEventListener("online", retryPending);
+    window.addEventListener("focus", retryPending);
+    return () => { window.removeEventListener("online", retryPending); window.removeEventListener("focus", retryPending); };
+  }, [workspaceSyncReady, liveData?.user?.email, syncToDatabase]);
+
   /* ── Load user workspace from Database on session connect ── */
   useEffect(() => {
-    if (!liveData?.connected) return;
+    if (!liveData?.connected) { setWorkspaceSyncReady(false); return; }
+    setWorkspaceSyncReady(false);
     let active = true;
     fetch("/api/user-data", { cache: "no-store" })
       .then(async (r) => {
@@ -1167,7 +1176,11 @@ export default function Home() {
           setDbSource(res.dbStatus.sourceLabel);
         }
         if (res.exists && res.data) {
-          const d = res.data;
+          let d = res.data;
+          try {
+            const pending = JSON.parse(localStorage.getItem(`routino_workspace_pending:${res.email.toLowerCase()}`) || "{}");
+            d = { ...d, ...pending, ...(Array.isArray(pending.tasks) && Array.isArray(pending.replaceTaskIds) && Array.isArray(pending.deletedTaskIds) ? { tasks: mergeTaskRecords(d.tasks || [], pending.tasks, pending.replaceTaskIds, pending.deletedTaskIds) } : {}) };
+          } catch { setWorkspaceSaveError(true); }
           if (Array.isArray(d.tasks)) {
             setTasks(d.tasks);
           }
@@ -1209,11 +1222,6 @@ export default function Home() {
             setHabits(d.habits);
             try { localStorage.setItem("routino_habits", JSON.stringify(d.habits)); } catch {}
           }
-          if (isSubscriptionList(d.subscriptions)) {
-            setSubscriptions(d.subscriptions);
-            setSubscriptionStorageError(false);
-            try { localStorage.setItem("routino_subscriptions_v1", JSON.stringify(d.subscriptions)); } catch {}
-          }
           if (Array.isArray(d.notes)) {
             setNotes(d.notes);
           }
@@ -1226,29 +1234,42 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, [liveData?.connected]);
+  }, [liveData?.connected, liveData?.user?.email]);
 
   const handleManualSync = async () => {
-    const saved = await syncToDatabase(subscriptionStorageError ? undefined : { subscriptions });
+    const trackersSaved = await trackerWorkspace.retry();
+    const saved = (await syncToDatabase()) && trackersSaved;
     toast(saved ? "Workspace synchronized with database!" : "Database sync failed or is unavailable. Local data is preserved.");
+    return saved;
   };
 
   /* ── Handlers ── */
   const toggleTask = (id: string) => {
     setTasks(prev => {
-      const next = prev.map(t => {
-        if (t.id !== id) return t;
-        const updated = { ...t, checked: !t.checked };
-        if (updated.checked) {
-          playTick();
-          toast(`"${t.title}" marked complete`);
-        }
-        return updated;
-      });
+      const task = prev.find(item => item.id === id);
+      const next = completeRepeatingTask(prev, id, new Intl.DateTimeFormat("en-CA").format(new Date()), Date.now());
+      if (task && !task.checked) { playTick(); toast(`"${task.title}" completed${next.length > prev.length ? " · next occurrence created" : ""}`); }
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
     });
+  };
+
+  const editTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setTaskModalInitialData(task);
+    setShowTaskModal(true);
+  };
+
+  const saveTaskEdits = (updates: Omit<Task, "id" | "checked" | "createdAt">) => {
+    if (!editingTaskId) return;
+    setTasks(previous => {
+      const next = previous.map(task => task.id === editingTaskId ? { ...task, ...updates } : task);
+      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      void syncToDatabase({ tasks: next });
+      return next;
+    });
+    toast("Task changes saved");
   };
 
   const deleteTask = (id: string) => {
@@ -1716,15 +1737,20 @@ export default function Home() {
     habits?: Habit[];
     notes?: KeepNote[];
     subscriptions?: Subscription[];
+    airtel?: AirtelData;
     focusMinutes?: number;
   }) => {
     if (imported.subscriptions !== undefined && !isSubscriptionList(imported.subscriptions)) {
       toast("Invalid subscription data in backup. No workspace changes were made.");
       return;
     }
-    if (Array.isArray(imported.subscriptions)) {
-      setSubscriptions(imported.subscriptions);
-      try { localStorage.setItem("routino_subscriptions_v1", JSON.stringify(imported.subscriptions)); } catch {}
+    if (imported.airtel !== undefined && !isAirtelData(imported.airtel)) {
+      toast("Invalid Airtel records in backup. No changes were made."); return;
+    }
+    if (imported.subscriptions !== undefined || imported.airtel !== undefined) {
+      if (!trackerWorkspace.update({ ...(imported.subscriptions !== undefined ? { subscriptions: imported.subscriptions } : {}), ...(imported.airtel !== undefined ? { airtel: imported.airtel } : {}) })) {
+        toast("Trackers are not ready to restore. No workspace changes were made."); return;
+      }
     }
     if (imported.tasks) {
       setTasks(imported.tasks);
@@ -1756,7 +1782,6 @@ export default function Home() {
       quickLinks: imported.quickLinks,
       habits: imported.habits,
       replaceAllHabits: Array.isArray(imported.habits),
-      subscriptions: imported.subscriptions,
       notes: imported.notes,
       focusMinutes: imported.focusMinutes,
     });
@@ -1766,6 +1791,7 @@ export default function Home() {
   /* ── Render ── */
   return (
     <div className="min-h-screen">
+      {workspaceSaveError && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[80] rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:left-auto sm:max-w-md">Workspace changes are kept locally but database sync failed. They will retry when connected.<button className="ml-3 font-semibold underline" onClick={() => { void syncToDatabase(); }}>Retry now</button></div>}
       {/* ─── Sidebar (desktop) ─── */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col justify-between border-r border-line bg-[#fbfcf8] lg:flex">
         {/* Scrollable upper navigation & apps area */}
@@ -1966,32 +1992,17 @@ export default function Home() {
             />
           ) : activeNav === "Trackers" ? (
             <TrackersView
-              onJournalSubscriptions={(detected) => {
-                const corrected = applyJournalCorrections(subscriptions);
-                let alreadyImported = false;
-                try { alreadyImported = !!localStorage.getItem("routino_subscription_journal_import_v1"); } catch { return; }
-                const hasCorrection = corrected.some((item, index) => item !== subscriptions[index]);
-                if ((!detected.length || alreadyImported) && !hasCorrection) return;
-                const existingNames = new Set(corrected.map(s => s.name.toLowerCase().replace(/[^a-z0-9]/g, "")));
-                const next = [...corrected, ...(alreadyImported ? [] : detected.filter(s => !existingNames.has(s.name.toLowerCase().replace(/[^a-z0-9]/g, ""))))];
-                try {
-                  localStorage.setItem("routino_subscriptions_v1", JSON.stringify(next));
-                  localStorage.setItem("routino_subscription_journal_import_v1", "done");
-                } catch { toast("Could not save journal subscriptions locally."); return; }
-                setSubscriptions(next);
-                void syncToDatabase({ subscriptions: next }).then(saved => {
-                  if (!saved) toast("Subscriptions saved locally. Database sync is unavailable.");
-                });
-              }}
+              onJournalSubscriptions={trackerWorkspace.importSubscriptions}
               subscriptions={subscriptions}
-              subscriptionsDisabled={subscriptionStorageError || (!!liveData?.connected && !workspaceSyncReady)}
-              onSubscriptionsChange={(next) => {
-                try { localStorage.setItem("routino_subscriptions_v1", JSON.stringify(next)); } catch { toast("Could not save subscriptions locally. Please check browser storage."); return; }
-                setSubscriptions(next);
-                void syncToDatabase({ subscriptions: next }).then(saved => {
-                  if (!saved) toast("Subscriptions saved locally. Database sync is unavailable.");
-                });
-              }}
+              airtel={trackerWorkspace.airtel}
+              onAirtelChange={(airtel) => { trackerWorkspace.update({ airtel }); }}
+              subscriptionsDisabled={!trackerWorkspace.ready || trackerWorkspace.status === "conflict"}
+              onSubscriptionsChange={(next) => { trackerWorkspace.update({ subscriptions: next }); }}
+              trackerSyncStatus={trackerWorkspace.status}
+              trackerSyncMessage={trackerWorkspace.message}
+              onRetryTrackerSync={() => { void trackerWorkspace.retry(); }}
+              onReloadTrackers={() => { void trackerWorkspace.reloadSaved(); }}
+              onExportTrackerDraft={trackerWorkspace.downloadLocalCopy}
               initialTab={trackersTab}
               tabChangeKey={trackersTabKey}
               onTabChange={(tab) => {
@@ -2023,6 +2034,13 @@ export default function Home() {
               tasks={tasks}
               onToggleTask={toggleTask}
               onDeleteTask={deleteTask}
+              onEditTask={editTask}
+              onUpdateTaskRecurrence={(id, recurrence) => {
+                const next = tasks.map(task => task.id === id ? { ...task, recurrence, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task);
+                setTasks(next);
+                try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+                void syncToDatabase({ tasks: next });
+              }}
               onAddTask={addTask}
               onOpenTaskModal={() => setShowTaskModal(true)}
               onToggleSubTask={toggleSubTask}
@@ -2667,6 +2685,7 @@ export default function Home() {
                                       </a>
                                     )}
                                     {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
+                                    <button onClick={() => editTask(task)} aria-label={`Edit ${task.title}`} className="rounded p-1 text-muted hover:text-forest">Edit</button>
                                     <button
                                       onClick={() => deleteTask(task.id)}
                                       className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6] cursor-pointer"
@@ -2749,6 +2768,7 @@ export default function Home() {
                                         )}
                                       </span>
                                     </span>
+                                    <button onClick={() => editTask(task)} aria-label={`Edit ${task.title}`} className="rounded p-1 text-muted hover:text-forest">Edit</button>
                                     <button
                                       onClick={() => deleteTask(task.id)}
                                       className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6] cursor-pointer"
@@ -3081,9 +3101,11 @@ export default function Home() {
         isOpen={showTaskModal}
         onClose={() => {
           setShowTaskModal(false);
+          setEditingTaskId(null);
           setTaskModalInitialData(null);
         }}
-        onAddTask={addTask}
+        onAddTask={editingTaskId ? saveTaskEdits : addTask}
+        editing={!!editingTaskId}
         initialTask={taskModalInitialData}
       />
       <EventModal
@@ -3135,6 +3157,7 @@ export default function Home() {
         habits={habits}
         notes={notes}
         subscriptions={subscriptions}
+        airtel={trackerWorkspace.airtel}
         onImportData={handleImportData}
         onClearCompletedTasks={handleClearCompletedTasks}
         soundEnabled={soundEnabled}

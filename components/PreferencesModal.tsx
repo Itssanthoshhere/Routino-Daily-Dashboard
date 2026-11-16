@@ -23,10 +23,13 @@ import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashbo
 import { OutlookConnectionCard } from "@/components/OutlookConnectionCard";
 
 import { isSubscriptionList } from "@/lib/subscriptionValidation";
+import { isAirtelData } from "@/lib/airtelValidation";
+import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 type PreferencesModalProps = {
   subscriptions?: Subscription[];
+  airtel?: AirtelData;
   isOpen: boolean;
   onClose: () => void;
   focusMinutes: number;
@@ -42,6 +45,7 @@ type PreferencesModalProps = {
     quickLinks?: QuickLink[];
     habits?: Habit[];
     subscriptions?: Subscription[];
+    airtel?: AirtelData;
     notes?: KeepNote[];
     focusMinutes?: number;
   }) => void;
@@ -49,7 +53,7 @@ type PreferencesModalProps = {
   soundEnabled: boolean;
   onToggleSound: () => void;
   userEmail?: string | null;
-  onSyncDatabase?: () => Promise<void>;
+  onSyncDatabase?: () => Promise<boolean>;
   isSyncing?: boolean;
   lastSyncedAt?: string | null;
   dbSource?: string;
@@ -67,6 +71,7 @@ export function PreferencesModal({
   habits,
   notes,
   subscriptions,
+  airtel,
   onImportData,
   onClearCompletedTasks,
   soundEnabled,
@@ -99,6 +104,7 @@ export function PreferencesModal({
         habits,
         notes,
         subscriptions,
+        airtel,
       },
     };
 
@@ -124,6 +130,7 @@ export function PreferencesModal({
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed.data) {
+          if (parsed.data.airtel !== undefined && !isAirtelData(parsed.data.airtel)) throw new Error("Invalid Airtel records");
           if (parsed.data.subscriptions !== undefined && !isSubscriptionList(parsed.data.subscriptions)) {
             throw new Error("Invalid subscription data");
           }
@@ -134,6 +141,7 @@ export function PreferencesModal({
             habits: parsed.data.habits,
             notes: parsed.data.notes,
             subscriptions: parsed.data.subscriptions,
+            airtel: parsed.data.airtel,
             focusMinutes: parsed.data.focusMinutes,
           });
           onClose();
@@ -148,8 +156,8 @@ export function PreferencesModal({
   const handleManualSync = async () => {
     if (!onSyncDatabase) return;
     try {
-      await onSyncDatabase();
-      setSyncSuccessToast(true);
+      const saved = await onSyncDatabase();
+      setSyncSuccessToast(saved);
       setTimeout(() => setSyncSuccessToast(false), 3000);
     } catch {
       // Ignored

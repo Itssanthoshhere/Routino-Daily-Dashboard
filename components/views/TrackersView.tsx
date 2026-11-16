@@ -48,12 +48,20 @@ import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 import { subscriptionsFromJournals } from "@/lib/subscriptionJournal";
 import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
 import { SubscriptionManager } from "@/components/SubscriptionManager";
+import { emptyAirtelData, type AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "placements" | "life" | "purchases" | "subscriptions" | "airtel";
 type TabKey = TrackersTabKey;
 
 export type TrackersViewProps = {
+  airtel?: AirtelData;
+  onAirtelChange?: (data: AirtelData) => void;
+  trackerSyncStatus?: string;
+  trackerSyncMessage?: string;
+  onRetryTrackerSync?: () => void;
+  onReloadTrackers?: () => void;
+  onExportTrackerDraft?: () => void;
   onJournalSubscriptions?: (subscriptions: Subscription[]) => void;
   subscriptions?: Subscription[];
   onSubscriptionsChange?: (next: Subscription[]) => void;
@@ -291,7 +299,7 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   };
 }
 
-export function TrackersView({ initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled }: TrackersViewProps = {}) {
+export function TrackersView({ initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab || "eb");
 
   useEffect(() => {
@@ -1040,6 +1048,8 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange, onJournalS
         </div>}
       </div>
 
+      {(activeTab === "subscriptions" || activeTab === "airtel") && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white p-3 text-xs" role="status"><div><span className="font-semibold capitalize">{trackerSyncStatus === "synced" ? "Synced to account" : trackerSyncStatus === "local" ? "Saved locally" : trackerSyncStatus}</span><p className="mt-1 text-muted">{trackerSyncMessage}</p></div><div className="flex flex-wrap gap-3">{trackerSyncStatus === "error" && <button className="font-semibold text-forest" onClick={onRetryTrackerSync}>Retry save</button>}{(trackerSyncStatus === "error" || trackerSyncStatus === "conflict") && <><button onClick={onExportTrackerDraft}>Download local copy</button><button onClick={onReloadTrackers}>Reload saved records</button></>}</div></div>}
+
       {syncError && (
         <div className="rounded-xl border border-[#fed7aa] bg-[#fffbeb] p-3 text-[12px] text-[#9a3412] flex items-center gap-2">
           <AlertCircle size={15} />
@@ -1050,7 +1060,7 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange, onJournalS
       {/* ─── Navigation Tabs ─── */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line pb-3">
         {[
-          { key: "airtel", label: "Airtel Recharge", icon: RefreshCw, count: "84 days" },
+          { key: "airtel", label: "Airtel Recharge", icon: RefreshCw, count: airtel?.plan ? `${airtel.plan.validityDays} days` : "History" },
           { key: "subscriptions", label: "Subscriptions", icon: CreditCard, count: `${subscriptions.length}` },
           { key: "eb", label: "PG Electricity (EB)", icon: Zap, count: `${displayLatestReading} units` },
           { key: "expenses", label: "Expense & Budget", icon: Wallet, count: `₹${data.totalMonthlyBudget.toLocaleString()}` },
@@ -1097,9 +1107,9 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange, onJournalS
       {/* ═══════════════════════════════════════════════════════════
           TAB 1: PG ELECTRICITY (EB) METER TRACKER
       ═══════════════════════════════════════════════════════════ */}
-      {activeTab === "subscriptions" && onSubscriptionsChange && <SubscriptionManager subscriptions={subscriptions} onChange={onSubscriptionsChange} disabled={subscriptionsDisabled} />}
+      {activeTab === "subscriptions" && onSubscriptionsChange && <SubscriptionManager airtel={airtel} subscriptions={subscriptions} onChange={onSubscriptionsChange} disabled={subscriptionsDisabled} />}
 
-      {activeTab === "airtel" && <AirtelRechargeTracker journals={data.journals || {}} isLive={data.isLive} />}
+      {activeTab === "airtel" && <AirtelRechargeTracker journals={data.journals || {}} isLive={data.isLive} saved={airtel || emptyAirtelData()} onChange={onAirtelChange} disabled={subscriptionsDisabled} />}
 
       {activeTab === "eb" && (
         <div className="space-y-6">

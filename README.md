@@ -63,7 +63,7 @@ Plan your day, check your messages, manage tasks and routines, keep encrypted no
 - **Calendar:** Google and Outlook events, a today view and week view, calendar health, overlap warnings, user-created events, and optional Google event colorization.
 - **Email:** Gmail and Outlook previews, pagination, important-message triage, and reviewable email-to-task creation. Routino does not send or modify email.
 - **Google Drive:** recent file metadata and links only (names, types, timestamps). File contents are not read. **Google Sites is not integrated.**
-- **Tasks and routines:** tasks, subtasks, habits, links, focus settings, and workspace preferences with per-account database sync when configured.
+- **Tasks and routines:** tasks, subtasks, habits, links, focus settings, and workspace preferences with per-account database sync when configured. Repeating tasks support daily, weekday, weekly, monthly, and yearly schedules, custom intervals, and an optional end date.
 - **Notes:** browser-side encryption with Web Crypto before persistence. Keep your passphrase safe; it is needed to decrypt notes.
 - **Focus tools:** timer, synthesized ambient audio, keyboard shortcuts, command palette, and quick capture.
 - **Trackers:** Subscription Manager, Airtel Recharge history, budgets, utilities, applications, purchases, investments, and other configured records. Repository preview data is fictional.
@@ -76,7 +76,7 @@ Plan your day, check your messages, manage tasks and routines, keep encrypted no
 - **Costs and renewals:** review monthly/yearly projections and a **Total expense** modal with payment breakdowns, separate currencies, and shared-bundle deduplication. Completed plans do not contribute to active projections.
 - **Airtel Recharge:** a dedicated tab with recorded history, yearly totals, main-plan and data-top-up filters, payment methods, and successful/failed status. Failed attempts and other-number transactions stay out of totals.
 - **Plan context:** distinguish recharge payment dates from activation dates, show the confirmed 84-day validity, and represent included Netflix access and the one-time Hotstar upgrade without adding recurring charges.
-- **Saved workspace:** subscription backup/restore and validation preserve unrelated records. Cross-device sync depends on a configured database; confirmed Airtel and service corrections remain fixed snapshots, as explained in [tracker limitations](#-subscription-and-airtel-trackers).
+- **Saved workspace:** subscription backup/restore and validation preserve unrelated records. Cross-device sync uses the configured database, with account-scoped caches, visible save states, retryable local copies, and stale-write protection.
 
 ## 📊 Dashboard sections & data sources
 
@@ -90,8 +90,8 @@ Plan your day, check your messages, manage tasks and routines, keep encrypted no
 | **Focus tools** | Timer and synthesized ambient soundscapes | Browser state and Web Audio API |
 | **Google Drive files** | Recent file names, types, timestamps, and links | Drive metadata access; no file contents |
 | **Trackers Hub** | Expenses, electricity, career, purchases, investments, and other configured records | Owner-restricted Google Sheets tracker adapter |
-| **Subscription Manager** | Active-first plans, Needs review/Completed statuses, renewals, payment history, and total expense | Journal imports and saved workspace subscriptions; confirmed snapshot corrections |
-| **Airtel Recharge** | Main plans, data top-ups, yearly totals, and successful/failed transaction history | Journal records and a fixed own-number transaction snapshot |
+| **Subscription Manager** | Active-first plans, Needs review/Completed statuses, renewals, payment history, and total expense | Journal imports and editable account workspace records |
+| **Airtel Recharge** | Main plans, data top-ups, yearly totals, and successful/failed transaction history | Journal records and editable account recharge records |
 | **Time audit** | Categorized calendar time and spreadsheet reports | Optional Google Apps Script |
 
 ---
@@ -164,7 +164,7 @@ Never use `NEXT_PUBLIC_` for secrets, OAuth tokens, database credentials, or pri
 
 - Without a signed-in account, API previews use clearly fictional sample records; they must never fetch a connected user's workspace or tracker source.
 - Signing in loads that account’s stored workspace. An empty array is valid saved data; loading does not merge demo tasks or delete/replace the user’s records.
-- Tasks, habits, quick links, custom events, notes, subscriptions, and preferences sync through `/api/user-data` when a supported database is configured. Browser storage is used for local behavior and fallback.
+- Tasks, habits, quick links, custom events, notes, and preferences sync through `/api/user-data`; subscriptions and Airtel records use the revision-checked `/api/tracker-workspace` endpoint when a supported database is configured. Browser storage is used for local behavior and fallback.
 - Tracker values are fetched separately from the optional configured sheet and restricted to `TRACKERS_OWNER_EMAIL`. The current sheet adapter still requires link-readable access; prefer a private OAuth Sheets API integration before using sensitive tracker data.
 - Do not share exported JSON backups: they can contain personal workspace information. Encrypted note ciphertext still should be treated as private data.
 - Deleting a database or changing the OAuth encryption secret can make stored information unavailable. Back up data before infrastructure changes.
@@ -181,13 +181,25 @@ The Vercel project should not expose deployment environment variables to the cli
 
 ## 💳 Subscription and Airtel trackers
 
-Trackers includes a Subscription Manager and a separate Airtel Recharge history view. Subscriptions support editing, status filters, active-first ordering, renewal dates, recorded payment history, and a total-expense dialog. Plans marked **Needs review** can be marked **Completed**; completed plans retain their payment history and stay out of active spending projections. Workspace backups include subscriptions; older backups and API writes that omit subscriptions leave the saved records intact.
+Trackers includes a Subscription Manager and a separate Airtel Recharge history view. Subscriptions support editing, status filters, active-first ordering, renewal dates, recorded payment history, and a total-expense dialog. Plans marked **Needs review** can be marked **Completed**; completed plans retain their payment history and stay out of active spending projections. Workspace backups include subscriptions and Airtel records; older backups and API writes that omit subscriptions leave the saved records intact.
 
 Journal imports detect named service payments and infer a monthly cycle only from repeated payments. An imported start date is the first recorded payment, not a verified signup date. Expense totals keep currencies separate, count invoice/journal representations of the same payment once, and count shared recharge bundles once. Airtel history separates main plans from small top-ups, excludes failed attempts from totals, and keeps payment dates separate from activation dates without modifying journal rows.
 
-**Current limitations:** the user-confirmed Airtel transaction snapshot and Netflix/Hotstar corrections are fixed records in `lib/airtelRecharges.ts` and `lib/subscriptionJournal.ts`. They are not a live Airtel integration and do not discover the next recharge automatically. Those files currently contain account-specific financial history; remove or replace these snapshots before redistributing the app. Journal rows continue to come from the configured tracker sheet. Cross-device subscription sync requires a configured durable database and the same signed-in account; local browser/filesystem storage alone does not provide it.
+Subscription and recharge records are editable account data, not personal constants in the browser bundle. The tracker API validates records and uses revision checks to reject stale device writes. Local copies are account-scoped; pending changes retry when connected, and conflicts offer download/reload actions. Other workspace saves patch submitted fields, preserving unrelated tracker records. Neon task writes merge touched IDs atomically so two devices can add tasks without losing one another’s changes.
+
+Recharge plans include separate payment/validity dates, allowances, and available/used benefits. A subscription may link to a saved recharge; expiry moves the displayed active bundle to **Needs review** without assuming paid renewal. Backup/restore includes Airtel records alongside subscriptions. `scripts/migrate-tracker-records.cjs` imports a private export with a pre-migration backup and a compare-and-swap guard. Private exports stay in the ignored `.data/` directory.
+
+**Current limitations:** Airtel is not automatically connected; future recharge details must be edited or imported. The linked sheet still provides journal rows. Cross-device sync requires the same signed-in account and a configured durable database. Browser/filesystem storage alone cannot provide cross-device sync. A concurrent conflicting tracker edit needs review rather than silently overwriting the other device.
+
+Run `node scripts/verify-tracker-database.cjs` against a configured database to check independent reads, conflict protection, concurrent task saves, and preservation of a backed-up owner workspace. Its write tests use a temporary account that is removed afterward.
 
 Run the tracker regression checks with `node scripts/test-trackers.cjs`, type-check with `npx tsc --noEmit`, and build with `npm run build`. If the environment blocks Turbopack's local process, `npx next build --webpack` verifies the production build through Webpack.
+
+## 🔁 Repeating tasks
+
+Use **Edit** on an existing task to change its details, due date, priority, checklist, or repeat settings while retaining its identity and completion state. Choose **Repeat** when creating a task, or use the repeat selector on an active task. Daily, weekday, weekly, monthly, and yearly schedules are supported; the create form also accepts an interval and optional end date. A repeating task needs a due date.
+
+Completing an occurrence keeps it in history and creates one next occurrence with reset checklist steps. Missed dates are skipped to the next scheduled date after today. Monthly schedules retain their original day where possible (for example, 31 Jan → 28 Feb → 31 Mar). Choosing **Does not repeat** on the active occurrence stops future generation. Recurrence does not create an operating-system notification or an external reminder.
 
 ## 🗂️ Project structure
 

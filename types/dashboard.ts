@@ -1,3 +1,5 @@
+import type { TaskRecurrence } from "@/lib/taskRecurrence";
+
 export type Priority = "low" | "medium" | "high";
 
 export type SubTask = {
@@ -15,6 +17,8 @@ export type Task = {
   priority: boolean;
   category?: "work" | "personal" | "meeting" | "urgent" | "project" | "travel";
   dueDate?: string;
+  recurrence?: TaskRecurrence;
+  recurrenceSeriesId?: string;
   createdAt: number;
   subtasks?: SubTask[];
   link?: string;

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isSubscriptionList } from "@/lib/subscriptionValidation";
+import { isTaskRecurrence } from "@/lib/taskRecurrence";
+import { mergeTaskRecords } from "@/lib/taskMerge";
+import { isSubscriptionDate, isSubscriptionList } from "@/lib/subscriptionValidation";
 import { auth } from "@/lib/auth";
 import { getUserWorkspace, saveUserWorkspace, getDatabaseStatus } from "@/lib/db";
 
@@ -50,6 +52,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       subscriptions,
+      replaceTaskIds,
+      deletedTaskIds,
       tasks,
       customEvents,
       quickLinks,
@@ -63,7 +67,15 @@ export async function POST(req: NextRequest) {
       replaceAllHabits,
     } = body;
 
+    if (Array.isArray(tasks) && tasks.some(task => !task || typeof task.id !== "string" || (task.recurrence !== undefined && (!isTaskRecurrence(task.recurrence) || (typeof task.dueDate !== "string" || !isSubscriptionDate(task.dueDate.slice(0, 10))))))) {
+      return NextResponse.json({ error: "Invalid task records." }, { status: 400 });
+    }
+    const taskIds = (value: unknown) => Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+    const mergingTasks = Array.isArray(tasks) && Array.isArray(replaceTaskIds) && Array.isArray(deletedTaskIds);
     const existingWorkspace = await getUserWorkspace(email);
+    if (subscriptions !== undefined && existingWorkspace?.trackerRevision !== undefined) {
+      return NextResponse.json({ error: "Tracker records were updated. Refresh this tab and use tracker sync to save subscriptions." }, { status: 409, headers: { "Cache-Control": "private, no-store" } });
+    }
     let savedHabits = existingWorkspace?.habits;
     if (Array.isArray(habits)) {
       if (replaceAllHabits === true) {
@@ -121,7 +133,7 @@ export async function POST(req: NextRequest) {
       subscriptions: Array.isArray(subscriptions) ? subscriptions : existingWorkspace?.subscriptions,
       // Omitted fields mean "leave as-is". Explicit empty arrays remain valid
       // user choices and must not be replaced with defaults or sample data.
-      tasks: Array.isArray(tasks) ? tasks : existingWorkspace?.tasks ?? [],
+      tasks: mergingTasks ? mergeTaskRecords(existingWorkspace?.tasks || [], tasks, taskIds(replaceTaskIds), taskIds(deletedTaskIds)) : Array.isArray(tasks) ? tasks : existingWorkspace?.tasks ?? [],
       customEvents: Array.isArray(customEvents) ? customEvents : existingWorkspace?.customEvents ?? [],
       quickLinks: Array.isArray(quickLinks) ? quickLinks : existingWorkspace?.quickLinks ?? [],
       focusMinutes: typeof focusMinutes === "number" ? focusMinutes : existingWorkspace?.focusMinutes ?? 90,
@@ -132,15 +144,16 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    const result = await saveUserWorkspace(email, workspaceData);
+    const fields = ["tasks", "customEvents", "quickLinks", "focusMinutes", "soundEnabled", "habits", "notes", "activeNav", "subscriptions"].filter(key => Object.prototype.hasOwnProperty.call(body, key));
+    const result = await saveUserWorkspace(email, workspaceData, [...fields, "updatedAt"], mergingTasks ? { incoming: tasks, replacedIds: taskIds(replaceTaskIds), deletedIds: taskIds(deletedTaskIds) } : undefined);
 
     return NextResponse.json({
       success: result.success,
       source: result.source,
-      savedAt: workspaceData.updatedAt,
+      savedAt: result.success ? workspaceData.updatedAt : undefined,
       dbStatus,
       error: result.success ? undefined : "Could not save workspace data.",
-    }, { headers: { "Cache-Control": "private, no-store" } });
+    }, { status: result.success ? 200 : 503, headers: { "Cache-Control": "private, no-store" } });
   } catch (err: unknown) {
     console.error("[user-data] Workspace write failed", err);
     return NextResponse.json({ error: "Invalid workspace payload." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });

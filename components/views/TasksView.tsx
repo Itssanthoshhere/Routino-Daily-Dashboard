@@ -1,5 +1,7 @@
 "use client";
 
+import { recurrenceLabel, type TaskRecurrence } from "@/lib/taskRecurrence";
+
 import { useState, useMemo, useEffect } from "react";
 import {
   ListTodo,
@@ -27,6 +29,8 @@ type TasksViewProps = {
   tasks: Task[];
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  onEditTask?: (task: Task) => void;
+  onUpdateTaskRecurrence?: (id: string, recurrence: TaskRecurrence | undefined) => void;
   onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">) => void;
   onOpenTaskModal: () => void;
   onToggleSubTask?: (taskId: string, subtaskId: string) => void;
@@ -37,6 +41,8 @@ export function TasksView({
   tasks,
   onToggleTask,
   onDeleteTask,
+  onEditTask,
+  onUpdateTaskRecurrence,
   onAddTask,
   onOpenTaskModal,
   onToggleSubTask,
@@ -398,6 +404,8 @@ export function TasksView({
                         </p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted">
                           <span>{task.meta}</span>
+                          {task.recurrence && <span className="rounded bg-[#f0f2eb] px-2 py-0.5 font-semibold">{recurrenceLabel(task.recurrence)}</span>}
+                          {!task.checked && onUpdateTaskRecurrence && <select aria-label={`Repeat ${task.title}`} className="max-w-32 rounded border border-line bg-white px-1 py-0.5 text-[10px]" value={task.recurrence?.frequency || "none"} onChange={event => onUpdateTaskRecurrence(task.id, event.target.value === "none" ? undefined : { frequency: event.target.value as TaskRecurrence["frequency"], interval: 1, anchorDate: task.dueDate?.slice(0, 10) })}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>}
                           {task.category && (
                             <span
                               className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${
@@ -470,6 +478,7 @@ export function TasksView({
                           PRIORITY
                         </span>
                       )}
+                      {onEditTask && <button onClick={() => onEditTask(task)} aria-label={`Edit ${task.title}`} className="rounded px-2 py-1.5 text-xs font-semibold text-muted hover:text-forest">Edit</button>}
                       <button
                         onClick={() => onDeleteTask(task.id)}
                         className="opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-[#c05746] rounded transition"
