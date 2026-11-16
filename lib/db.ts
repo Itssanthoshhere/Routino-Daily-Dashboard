@@ -4,7 +4,10 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:cr
 import { neon } from "@neondatabase/serverless";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
 
+import type { Subscription } from "@/types/subscriptions";
+
 export type UserWorkspaceData = {
+  subscriptions?: Subscription[];
   tasks: Task[];
   customEvents: DashboardEvent[];
   quickLinks: QuickLink[];

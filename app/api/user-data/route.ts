@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSubscriptionList } from "@/lib/subscriptionValidation";
 import { auth } from "@/lib/auth";
 import { getUserWorkspace, saveUserWorkspace, getDatabaseStatus } from "@/lib/db";
 
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
+      subscriptions,
       tasks,
       customEvents,
       quickLinks,
@@ -110,7 +112,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (subscriptions !== undefined && !isSubscriptionList(subscriptions)) {
+      return NextResponse.json({ error: "Invalid subscriptions." }, { status: 400 });
+    }
+
     const workspaceData = {
+      ...existingWorkspace,
+      subscriptions: Array.isArray(subscriptions) ? subscriptions : existingWorkspace?.subscriptions,
       // Omitted fields mean "leave as-is". Explicit empty arrays remain valid
       // user choices and must not be replaced with defaults or sample data.
       tasks: Array.isArray(tasks) ? tasks : existingWorkspace?.tasks ?? [],

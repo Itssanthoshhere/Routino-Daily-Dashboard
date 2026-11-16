@@ -1,0 +1,83 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { CreditCard, Plus, Pencil, Trash2, Search } from "lucide-react";
+import { subscriptionExpenses } from "@/lib/subscriptionExpenses";
+import { monthlyCost, nextRenewal, type Subscription } from "@/types/subscriptions";
+
+const money = (amount: number, currency: string) => new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount);
+const localToday = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
+const blank = (): Subscription => ({ id: "", name: "", amount: 0, currency: "INR", cycle: "monthly", renewalDate: localToday(), status: "active", category: "Other", notes: "" });
+const inputClass = "w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink";
+
+export function SubscriptionManager({ subscriptions, onChange, disabled = false }: { subscriptions: Subscription[]; onChange: (next: Subscription[]) => void; disabled?: boolean }) {
+  const expenseDialog = useRef<HTMLDialogElement>(null);
+  const expenses = subscriptionExpenses(subscriptions);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [draft, setDraft] = useState<Subscription | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const today = localToday();
+  const active = subscriptions.filter(s => s.status === "active" && s.cycle !== "one-time");
+  const totals = Array.from(new Set(active.map(s => s.currency))).map(currency => ({ currency, monthly: active.filter(s => s.currency === currency).reduce((sum, s) => sum + monthlyCost(s), 0) }));
+  const upcoming = active.filter(s => s.cycle !== "bundled" && s.renewalDate >= today).sort((a, b) => a.renewalDate.localeCompare(b.renewalDate));
+  const visible = subscriptions.filter(s => (status === "all" || s.status === status) && `${s.name} ${s.category} ${s.notes}`.toLowerCase().includes(search.toLowerCase())).sort((a, b) => {
+    const statusOrder = { active: 0, unconfirmed: 1, paused: 2, cancelled: 3 };
+    const statusDifference = statusOrder[a.status] - statusOrder[b.status];
+    const aDate = a.renewalDate || a.bundleEndDate || "9999-12-31";
+    const bDate = b.renewalDate || b.bundleEndDate || "9999-12-31";
+    return statusDifference || aDate.localeCompare(bDate) || a.name.localeCompare(b.name);
+  });
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (disabled || !draft || !draft.name.trim() || !Number.isFinite(draft.amount) || draft.amount < 0) return;
+    const saved = { ...draft, name: draft.name.trim(), id: draft.id || crypto.randomUUID() };
+    onChange(draft.id ? subscriptions.map(s => s.id === draft.id ? saved : s) : [...subscriptions, saved]);
+    setDraft(null);
+  };
+  return <section className="space-y-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div><h3 className="text-xl font-bold text-ink">Subscription Manager</h3><p className="mt-1 text-xs text-muted">Keep recurring costs and renewal dates in one place. Saved with your workspace.</p></div>
+      <div className="flex flex-wrap gap-2"><button onClick={() => expenseDialog.current?.showModal()} className="rounded-xl border border-line bg-white px-4 py-2 text-sm font-semibold text-ink">Total expense</button>
+      <button disabled={disabled} onClick={() => setDraft(blank())} className="inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Plus size={16} />Add subscription</button></div>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="rounded-2xl border border-line bg-white p-5"><p className="text-xs text-muted">Monthly equivalent</p><p className="mt-2 text-xl font-bold text-ink">{totals.length ? totals.map(t => money(t.monthly, t.currency)).join(" + ") : "₹0"}</p><p className="mt-1 text-xs text-muted">Active plans · currencies kept separate</p></div>
+      <div className="rounded-2xl border border-line bg-white p-5"><p className="text-xs text-muted">Annual projection</p><p className="mt-2 text-xl font-bold text-ink">{totals.length ? totals.map(t => money(t.monthly * 12, t.currency)).join(" + ") : "₹0"}</p><p className="mt-1 text-xs text-muted">{active.length} active subscription{active.length === 1 ? "" : "s"}</p></div>
+      <div className="rounded-2xl border border-line bg-white p-5"><p className="text-xs text-muted">Next renewal</p><p className="mt-2 text-lg font-bold text-ink">{upcoming[0]?.name || "No upcoming renewals"}</p><p className="mt-1 text-xs text-muted">{upcoming[0] ? `${upcoming[0].renewalDate} · ${money(upcoming[0].amount, upcoming[0].currency)}` : "Add a plan to get started"}</p></div>
+    </div>
+    <div className="flex flex-wrap gap-3"><label className="flex flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3"><Search size={16} /><input aria-label="Search subscriptions" placeholder="Search subscriptions…" className="w-full bg-transparent py-2 text-sm outline-none" value={search} onChange={e => setSearch(e.target.value)} /></label><select aria-label="Filter by status" className={inputClass + " sm:w-auto"} value={status} onChange={e => setStatus(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="cancelled">Cancelled</option><option value="unconfirmed">Needs review</option></select></div>
+    {disabled && <p role="status" className="text-sm text-muted">Loading saved workspace before enabling changes…</p>}
+    {!visible.length ? <div className="rounded-2xl border border-dashed border-line p-12 text-center"><CreditCard className="mx-auto mb-3 text-muted" /><p className="font-semibold text-ink">{subscriptions.length ? "No matching subscriptions" : "Your subscriptions, organized"}</p><p className="mt-2 text-sm text-muted">{subscriptions.length ? "Try another search or status." : "Add your first plan to track spending and upcoming renewals."}</p></div> : <div className="space-y-3">{visible.map(s => <article key={s.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-white p-5">
+      <div className="min-w-0"><h4 className="font-semibold text-ink">{s.name}{s.planName ? ` · ${s.planName}` : ""} <span className="ml-2 rounded-full bg-[#f0f2eb] px-2 py-1 text-xs font-medium capitalize">{s.status === "unconfirmed" ? "Needs review" : s.status}</span></h4><p className="mt-2 text-xs text-muted">{s.category} · {s.cycle === "bundled" ? "Included with Airtel recharge" : s.cycle === "one-time" ? "One-time upgrade · not recurring" : s.cycle === "unknown" ? "Billing cycle unconfirmed" : `${s.cycle === "yearly" ? "Annual" : s.cycle === "quarterly" ? "Quarterly" : "Monthly"} billing`}</p>{s.startDate && <p className="mt-2 text-xs text-muted">First recorded payment · {s.startDate} {s.lastPaidDate ? `· Last paid ${s.lastPaidDate}` : ""}</p>}
+      {s.cycle === "bundled" && <p className="mt-2 text-xs text-muted">Included since {s.bundledSince || "date unconfirmed"} · {s.bundleEndDate ? `Recharge ends ${s.bundleEndDate}${s.bundleEndDate < today ? " · Bundle expired; review access" : ""}` : "Valid only until current recharge ends · End date needed"}</p>}
+      {s.bundlePlan && <p className="mt-2 text-xs text-muted">{s.bundlePlan.provider} recharge · {money(s.bundlePlan.amount, s.currency)} paid · {s.bundlePlan.validityDays} days · {s.bundlePlan.startDate}–{s.bundlePlan.endDate}. Shared recharge cost; not an additional Netflix payment.</p>}
+      {s.billingHistory && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">Netflix invoices · {s.billingHistory.length} payments · {money(s.billingHistory.reduce((sum, invoice) => sum + invoice.amount, 0), s.currency)} total (same payments as journal)</summary><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{s.billingHistory.map(invoice => <li key={invoice.date}>{invoice.date} · {money(invoice.amount, s.currency)} · Membership {invoice.periodStart}–{invoice.periodEnd} · {money(invoice.subtotal, s.currency)} + {money(invoice.tax, s.currency)} IGST</li>)}</ul></details>}
+      {s.payments && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">{s.payments.length} recorded payments · {money(s.payments.reduce((sum, payment) => sum + payment.amount, 0), s.currency)} paid</summary><ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">{s.payments.map(payment => <li key={`${payment.journal}-${payment.rowId}`}>{payment.date} · {money(payment.amount, s.currency)} · {payment.journal} journal{payment.notes ? ` · ${payment.notes}` : ""}</li>)}</ul></details>}
+      {s.notes && <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-xs text-muted">{s.notes}</p>}</div>
+      <div className="flex flex-wrap items-center gap-4"><div><p className="font-bold text-ink">{s.cycle === "bundled" ? "Included" : money(s.amount, s.currency)}<span className="text-xs font-normal text-muted">{s.cycle === "bundled" ? " · no separate charge" : s.cycle === "one-time" ? " one-time" : s.cycle === "unknown" ? " last paid" : ` / ${s.cycle === "yearly" ? "year" : s.cycle === "quarterly" ? "3 months" : "month"}`}</span></p><p className={`mt-1 text-xs ${s.status === "active" && !!s.renewalDate && s.renewalDate < today ? "text-amber-700" : "text-muted"}`}>{s.cycle === "bundled" ? "Ends with current Airtel recharge" : s.cycle === "one-time" ? "No recurring renewal" : <>{s.status === "active" && !!s.renewalDate && s.renewalDate < today ? "Overdue · " : "Renewal · "}{s.renewalDate || "Unconfirmed"}</>}</p></div>
+      {s.status === "active" && s.renewalDate && s.cycle !== "unknown" && s.cycle !== "one-time" && s.cycle !== "bundled" && <button disabled={disabled} className="rounded-lg border border-line px-3 py-2 text-xs text-forest disabled:opacity-50" onClick={() => onChange(subscriptions.map(item => item.id === s.id ? { ...item, renewalDate: nextRenewal(item, today) } : item))}>Mark renewed</button>}
+      <button disabled={disabled} aria-label={`Edit ${s.name}`} onClick={() => setDraft({ ...s })} className="p-2 text-muted"><Pencil size={16} /></button><button disabled={disabled} aria-label={`Delete ${s.name}`} onClick={() => setDeleteId(s.id)} className="p-2 text-red-700"><Trash2 size={16} /></button></div>
+    </article>)}</div>}
+    {deleteId && <div role="alertdialog" aria-modal="true" aria-label="Delete subscription" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm"><p>Delete {subscriptions.find(s => s.id === deleteId)?.name}? This removes the record; it does not cancel billing with the provider.</p><div className="mt-3 flex gap-3"><button disabled={disabled} onClick={() => { onChange(subscriptions.filter(s => s.id !== deleteId)); setDeleteId(null); }} className="rounded-lg bg-red-700 px-3 py-2 text-white">Delete subscription</button><button onClick={() => setDeleteId(null)}>Keep subscription</button></div></div>}
+    {draft && <form onSubmit={save} className="rounded-2xl border border-line bg-white p-5"><div className="mb-4 flex items-center justify-between"><h4 className="font-bold">{draft.id ? "Edit subscription" : "New subscription"}</h4><button type="button" onClick={() => setDraft(null)} className="text-sm text-muted">Cancel</button></div><div className="grid gap-4 sm:grid-cols-2">
+      <label className="space-y-1 text-xs">Name<input autoFocus required maxLength={120} className={inputClass} value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} /></label>
+      <label className="space-y-1 text-xs">Cost per billing cycle<input type="number" required min="0" step="0.01" className={inputClass} value={Number.isFinite(draft.amount) ? draft.amount : ""} onChange={e => setDraft({ ...draft, amount: e.target.valueAsNumber })} /></label>
+      <label className="space-y-1 text-xs">Currency<select className={inputClass} value={draft.currency} onChange={e => setDraft({ ...draft, currency: e.target.value as Subscription["currency"] })}>{["INR", "USD", "EUR", "GBP"].map(c => <option key={c}>{c}</option>)}</select></label>
+      <label className="space-y-1 text-xs">Billing cycle<select className={inputClass} value={draft.cycle} onChange={e => setDraft({ ...draft, cycle: e.target.value as Subscription["cycle"] })}><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="quarterly">Every 3 months</option><option value="unknown">Unconfirmed</option><option value="one-time">One-time upgrade / payment</option><option value="bundled">Included with Airtel recharge</option></select></label>
+      <label className="space-y-1 text-xs">Next renewal<input type="date" required={draft.status === "active" && draft.cycle !== "unknown" && draft.cycle !== "one-time" && draft.cycle !== "bundled"} min="1900-01-01" max="9999-12-31" className={inputClass} value={draft.renewalDate} onChange={e => setDraft({ ...draft, renewalDate: e.target.value })} /></label>
+      {draft.cycle === "bundled" && <label className="space-y-1 text-xs">Airtel recharge end date<input type="date" className={inputClass} value={draft.bundleEndDate || ""} onChange={e => setDraft({ ...draft, bundleEndDate: e.target.value })} /></label>}
+      <label className="space-y-1 text-xs">Status<select className={inputClass} value={draft.status} onChange={e => setDraft({ ...draft, status: e.target.value as Subscription["status"] })}>{["active", "paused", "cancelled", "unconfirmed"].map(s => <option key={s}>{s}</option>)}</select></label>
+      <label className="space-y-1 text-xs">Start date / first recorded payment<input type="date" className={inputClass} value={draft.startDate || ""} onChange={e => setDraft({ ...draft, startDate: e.target.value })} /></label>
+      <label className="space-y-1 text-xs">Category<input maxLength={80} className={inputClass} value={draft.category} onChange={e => setDraft({ ...draft, category: e.target.value })} /></label>
+      <label className="space-y-1 text-xs">Notes<textarea maxLength={2000} className={inputClass} value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} /></label>
+    </div><button disabled={disabled} className="mt-4 rounded-xl bg-forest px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Save subscription</button></form>}
+    <dialog ref={expenseDialog} aria-labelledby="subscription-expenses-title" aria-describedby="subscription-expenses-description" className="m-auto max-h-[85vh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-2xl border border-line bg-white p-6 text-ink shadow-xl backdrop:bg-black/40">
+      <div className="flex items-center justify-between gap-4"><h3 id="subscription-expenses-title" className="text-lg font-bold">Total subscription expense</h3><button autoFocus type="button" onClick={() => expenseDialog.current?.close()} className="rounded-lg border border-line px-3 py-1.5 text-sm">Close</button></div>
+      <p id="subscription-expenses-description" className="mt-3 text-xs text-muted">All recorded payments across active, paused, cancelled, and review-needed plans. Includes confirmed Airtel recharge costs once. Search and status filters do not affect this total.</p>
+      <div className="mt-5 rounded-xl bg-[#f0f2eb] p-4"><p className="text-xs text-muted">Total paid · all recorded history</p><p className="mt-1 text-2xl font-bold">{expenses.totals.length ? expenses.totals.map(total => money(total.amount, total.currency)).join(" + ") : "₹0"}</p><p className="mt-2 text-xs text-muted">Currencies stay separate. Future renewals and spending projections are excluded.</p></div>
+      {expenses.rows.length ? <ul className="mt-4 divide-y divide-line">{expenses.rows.map(row => <li key={row.id} className="flex items-start justify-between gap-4 py-3"><div><p className="text-sm font-semibold">{row.name}</p><p className="mt-1 text-xs text-muted">{row.kind === "recharge" ? "Shared bundle cost · counted once" : `${row.count} recorded payment${row.count === 1 ? "" : "s"}`}</p></div><span className="shrink-0 text-sm font-semibold">{money(row.amount, row.currency)}</span></li>)}</ul> : <p className="mt-4 text-sm text-muted">No recorded payments yet.</p>}
+      <p className="mt-4 text-xs text-muted">Netflix invoices and journal entries describe the same payments and are counted once. Plans without payment history are excluded.</p>
+    </dialog>
+  </section>;
+}
