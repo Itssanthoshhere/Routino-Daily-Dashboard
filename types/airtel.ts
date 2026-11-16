@@ -29,6 +29,7 @@ export type AirtelRecharge = {
 
 export type AirtelData = {
   records: AirtelRecharge[];
+  planHistory?: AirtelPlan[];
   plan: AirtelPlan | null;
   deletedIds: string[];
 };

@@ -188,6 +188,22 @@ When editing a repeating task, choose **Only this occurrence** or **This and fut
 
 **Airtel Recharge → Import Airtel transactions** previews pasted Airtel history or CSV/JSON before saving selected successful payments. Enter your number to exclude other numbers. Duplicates, previously removed import records, failed payments, and unsupported statuses are excluded. Choose main plan or data top-up for each imported payment; the saved current plan is not replaced. CSV begins with `date` and supports `number,amount,status,kind,method,time,notes`; JSON accepts an array with the same keys. Dates accept ISO or day/month/year. Same-date, same-amount, same-status transactions are conservatively treated as duplicates and can be entered manually if they are distinct.
 
+## 🔔 Notifications, payment reports, and recovery
+
+The notification bell brings together overdue open tasks, seven-day subscription/recharge expiry reminders, mail and calendar notices. Selecting a reminder opens its tracker or task. Clearing notifications dismisses the current items for the rest of the local day in that browser and account; it does not complete tasks or renew services.
+
+The Tasks board offers **Snooze → Tomorrow / In one week / Choose date**. This changes only the chosen open occurrence, preserves its time and checklist, and keeps the original repeating template for subsequent occurrences.
+
+**Subscriptions → Monthly report** groups recorded subscription and Airtel payments by month and service, with currencies separate. Recharge bundles are counted through the actual Airtel payment, not again for each included service. Invoice history is a fallback when journal payments are absent; failed recharges and payments by others are excluded. The report does not estimate missing payments.
+
+**Airtel Recharge → Record next recharge** saves a paid, currently active renewal, archives the previous plan's complete details, and links only the bundled services explicitly confirmed in the form. It saves recharge and subscription changes together through tracker revision checks. Existing payments remain intact. Future queued plans must be recorded when their validity starts; allowances can then be filled in through Edit plan. The app never initiates an Airtel purchase.
+
+**Database & Sync → Encrypted external backups** stores gzip-compressed, AES-256-GCM encrypted snapshots in a **private Vercel Blob store**, outside Neon. The daily cron also creates and reads back these copies to verify decryption. Each account gets one immutable snapshot per UTC day, capped at 2 MB, with a 30-day Blob TTL. Manual requests verify an existing daily copy instead of replacing it. A snapshot contains database-saved records; pending browser edits must sync first. Failure leaves live data and database snapshots untouched.
+
+Set server-only `BLOB_READ_WRITE_TOKEN` (or a connected `BLOB_STORE_ID` with Vercel OIDC) and a dedicated `WORKSPACE_BACKUP_KEY` containing 32 cryptographically random bytes encoded as base64. Retain this key securely: changing or losing it makes previous encrypted snapshots unreadable. Keep a key copy outside Vercel for account-level disaster recovery. Never use a `NEXT_PUBLIC_` variable for either credential. Download recovery JSON after signing in and import through **Restore Workspace**; encrypted notes still need the notes password. External copies have their own storage, operation and transfer allowances; these limits are shared with other usage and are not a billing guarantee.
+
+Local verification can load ignored `.env.backup.local` using `node scripts/verify-external-backup.cjs`; it creates or verifies the owner's daily copy, tests account isolation, and confirms the source database was unchanged. Never commit environment files or private recovery exports. Deploy the new code before expecting the production cron to write external copies.
+
 ## 💳 Subscription and Airtel trackers
 
 Trackers includes a Subscription Manager and a separate Airtel Recharge history view. Subscriptions support editing, status filters, active-first ordering, renewal dates, recorded payment history, and a total-expense dialog. Plans marked **Needs review** can be marked **Completed**; completed plans retain their payment history and stay out of active spending projections. Workspace backups include subscriptions and Airtel records; older backups and API writes that omit subscriptions leave the saved records intact.

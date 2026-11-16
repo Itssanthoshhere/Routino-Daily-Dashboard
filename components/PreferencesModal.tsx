@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
+import { ExternalBackups } from "@/components/ExternalBackups";
 import { WorkspaceBackups } from "@/components/WorkspaceBackups";
 import { OutlookConnectionCard } from "@/components/OutlookConnectionCard";
 
@@ -49,6 +50,7 @@ type PreferencesModalProps = {
     airtel?: AirtelData;
     notes?: KeepNote[];
     focusMinutes?: number;
+    soundEnabled?: boolean;
   }) => void;
   onClearCompletedTasks: () => void;
   soundEnabled: boolean;
@@ -99,6 +101,7 @@ export function PreferencesModal({
       appName: appConfig.name,
       data: {
         focusMinutes,
+        soundEnabled,
         tasks,
         customEvents,
         quickLinks,
@@ -144,6 +147,7 @@ export function PreferencesModal({
             subscriptions: parsed.data.subscriptions,
             airtel: parsed.data.airtel,
             focusMinutes: parsed.data.focusMinutes,
+            soundEnabled: parsed.data.soundEnabled,
           });
           onClose();
         }
@@ -383,6 +387,7 @@ export function PreferencesModal({
               </div>
 
               <WorkspaceBackups email={userEmail} />
+              <ExternalBackups email={userEmail} />
 
               <OutlookConnectionCard
                 googleConnected={Boolean(userEmail)}

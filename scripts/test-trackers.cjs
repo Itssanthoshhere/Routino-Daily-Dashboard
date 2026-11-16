@@ -89,13 +89,21 @@ async function routes() {
   assert.equal((await trackerApi.PATCH({ json: async () => ({ revision: 0, patch: { subscriptions: [plan] } }) })).options.status, 409);
   assert.equal((await trackerApi.PATCH({ json: async () => ({ revision: 0, patch: { airtel: { records: [null] } } }) })).options.status, 400);
   assert.equal((await api.POST({ json: async () => ({ tasks: [{ id: "invalid", recurrenceTemplate: { title: "Bad" } }] }) })).options.status, 400);
+  const externalApi = load("app/api/external-backups/route.ts", { ...mocks, "@/lib/auth": { auth: async () => null } });
+  assert.equal((await externalApi.GET({ nextUrl: new URL("https://example.test/api/external-backups") })).options.status, 401);
+  assert.equal((await externalApi.POST()).options.status, 401);
   const backupsApi = load("app/api/workspace-backups/route.ts", { ...mocks, "@/lib/auth": { auth: async () => null } });
   assert.equal((await backupsApi.GET({ nextUrl: new URL("https://example.test/api/workspace-backups") })).options.status, 401);
   assert.equal((await backupsApi.POST({ json: async () => ({ action: "restore", id: "private" }) })).options.status, 401);
   const cronApi = load("app/api/cron/workspace-backup/route.ts", { "@/lib/workspaceBackups": { backupAllWorkspaces: async () => { throw new Error("Unauthenticated cron must never reach storage"); } } });
   const previousSecret = process.env.CRON_SECRET;
   process.env.CRON_SECRET = "test-secret";
-  try { assert.equal((await cronApi.GET(new Request("https://example.test/api/cron/workspace-backup"))).status, 401); }
+  try {
+    assert.equal((await cronApi.GET(new Request("https://example.test/api/cron/workspace-backup"))).status, 401);
+    const failedExternal = load("app/api/cron/workspace-backup/route.ts", { "@/lib/workspaceBackups": { backupAllWorkspaces: async () => 1 }, "@/lib/scheduledExternalBackups": { backupExternalWorkspaces: async () => ({ failed: 1, verified: 0 }) } });
+    const cronResult = await failedExternal.GET(new Request("https://example.test/api/cron/workspace-backup", { headers: { authorization: "Bearer test-secret" } }));
+    assert.equal(cronResult.status, 503); assert.equal((await cronResult.json()).success, false);
+  }
   finally { if (previousSecret === undefined) delete process.env.CRON_SECRET; else process.env.CRON_SECRET = previousSecret; }
   const unauthenticated = load("app/api/tracker-workspace/route.ts", { ...mocks, "@/lib/auth": { auth: async () => null } });
   assert.equal((await unauthenticated.GET()).options.status, 401);
@@ -136,3 +144,40 @@ assert.equal(expiryReminders([], { records: [], deletedIds: [], plan: reminderPl
 assert.equal(expiryReminders([{ ...plan, cycle: 'bundled', bundleRechargeId: reminderPlan.id, bundleEndDate: reminderPlan.endDate }], { records: [], deletedIds: [], plan: reminderPlan }, '2027-02-01').length, 1);
 assert.equal(expiryReminders([], { records: [], deletedIds: [], plan: reminderPlan }, '2026-11-17').length, 0);
 console.log('Passed: Airtel import review, occurrence/future editing, completed-history preservation, and expiry reminder deduplication.');
+
+const { workspaceNotifications } = load('lib/workspaceNotifications.ts');
+const taskReminder = workspaceNotifications([{ ...originalTask, dueDate: '2026-11-16' }, { ...originalTask, id: 'done', checked: true, dueDate: '2026-11-16' }], [], { records: [], plan: null, deletedIds: [] }, '2026-11-17');
+assert.equal(taskReminder.length, 1); assert.equal(taskReminder[0].taskId, originalTask.id);
+const { snoozeTask } = load('lib/taskSnooze.ts');
+const snoozed = snoozeTask([originalTask], originalTask.id, '2026-11-20', '2026-11-17');
+assert.equal(snoozed[0].dueDate, '2026-11-20'); assert.equal(snoozed[0].recurrenceTemplate.dueDate, originalTask.dueDate);
+assert.equal(completeRepeatingTask(snoozed, originalTask.id, '2026-11-20', 2)[1].dueDate, '2026-11-21');
+assert.equal(snoozeTask(snoozed, originalTask.id, '2026-11-16', '2026-11-17'), snoozed);
+const { recordedPayments, monthlySpending } = load('lib/monthlySpending.ts');
+const paidService = { ...plan, payments: [{ date: '2026-11-01', amount: 199, journal: 'journal', rowId: 'paid', notes: '' }], billingHistory: [{ date: '2026-11-01', amount: 199 }], bundlePlan: rechargePlan };
+const report = monthlySpending(recordedPayments([paidService, { ...plan, id: 'usd', currency: 'USD', payments: [{ date: '2026-11-01', amount: 2, journal: 'journal', rowId: 'usd', notes: '' }] }], { plan: null, deletedIds: [], records: [
+  { id: 'paid', date: '2026-11-02', amount: 100, kind: 'plan', status: 'success' },
+  { id: 'failed', date: '2026-11-02', amount: 100, kind: 'plan', status: 'failed' },
+  { id: 'other', date: '2026-11-02', amount: 100, kind: 'plan', paidByOther: true },
+] }), '2026-11');
+assert.equal(recordedPayments([paidService, { ...paidService, id: 'duplicate-service' }], { records: [], plan: null, deletedIds: [] }).length, 1);
+assert.equal(report.rows.length, 3); assert.equal(report.totals.find(item => item.currency === 'INR').amount, 299); assert.equal(report.totals.find(item => item.currency === 'USD').amount, 2);
+const { renewAirtel } = load('lib/airtelRenewal.ts');
+const oldPlan = { ...rechargePlan, id: 'old' };
+const renewalPlan = { ...rechargePlan, benefits: [{ name: plan.name, planName: 'New tier', using: true }], id: 'new', paymentDate: '2027-02-06', startDate: '2027-02-06', endDate: '2027-02-07', validityDays: 2 };
+const bundledService = { ...plan, id: 'bundle', cycle: 'bundled', bundleRechargeId: oldPlan.id };
+const renewal = renewAirtel({ plan: oldPlan, records: [], deletedIds: [] }, [bundledService, paidService], renewalPlan, ['bundle'], '2027-02-06');
+assert.equal(renewal.subscriptions[0].planName, 'New tier');
+assert.deepEqual(renewal.airtel.planHistory, [oldPlan]); assert.equal(renewal.airtel.records.length, 1); assert.equal(renewal.subscriptions[0].bundleRechargeId, 'new'); assert.deepEqual(renewal.subscriptions[1], paidService);
+assert.equal(isAirtelData(renewal.airtel), true); assert.equal(isAirtelData({ ...renewal.airtel, planHistory: [null] }), false);
+assert.throws(() => renewAirtel({ plan: oldPlan, records: [], deletedIds: [] }, [bundledService], renewalPlan, ['bundle'], '2027-02-05'));
+const { encryptBackup, decryptBackup, MAX_BACKUP_BYTES } = load('lib/backupEncryption.ts');
+const backupKey = require('node:crypto').randomBytes(32).toString('base64');
+const encryptedBackup = encryptBackup('owner@example.test', { tasks: [originalTask], privateText: 'private fixture' }, backupKey);
+assert.equal(encryptedBackup.includes('private fixture'), false);
+assert.equal(decryptBackup('owner@example.test', encryptedBackup, backupKey).data.tasks[0].title, originalTask.title);
+assert.throws(() => decryptBackup('other@example.test', encryptedBackup, backupKey));
+const tampered = JSON.parse(encryptedBackup); tampered.ciphertext = Buffer.from('tampered').toString('base64');
+assert.throws(() => decryptBackup('owner@example.test', JSON.stringify(tampered), backupKey));
+assert.throws(() => encryptBackup('owner@example.test', { text: 'a'.repeat(MAX_BACKUP_BYTES) }, backupKey));
+console.log('Passed: notification routing, task snooze cadence, monthly actual payments, recharge renewal preservation, and encrypted-backup isolation/tamper/size checks.');

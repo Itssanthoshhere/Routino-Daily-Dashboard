@@ -52,7 +52,9 @@ export function AirtelRechargeTracker({ journals, isLive, saved, onChange, disab
     const id = existing?.id || planDraft.id || crypto.randomUUID();
     const nextPlan = { ...submitted, id, validityDays };
     const record: AirtelRecharge = { ...existing, id, date: nextPlan.paymentDate, amount: nextPlan.amount, kind: "plan", status: "success", source: existing?.source || "Saved recharge", paidByOther: existing?.paidByOther || false, notes: existing?.notes || "" };
-    if (persist({ ...saved, plan: nextPlan, records: [...rows.filter(row => row.id !== id), record] })) setPlanDraft(null);
+    const planHistory = [...(saved.planHistory || [])];
+    if (saved.plan && saved.plan.id !== id && !planHistory.some(plan => plan.id === saved.plan!.id)) planHistory.push(saved.plan);
+    if (persist({ ...saved, plan: nextPlan, planHistory, records: [...rows.filter(row => row.id !== id), record] })) setPlanDraft(null);
   };
   return <section className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3">

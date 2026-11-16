@@ -1,5 +1,7 @@
 "use client";
 
+import { workspaceNotifications } from "@/lib/workspaceNotifications";
+import { snoozeTask } from "@/lib/taskSnooze";
 import { mergeTaskRecords } from "@/lib/taskMerge";
 import { queueWorkspacePatch } from "@/lib/workspacePatch";
 import { completeRepeatingTask, editTaskOccurrences } from "@/lib/taskRecurrence";
@@ -343,6 +345,8 @@ export default function Home() {
   currentAccount.current = liveData?.connected ? liveData.user?.email?.toLowerCase() || null : null;
   const [customEvents, setCustomEvents] = useState<DashboardEvent[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(seedLinks);
+  const [notificationDay, setNotificationDay] = useState(() => new Intl.DateTimeFormat("en-CA").format(new Date()));
+  const [dismissedNotifications, setDismissedNotifications] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>(seedNotifications);
   const [mailItems, setMailItems] = useState<DashboardMail[]>(sampleMail);
   const [googleMail, setGoogleMail] = useState<DashboardMail[]>([]);
@@ -848,14 +852,21 @@ export default function Home() {
     setMailItems(combined);
   }, [liveData?.connected, googleMail, outlookData.connected, outlookData.unread]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNotificationDay(new Intl.DateTimeFormat("en-CA").format(new Date())), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    try { const value = JSON.parse(localStorage.getItem(`routino_notifications:${liveData?.user?.email || "guest"}:${notificationDay}`) || "[]"); setDismissedNotifications(Array.isArray(value) ? value.filter(id => typeof id === "string") : []); }
+    catch { setDismissedNotifications([]); }
+  }, [liveData?.user?.email, notificationDay]);
+
   /* ── Dynamic real notifications ── */
   useEffect(() => {
     const isGoogle = Boolean(liveData?.connected);
     const isOutlook = Boolean(outlookData?.connected);
 
-    if (!isGoogle && !isOutlook) return;
-
-    const realNotifications: NotificationItem[] = [];
+    const realNotifications: NotificationItem[] = workspaceNotifications(tasks, subscriptions, trackerWorkspace.airtel, notificationDay);
 
     if (isGoogle && googleMail.length > 0) {
       realNotifications.push({
@@ -903,10 +914,8 @@ export default function Home() {
       });
     }
 
-    if (realNotifications.length > 0) {
-      setNotifications(realNotifications);
-    }
-  }, [liveData, googleMail, outlookData]);
+    setNotifications(realNotifications.filter(item => !dismissedNotifications.includes(item.id)));
+  }, [liveData, googleMail, outlookData, tasks, subscriptions, trackerWorkspace.airtel, notificationDay, dismissedNotifications]);
 
   useEffect(() => {
     if (liveData?.connected || outlookData?.connected) setNotice(false);
@@ -1579,7 +1588,18 @@ export default function Home() {
     toast(`"${link.title}" added to quick links`);
   };
 
+  const dismissNotifications = (ids: string[]) => {
+    setDismissedNotifications(previous => {
+      const next = Array.from(new Set([...previous, ...ids]));
+      try { localStorage.setItem(`routino_notifications:${liveData?.user?.email || "guest"}:${notificationDay}`, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const handleNotificationClick = (item: NotificationItem) => {
+    dismissNotifications([item.id]);
+    if (item.trackerTab) handleOpenTrackersTab(item.trackerTab);
+    if (item.taskId) { setHighlightedTaskId(item.taskId); }
+
     if (item.navTarget) {
       setActiveNav(item.navTarget);
       try { localStorage.setItem("routino_active_nav", item.navTarget); } catch {}
@@ -1589,6 +1609,7 @@ export default function Home() {
   };
 
   const clearAllNotifications = () => {
+    dismissNotifications(notifications.map(item => item.id));
     setNotifications([]);
     toast("All notifications cleared", "info");
   };
@@ -1750,6 +1771,7 @@ export default function Home() {
     subscriptions?: Subscription[];
     airtel?: AirtelData;
     focusMinutes?: number;
+    soundEnabled?: boolean;
   }) => {
     if (imported.subscriptions !== undefined && !isSubscriptionList(imported.subscriptions)) {
       toast("Invalid subscription data in backup. No workspace changes were made.");
@@ -1783,7 +1805,11 @@ export default function Home() {
       setNotes(imported.notes);
       try { localStorage.setItem("routino_notes", JSON.stringify(imported.notes)); } catch {}
     }
-    if (imported.focusMinutes) {
+    if (typeof imported.soundEnabled === "boolean") {
+      setSoundEnabled(imported.soundEnabled);
+      try { localStorage.setItem("routino_sound_enabled", String(imported.soundEnabled)); } catch {}
+    }
+    if (typeof imported.focusMinutes === "number") {
       setFocusMinutes(imported.focusMinutes);
       try { localStorage.setItem("routino_focus", String(imported.focusMinutes)); } catch {}
     }
@@ -1795,6 +1821,7 @@ export default function Home() {
       replaceAllHabits: Array.isArray(imported.habits),
       notes: imported.notes,
       focusMinutes: imported.focusMinutes,
+      soundEnabled: imported.soundEnabled,
     });
     toast("Workspace snapshot restored & synced!");
   };
@@ -2008,6 +2035,7 @@ export default function Home() {
               onJournalSubscriptions={trackerWorkspace.importSubscriptions}
               subscriptions={subscriptions}
               airtel={trackerWorkspace.airtel}
+              onRechargeRenewal={patch => trackerWorkspace.update(patch)}
               onAirtelChange={(airtel) => { trackerWorkspace.update({ airtel }); }}
               subscriptionsDisabled={!trackerWorkspace.ready || trackerWorkspace.status === "conflict"}
               onSubscriptionsChange={(next) => { trackerWorkspace.update({ subscriptions: next }); }}
@@ -2048,6 +2076,11 @@ export default function Home() {
               onToggleTask={toggleTask}
               onDeleteTask={deleteTask}
               onEditTask={editTask}
+              onSnoozeTask={(id, date) => {
+                const next = snoozeTask(tasks, id, date, new Intl.DateTimeFormat("en-CA").format(new Date()));
+                if (next === tasks) return;
+                setTasks(next); try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {} void syncToDatabase({ tasks: next }); toast("Task moved; repeat schedule preserved");
+              }}
               onUpdateTaskRecurrence={(id, recurrence) => {
                 const next = tasks.map(task => task.id === id ? { ...task, recurrence, recurrenceTemplate: undefined, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task);
                 setTasks(next);

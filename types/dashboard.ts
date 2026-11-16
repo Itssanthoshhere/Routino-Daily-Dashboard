@@ -135,7 +135,9 @@ export type NotificationItem = {
   type: "calendar" | "task" | "mail" | "system";
   read: boolean;
   actionText?: string;
-  navTarget?: "Overview" | "Calendar" | "Inbox" | "Tasks" | "Notes" | "Time Audit";
+  trackerTab?: "airtel" | "subscriptions";
+  taskId?: string;
+  navTarget?: "Overview" | "Calendar" | "Inbox" | "Tasks" | "Notes" | "Time Audit" | "Trackers";
 };
 
 export type TimeAuditCategory = {

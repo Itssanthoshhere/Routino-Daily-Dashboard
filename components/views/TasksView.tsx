@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskSnooze } from "@/components/TaskSnooze";
 import { recurrenceLabel, type TaskRecurrence } from "@/lib/taskRecurrence";
 
 import { useState, useMemo, useEffect } from "react";
@@ -29,6 +30,7 @@ type TasksViewProps = {
   tasks: Task[];
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  onSnoozeTask?: (id: string, date: string) => void;
   onEditTask?: (task: Task) => void;
   onUpdateTaskRecurrence?: (id: string, recurrence: TaskRecurrence | undefined) => void;
   onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">) => void;
@@ -42,6 +44,7 @@ export function TasksView({
   onToggleTask,
   onDeleteTask,
   onEditTask,
+  onSnoozeTask,
   onUpdateTaskRecurrence,
   onAddTask,
   onOpenTaskModal,
@@ -59,6 +62,8 @@ export function TasksView({
 
   useEffect(() => {
     if (highlightedTaskId) {
+      setSelectedFilter("all");
+      setSearchQuery("");
       setExpandedTasks((prev) => ({ ...prev, [highlightedTaskId]: true }));
       const timer = setTimeout(() => {
         const el = document.getElementById("task-row-" + highlightedTaskId);
@@ -406,6 +411,7 @@ export function TasksView({
                           <span>{task.meta}</span>
                           {task.recurrence && <span className="rounded bg-[#f0f2eb] px-2 py-0.5 font-semibold">{recurrenceLabel(task.recurrence)}</span>}
                           {!task.checked && onUpdateTaskRecurrence && <select aria-label={`Repeat ${task.title}`} className="max-w-32 rounded border border-line bg-white px-1 py-0.5 text-[10px]" value={task.recurrence?.frequency || "none"} onChange={event => onUpdateTaskRecurrence(task.id, event.target.value === "none" ? undefined : { frequency: event.target.value as TaskRecurrence["frequency"], interval: 1, anchorDate: task.dueDate?.slice(0, 10) })}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>}
+                          {!task.checked && onSnoozeTask && <TaskSnooze title={task.title} onSnooze={date => onSnoozeTask(task.id, date)} />}
                           {task.category && (
                             <span
                               className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${
