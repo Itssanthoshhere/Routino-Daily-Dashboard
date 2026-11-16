@@ -14,7 +14,7 @@ export type Subscription = {
   currency: "INR" | "USD" | "EUR" | "GBP";
   cycle: "monthly" | "yearly" | "quarterly" | "unknown" | "one-time" | "bundled";
   renewalDate: string;
-  status: "active" | "paused" | "cancelled" | "unconfirmed";
+  status: "active" | "paused" | "cancelled" | "unconfirmed" | "completed";
   category: string;
   notes: string;
 };

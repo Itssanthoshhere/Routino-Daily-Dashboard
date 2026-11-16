@@ -30,6 +30,8 @@ assert.equal(nextRenewal({ ...plan, cycle: "monthly", renewalDate: "2026-01-31" 
 assert.equal(nextRenewal({ ...plan, cycle: "quarterly", renewalDate: "2026-11-30" }, "2026-12-01"), "2027-02-28");
 for (const cycle of ["bundled", "one-time", "unknown"]) assert.equal(monthlyCost({ ...plan, cycle }), 0);
 assert.equal(isSubscriptionList([plan]), true);
+assert.equal(isSubscriptionList([{ ...plan, status: "completed" }]), true);
+assert.equal(subscriptionExpenses([{ ...plan, status: "completed", payments: [{ date: "2026-01-01", amount: 1200 }] }]).totals[0].amount, 1200);
 assert.equal(isSubscriptionList([plan, plan]), false);
 assert.equal(isSubscriptionDate("2026-02-30"), false);
 for (const invalid of [{ amount: -1 }, { payments: [null] }, { billingHistory: [{}] }, { bundlePlan: {} }, { renewalDate: "2026-02-30" }]) {
