@@ -4,10 +4,14 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:cr
 import { neon } from "@neondatabase/serverless";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
 
+import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 export type UserWorkspaceData = {
   subscriptions?: Subscription[];
+  airtel?: AirtelData;
+  trackerRevision?: number;
+  subscriptionJournalImported?: boolean;
   tasks: Task[];
   customEvents: DashboardEvent[];
   quickLinks: QuickLink[];
@@ -295,7 +299,7 @@ export async function getUserWorkspace(email: string): Promise<UserWorkspaceData
       return (rows[0]?.data as UserWorkspaceData | undefined) ?? null;
     } catch (err) {
       console.error("[db] Error fetching user workspace from Neon:", err);
-      if (process.env.NODE_ENV === "production") return null;
+      throw new Error("Workspace database is temporarily unavailable.");
     }
   }
 
@@ -303,25 +307,13 @@ export async function getUserWorkspace(email: string): Promise<UserWorkspaceData
 
   if (redis) {
     try {
-      const res = await fetch(redis.url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${redis.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(["GET", getRedisKey(normalizedEmail)]),
-        cache: "no-store",
-      });
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json.result) {
-          const parsed = typeof json.result === "string" ? JSON.parse(json.result) : json.result;
-          return parsed as UserWorkspaceData;
-        }
-      }
-    } catch (err) {
-      console.error("[db] Error fetching user workspace from Redis:", err);
+      const res = await fetch(redis.url, { method: "POST", headers: { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" }, body: JSON.stringify(["GET", getRedisKey(normalizedEmail)]), cache: "no-store" });
+      if (!res.ok) throw new Error("Workspace database is temporarily unavailable.");
+      const json = await res.json();
+      if (json.error) throw new Error("Workspace database is temporarily unavailable.");
+      return json.result ? (typeof json.result === "string" ? JSON.parse(json.result) : json.result) as UserWorkspaceData : null;
+    } catch {
+      throw new Error("Workspace database is temporarily unavailable.");
     }
   }
 
@@ -343,7 +335,9 @@ export async function getUserWorkspace(email: string): Promise<UserWorkspaceData
  */
 export async function saveUserWorkspace(
   email: string,
-  data: UserWorkspaceData
+  data: UserWorkspaceData,
+  changedFields?: string[],
+  taskMerge?: { incoming: Task[]; replacedIds: string[]; deletedIds: string[] }
 ): Promise<{ success: boolean; source: string; error?: string }> {
   const normalizedEmail = email.toLowerCase().trim();
   const sql = getNeonClient();
@@ -355,9 +349,20 @@ export async function saveUserWorkspace(
         data JSONB NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`;
-      await sql`INSERT INTO routino_workspaces (email, data, updated_at)
-        VALUES (${normalizedEmail}, ${JSON.stringify(data)}::jsonb, NOW())
-        ON CONFLICT (email) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()`;
+      const patch = changedFields ? Object.fromEntries(changedFields.filter(key => key in data).map(key => [key, data[key as keyof UserWorkspaceData]])) : data;
+      if (taskMerge) {
+        const untouched = { ...patch }; delete (untouched as Partial<UserWorkspaceData>).tasks;
+        const excludedIds = Array.from(new Set([...taskMerge.replacedIds, ...taskMerge.deletedIds]));
+        const incoming = taskMerge.incoming.filter(task => taskMerge.replacedIds.includes(task.id) && !taskMerge.deletedIds.includes(task.id));
+        await sql`INSERT INTO routino_workspaces (email, data, updated_at)
+          VALUES (${normalizedEmail}, ${JSON.stringify(data)}::jsonb, NOW())
+          ON CONFLICT (email) DO UPDATE SET data = routino_workspaces.data || ${JSON.stringify(untouched)}::jsonb || jsonb_build_object('tasks',
+            COALESCE((SELECT jsonb_agg(item) FROM jsonb_array_elements(COALESCE(routino_workspaces.data->'tasks', '[]'::jsonb)) item WHERE NOT (item->>'id' = ANY(${excludedIds}::text[]))), '[]'::jsonb) || ${JSON.stringify(incoming)}::jsonb), updated_at = NOW()`;
+      } else {
+        await sql`INSERT INTO routino_workspaces (email, data, updated_at)
+          VALUES (${normalizedEmail}, ${JSON.stringify(data)}::jsonb, NOW())
+          ON CONFLICT (email) DO UPDATE SET data = routino_workspaces.data || ${JSON.stringify(patch)}::jsonb, updated_at = NOW()`;
+      }
       return { success: true, source: "neon-postgres" };
     } catch (err) {
       console.error("[db] Error saving user workspace to Neon:", err);
@@ -369,26 +374,26 @@ export async function saveUserWorkspace(
   const redis = getRedisConfig();
 
   if (redis) {
+    const source = redis.isVercelKv ? "vercel-kv" : "upstash-redis";
     try {
-      const payloadString = JSON.stringify(data);
-      const res = await fetch(redis.url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${redis.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(["SET", getRedisKey(normalizedEmail), payloadString]),
-      });
-
-      if (res.ok) {
-        return {
-          success: true,
-          source: redis.isVercelKv ? "vercel-kv" : "upstash-redis",
-        };
+      const read = await fetch(redis.url, { method: "POST", headers: { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" }, body: JSON.stringify(["GET", getRedisKey(normalizedEmail)]), cache: "no-store" });
+      const snapshot = await read.json();
+      if (!read.ok || snapshot.error) return { success: false, source };
+      const raw = typeof snapshot.result === "string" ? snapshot.result : snapshot.result ? JSON.stringify(snapshot.result) : "";
+      const existing = raw ? JSON.parse(raw) : {};
+      const patch = changedFields ? Object.fromEntries(changedFields.filter(key => key in data).map(key => [key, data[key as keyof UserWorkspaceData]])) : data;
+      if (taskMerge) {
+        const replaced = new Set(taskMerge.replacedIds), removed = new Set(taskMerge.deletedIds);
+        const merged = new Map<string, Task>((existing.tasks || []).filter((task: Task) => !removed.has(task.id)).map((task: Task) => [task.id, task]));
+        for (const task of taskMerge.incoming) if (replaced.has(task.id) && !removed.has(task.id)) merged.set(task.id, task);
+        (patch as Partial<UserWorkspaceData>).tasks = Array.from(merged.values());
       }
-    } catch (err) {
-      console.error("[db] Error saving user workspace to Redis:", err);
-    }
+      // Compare raw strings in Lua; encode JSON in JS so empty arrays remain arrays.
+      const script = `local raw = redis.call('GET', KEYS[1]); if (raw or '') ~= ARGV[1] then return 0 end; redis.call('SET', KEYS[1], ARGV[2]); return 1`;
+      const res = await fetch(redis.url, { method: "POST", headers: { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" }, body: JSON.stringify(["EVAL", script, 1, getRedisKey(normalizedEmail), raw, JSON.stringify({ ...existing, ...patch })]) });
+      const result = await res.json();
+      return { success: res.ok && !result.error && result.result === 1, source };
+    } catch { return { success: false, source, error: "Workspace database save failed." }; }
   }
 
   if (process.env.NODE_ENV === "production") {
@@ -408,4 +413,44 @@ export async function saveUserWorkspace(
     console.error("[db] Error saving to filesystem:", err);
     return { success: false, source: "none", error: message };
   }
+}
+
+export type TrackerPatch = Pick<UserWorkspaceData, "subscriptions" | "airtel" | "subscriptionJournalImported">;
+
+/** Compare-and-swap tracker fields without replacing unrelated workspace data. */
+export async function saveTrackerWorkspace(email: string, patch: TrackerPatch, revision: number): Promise<{ success: boolean; conflict?: boolean; data?: UserWorkspaceData }> {
+  const normalized = email.toLowerCase().trim();
+  const sql = getNeonClient();
+  const updatedAt = new Date().toISOString();
+  const payload = { ...patch, trackerRevision: revision + 1, updatedAt };
+  if (sql) {
+    await sql`CREATE TABLE IF NOT EXISTS routino_workspaces (email TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+    // An empty document allows the first tracker save without inventing core workspace defaults.
+    await sql`INSERT INTO routino_workspaces (email, data) VALUES (${normalized}, '{}'::jsonb) ON CONFLICT DO NOTHING`;
+    const rows = await sql`UPDATE routino_workspaces SET data = data || ${JSON.stringify(payload)}::jsonb, updated_at = NOW()
+      WHERE email = ${normalized} AND COALESCE((data->>'trackerRevision')::integer, 0) = ${revision} RETURNING data`;
+    return rows.length ? { success: true, data: rows[0].data as UserWorkspaceData } : { success: false, conflict: true };
+  }
+  const redis = getRedisConfig();
+  if (redis) {
+    const headers = { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" };
+    const response = await fetch(redis.url, { method: "POST", headers, body: JSON.stringify(["GET", getRedisKey(normalized)]), cache: "no-store" });
+    const snapshot = await response.json();
+    if (!response.ok || snapshot.error) throw new Error("Tracker database read failed.");
+    const raw = typeof snapshot.result === "string" ? snapshot.result : snapshot.result ? JSON.stringify(snapshot.result) : "";
+    const existing = raw ? JSON.parse(raw) : {};
+    if ((existing.trackerRevision || 0) !== revision) return { success: false, conflict: true };
+    const data = { ...existing, ...payload };
+    const script = `local raw = redis.call('GET', KEYS[1]); if (raw or '') ~= ARGV[1] then return 0 end; redis.call('SET', KEYS[1], ARGV[2]); return 1`;
+    const save = await fetch(redis.url, { method: "POST", headers, body: JSON.stringify(["EVAL", script, 1, getRedisKey(normalized), raw, JSON.stringify(data)]) });
+    const result = await save.json();
+    if (!save.ok || result.error) throw new Error("Tracker database save failed.");
+    return result.result === 1 ? { success: true, data } : { success: false, conflict: true };
+  }
+  if (process.env.NODE_ENV === "production") return { success: false };
+  const existing = await getUserWorkspace(normalized);
+  if ((existing?.trackerRevision || 0) !== revision) return { success: false, conflict: true };
+  const data = { ...existing, ...payload } as UserWorkspaceData;
+  const result = await saveUserWorkspace(normalized, data);
+  return { success: result.success, data: result.success ? data : undefined };
 }

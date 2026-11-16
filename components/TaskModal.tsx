@@ -3,20 +3,25 @@
 import { useState, useEffect } from "react";
 import { Plus, X, AlertCircle, CheckSquare, Trash2, Plane, Sparkles, Calendar } from "lucide-react";
 import { Task, SubTask } from "@/types/dashboard";
+import type { TaskRecurrence } from "@/lib/taskRecurrence";
 import { inferTaskCategory } from "@/lib/meeting";
 
 type TaskModalProps = {
+  editing?: boolean;
   isOpen: boolean;
   onClose: () => void;
   onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">) => void;
   initialTask?: Partial<Omit<Task, "id" | "checked" | "createdAt">> | null;
 };
 
-export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = false }: TaskModalProps) {
   const [title, setTitle] = useState("");
   const [meta, setMeta] = useState("");
   const [priority, setPriority] = useState(false);
   const [category, setCategory] = useState<"work" | "personal" | "meeting" | "urgent" | "project" | "travel">("work");
+  const [repeat, setRepeat] = useState<TaskRecurrence["frequency"] | "none">("none");
+  const [repeatInterval, setRepeatInterval] = useState("1");
+  const [repeatUntil, setRepeatUntil] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [hasUserPickedCategory, setHasUserPickedCategory] = useState(false);
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
@@ -24,12 +29,15 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
 
   useEffect(() => {
     if (isOpen) {
+      setRepeat(initialTask?.recurrence?.frequency || "none");
+      setRepeatInterval(String(initialTask?.recurrence?.interval || 1));
+      setRepeatUntil(initialTask?.recurrence?.until || "");
       if (initialTask) {
         setTitle(initialTask.title || "");
         setMeta(initialTask.meta || "");
         setPriority(initialTask.priority ?? false);
         setCategory(initialTask.category || "work");
-        setDueDate(initialTask.dueDate || "");
+        setDueDate(initialTask.dueDate?.slice(0, 10) || "");
         setHasUserPickedCategory(!!initialTask.category);
         setSubtasks(initialTask.subtasks || []);
       } else {
@@ -75,6 +83,8 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    const interval = Number(repeatInterval);
+    if (repeat !== "none" && repeat !== "weekdays" && (!Number.isInteger(interval) || interval < 1 || interval > 365)) return;
 
     const finalCategory = category;
     const catLabel = finalCategory === "project" ? "Project" : finalCategory === "travel" ? "Travel" : finalCategory.charAt(0).toUpperCase() + finalCategory.slice(1);
@@ -91,7 +101,8 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
       meta: meta.trim() || defaultMeta,
       priority,
       category: finalCategory,
-      dueDate: dueDate || undefined,
+      dueDate: dueDate ? dueDate + (initialTask?.dueDate?.slice(10) || "") : undefined,
+      recurrence: repeat === "none" ? undefined : { frequency: repeat, interval: repeat === "weekdays" ? 1 : interval, until: repeatUntil || undefined, anchorDate: dueDate === initialTask?.dueDate?.slice(0, 10) ? initialTask.recurrence?.anchorDate || dueDate : dueDate },
       subtasks: subtasks.length > 0 ? subtasks : undefined,
       link: initialTask?.link || undefined,
     });
@@ -116,8 +127,8 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
               <Plus size={16} />
             </span>
             <div>
-              <h3 className="text-[15px] font-semibold text-ink">Add New Task</h3>
-              <p className="text-[11px] text-muted">Create a priority with checklist sub-steps</p>
+              <h3 className="text-[15px] font-semibold text-ink">{editing ? "Edit Task" : "Add New Task"}</h3>
+              <p className="text-[11px] text-muted">{editing ? "Update task details, checklist, and repeat settings" : "Create a priority with checklist sub-steps"}</p>
             </div>
           </div>
           <button
@@ -203,6 +214,45 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
             </div>
           </div>
 
+          <div className="rounded-xl border border-line bg-white p-3 space-y-3">
+            <label className="block text-xs font-semibold">
+              Repeat
+              <select
+                className="mt-1.5 w-full rounded-lg border border-line px-3 py-2 text-sm"
+                value={repeat}
+                onChange={event => {
+                  setRepeat(event.target.value as typeof repeat);
+                  if (!dueDate && event.target.value !== "none") setDueDate(new Intl.DateTimeFormat("en-CA").format(new Date()));
+                }}
+              >
+                <option value="none">Never</option>
+                <option value="daily">Daily</option>
+                <option value="weekdays">Weekdays</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </label>
+            {repeat !== "none" && <>
+              <div className="grid grid-cols-2 gap-3">
+                {repeat !== "weekdays" && <label className="text-xs">
+                  Repeat every ({repeat === "daily" ? "days" : repeat === "weekly" ? "weeks" : repeat === "monthly" ? "months" : "years"})
+                  <input
+                    required min="1" max="365" step="1" type="number"
+                    className="mt-1 w-full rounded-lg border border-line px-3 py-2"
+                    value={repeatInterval}
+                    onChange={event => setRepeatInterval(event.target.value)}
+                  />
+                </label>}
+                <label className="text-xs">
+                  End repeat (optional)
+                  <input type="date" min={dueDate || undefined} className="mt-1 w-full rounded-lg border border-line px-3 py-2" value={repeatUntil} onChange={event => setRepeatUntil(event.target.value)} />
+                </label>
+              </div>
+              <p className="text-xs text-muted">Completing this task creates its next scheduled occurrence. Past missed dates are skipped; completed history stays saved.</p>
+            </>}
+          </div>
+
           {/* Due Date & Presets */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
@@ -223,6 +273,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
             <div className="flex items-center gap-2">
               <input
                 type="date"
+                required={repeat !== "none"}
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 className="flex-1 rounded-xl border border-line bg-white px-3 py-2 text-[12px] text-ink outline-none focus:border-forest"
@@ -327,7 +378,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask }: TaskModal
               type="submit"
               className="rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#8b1116]"
             >
-              Add Priority
+              {editing ? "Save changes" : "Add Priority"}
             </button>
           </div>
         </form>

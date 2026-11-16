@@ -1,4 +1,5 @@
 export type Subscription = {
+  bundleRechargeId?: string;
   confirmedDetailsVersion?: number;
   planName?: string;
   bundlePlan?: { provider: string; amount: number; startDate: string; endDate: string; validityDays: number };
