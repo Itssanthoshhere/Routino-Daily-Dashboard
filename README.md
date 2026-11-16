@@ -102,6 +102,16 @@ Never use `NEXT_PUBLIC_` for secrets, OAuth tokens, database credentials, or pri
 
 The Vercel project should not expose deployment environment variables to the client. Preview and production environments should use separate OAuth credentials and databases where practical.
 
+## Subscription and Airtel trackers
+
+Trackers includes a Subscription Manager and a separate Airtel Recharge history view. Subscriptions support editing, status filters, active-first ordering, renewal dates, recorded payment history, and a total-expense dialog. Workspace backups include subscriptions; older backups and API writes that omit subscriptions leave the saved records intact.
+
+Journal imports detect named service payments and infer a monthly cycle only from repeated payments. An imported start date is the first recorded payment, not a verified signup date. Expense totals keep currencies separate, count invoice/journal representations of the same payment once, and count shared recharge bundles once. Airtel history separates main plans from small top-ups, excludes failed attempts from totals, and keeps payment dates separate from activation dates without modifying journal rows.
+
+**Current limitations:** the user-confirmed Airtel transaction snapshot and Netflix/Hotstar corrections are fixed records in `lib/airtelRecharges.ts` and `lib/subscriptionJournal.ts`. They are not a live Airtel integration and do not discover the next recharge automatically. Those files currently contain account-specific financial history; remove or replace these snapshots before redistributing the app. Journal rows continue to come from the configured tracker sheet. Cross-device subscription sync requires a configured durable database and the same signed-in account; local browser/filesystem storage alone does not provide it.
+
+Run the tracker regression checks with `node scripts/test-trackers.cjs`, type-check with `npx tsc --noEmit`, and build with `npm run build`. If the environment blocks Turbopack's local process, `npx next build --webpack` verifies the production build through Webpack.
+
 ## Project structure
 
 ```text

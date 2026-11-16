@@ -45,10 +45,19 @@ import type {
 } from "@/types/dashboard";
 import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 
-export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "placements" | "life" | "purchases";
+import { subscriptionsFromJournals } from "@/lib/subscriptionJournal";
+import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
+import { SubscriptionManager } from "@/components/SubscriptionManager";
+import type { Subscription } from "@/types/subscriptions";
+
+export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "placements" | "life" | "purchases" | "subscriptions" | "airtel";
 type TabKey = TrackersTabKey;
 
 export type TrackersViewProps = {
+  onJournalSubscriptions?: (subscriptions: Subscription[]) => void;
+  subscriptions?: Subscription[];
+  onSubscriptionsChange?: (next: Subscription[]) => void;
+  subscriptionsDisabled?: boolean;
   initialTab?: TrackersTabKey;
   tabChangeKey?: number;
   onTabChange?: (tab: TrackersTabKey) => void;
@@ -282,7 +291,7 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   };
 }
 
-export function TrackersView({ initialTab, tabChangeKey, onTabChange }: TrackersViewProps = {}) {
+export function TrackersView({ initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled }: TrackersViewProps = {}) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab || "eb");
 
   useEffect(() => {
@@ -319,6 +328,12 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncStr, setLastSyncStr] = useState<string>("Just now");
+
+  useEffect(() => {
+    if (data.isLive && data.journals && !subscriptionsDisabled) {
+      onJournalSubscriptions?.(subscriptionsFromJournals(data.journals, new Date().toLocaleDateString("en-CA")));
+    }
+  }, [data, subscriptionsDisabled, onJournalSubscriptions]);
 
   // Filtering states
   const [selectedJournalKey, setSelectedJournalKey] = useState<string>("2026");
@@ -971,20 +986,20 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-[20px] font-bold text-ink tracking-tight">Trackers Hub</h2>
-            <span
+            {activeTab !== "subscriptions" && <span
               title={`Live background auto-sync active (every ${autoSyncIntervalSec}s + on tab switch)`}
               className="inline-flex items-center gap-1.5 rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2.5 py-0.5 text-[10.5px] font-bold text-[#047857]"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#10b981] animate-pulse" />
               Live Auto-Sync {autoSyncIntervalSec > 0 ? `(${autoSyncIntervalSec}s)` : "Active"}
-            </span>
+            </span>}
           </div>
           <p className="mt-1 text-[12px] text-muted">
-            Personal ledger, PG electricity, tokens, career & life metrics synced live from Google Sheets · Last synced: {lastSyncStr}
+            {activeTab === "subscriptions" ? "Manage recurring plans and spending with your saved workspace." : `Personal ledger, PG electricity, tokens, career & life metrics synced live from Google Sheets · Last synced: ${lastSyncStr}`}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+        {activeTab !== "subscriptions" && <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           {/* Auto-Sync interval selector */}
           <div className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-medium text-ink shadow-xs">
             <span className="text-muted text-[10.5px]">Auto:</span>
@@ -1022,7 +1037,7 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
             <RefreshCw size={13} className={isSyncing ? "animate-spin" : ""} />
             {isSyncing ? "Syncing..." : "Sync Now"}
           </button>
-        </div>
+        </div>}
       </div>
 
       {syncError && (
@@ -1035,6 +1050,8 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
       {/* ─── Navigation Tabs ─── */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line pb-3">
         {[
+          { key: "airtel", label: "Airtel Recharge", icon: RefreshCw, count: "84 days" },
+          { key: "subscriptions", label: "Subscriptions", icon: CreditCard, count: `${subscriptions.length}` },
           { key: "eb", label: "PG Electricity (EB)", icon: Zap, count: `${displayLatestReading} units` },
           { key: "expenses", label: "Expense & Budget", icon: Wallet, count: `₹${data.totalMonthlyBudget.toLocaleString()}` },
           {
@@ -1080,6 +1097,10 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange }: Trackers
       {/* ═══════════════════════════════════════════════════════════
           TAB 1: PG ELECTRICITY (EB) METER TRACKER
       ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "subscriptions" && onSubscriptionsChange && <SubscriptionManager subscriptions={subscriptions} onChange={onSubscriptionsChange} disabled={subscriptionsDisabled} />}
+
+      {activeTab === "airtel" && <AirtelRechargeTracker journals={data.journals || {}} isLive={data.isLive} />}
+
       {activeTab === "eb" && (
         <div className="space-y-6">
           {/* Top KPI Cards */}

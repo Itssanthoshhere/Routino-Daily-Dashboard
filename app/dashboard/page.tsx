@@ -1,5 +1,8 @@
-
 "use client";
+
+import { isSubscriptionList } from "@/lib/subscriptionValidation";
+import { applyJournalCorrections } from "@/lib/subscriptionJournal";
+import type { Subscription } from "@/types/subscriptions";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -99,6 +102,9 @@ const PARAM_TO_TAB: Record<string, string> = {
 };
 
 const TRACKER_SHORTCUTS: Record<string, TrackersTabKey> = {
+  airtel: "airtel",
+  recharges: "airtel",
+  subscriptions: "subscriptions",
   tokens: "tokens",
   eb: "eb",
   electricity: "eb",
@@ -321,6 +327,8 @@ let globalToastSeq = 0;
 export default function Home() {
   /* ── Core state ── */
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [subscriptionStorageError, setSubscriptionStorageError] = useState(false);
   const [notes, setNotes] = useState<KeepNote[]>(seedNotes);
   const [activeNav, setActiveNav] = useState("Overview");
   const [notice, setNotice] = useState(true);
@@ -500,6 +508,10 @@ export default function Home() {
   /* ── LocalStorage Hydration ── */
   useEffect(() => {
     try {
+      const storedSubscriptions = localStorage.getItem("routino_subscriptions_v1");
+      if (storedSubscriptions) {
+        try { const parsed = JSON.parse(storedSubscriptions); if (isSubscriptionList(parsed)) setSubscriptions(parsed); else setSubscriptionStorageError(true); } catch { setSubscriptionStorageError(true); }
+      }
       const storedTasks = localStorage.getItem("routino_tasks");
       if (storedTasks !== null) {
         const parsed = JSON.parse(storedTasks);
@@ -1092,10 +1104,11 @@ export default function Home() {
       deletedHabitIds?: string[];
       replaceHabitIds?: string[];
       replaceAllHabits?: boolean;
+      subscriptions?: Subscription[];
       notes?: KeepNote[];
       activeNav?: string;
     }) => {
-      if (!liveData?.connected || !workspaceSyncReady) return;
+      if (!liveData?.connected || !workspaceSyncReady) return false;
       try {
         setIsSyncing(true);
         const payload = {
@@ -1108,6 +1121,7 @@ export default function Home() {
           deletedHabitIds: overrideData?.deletedHabitIds,
           replaceHabitIds: overrideData?.replaceHabitIds,
           replaceAllHabits: overrideData?.replaceAllHabits,
+          ...(overrideData?.subscriptions !== undefined ? { subscriptions: overrideData.subscriptions } : {}),
           notes: overrideData?.notes ?? notes,
           activeNav: overrideData?.activeNav ?? activeNav,
         };
@@ -1120,13 +1134,16 @@ export default function Home() {
 
         if (res.ok) {
           const json = await res.json();
+          if (!json.success) return false;
           setLastSyncedAt(json.savedAt || new Date().toISOString());
           if (json.dbStatus?.sourceLabel) {
             setDbSource(json.dbStatus.sourceLabel);
           }
+          return true;
         }
+        return false;
       } catch {
-        // Offline / network failure handled gracefully
+        return false;
       } finally {
         setIsSyncing(false);
       }
@@ -1192,6 +1209,11 @@ export default function Home() {
             setHabits(d.habits);
             try { localStorage.setItem("routino_habits", JSON.stringify(d.habits)); } catch {}
           }
+          if (isSubscriptionList(d.subscriptions)) {
+            setSubscriptions(d.subscriptions);
+            setSubscriptionStorageError(false);
+            try { localStorage.setItem("routino_subscriptions_v1", JSON.stringify(d.subscriptions)); } catch {}
+          }
           if (Array.isArray(d.notes)) {
             setNotes(d.notes);
           }
@@ -1207,8 +1229,8 @@ export default function Home() {
   }, [liveData?.connected]);
 
   const handleManualSync = async () => {
-    await syncToDatabase();
-    toast("Workspace synchronized with database!");
+    const saved = await syncToDatabase(subscriptionStorageError ? undefined : { subscriptions });
+    toast(saved ? "Workspace synchronized with database!" : "Database sync failed or is unavailable. Local data is preserved.");
   };
 
   /* ── Handlers ── */
@@ -1693,8 +1715,17 @@ export default function Home() {
     quickLinks?: QuickLink[];
     habits?: Habit[];
     notes?: KeepNote[];
+    subscriptions?: Subscription[];
     focusMinutes?: number;
   }) => {
+    if (imported.subscriptions !== undefined && !isSubscriptionList(imported.subscriptions)) {
+      toast("Invalid subscription data in backup. No workspace changes were made.");
+      return;
+    }
+    if (Array.isArray(imported.subscriptions)) {
+      setSubscriptions(imported.subscriptions);
+      try { localStorage.setItem("routino_subscriptions_v1", JSON.stringify(imported.subscriptions)); } catch {}
+    }
     if (imported.tasks) {
       setTasks(imported.tasks);
       try { localStorage.setItem("routino_tasks", JSON.stringify(imported.tasks)); } catch {}
@@ -1725,6 +1756,7 @@ export default function Home() {
       quickLinks: imported.quickLinks,
       habits: imported.habits,
       replaceAllHabits: Array.isArray(imported.habits),
+      subscriptions: imported.subscriptions,
       notes: imported.notes,
       focusMinutes: imported.focusMinutes,
     });
@@ -1934,6 +1966,32 @@ export default function Home() {
             />
           ) : activeNav === "Trackers" ? (
             <TrackersView
+              onJournalSubscriptions={(detected) => {
+                const corrected = applyJournalCorrections(subscriptions);
+                let alreadyImported = false;
+                try { alreadyImported = !!localStorage.getItem("routino_subscription_journal_import_v1"); } catch { return; }
+                const hasCorrection = corrected.some((item, index) => item !== subscriptions[index]);
+                if ((!detected.length || alreadyImported) && !hasCorrection) return;
+                const existingNames = new Set(corrected.map(s => s.name.toLowerCase().replace(/[^a-z0-9]/g, "")));
+                const next = [...corrected, ...(alreadyImported ? [] : detected.filter(s => !existingNames.has(s.name.toLowerCase().replace(/[^a-z0-9]/g, ""))))];
+                try {
+                  localStorage.setItem("routino_subscriptions_v1", JSON.stringify(next));
+                  localStorage.setItem("routino_subscription_journal_import_v1", "done");
+                } catch { toast("Could not save journal subscriptions locally."); return; }
+                setSubscriptions(next);
+                void syncToDatabase({ subscriptions: next }).then(saved => {
+                  if (!saved) toast("Subscriptions saved locally. Database sync is unavailable.");
+                });
+              }}
+              subscriptions={subscriptions}
+              subscriptionsDisabled={subscriptionStorageError || (!!liveData?.connected && !workspaceSyncReady)}
+              onSubscriptionsChange={(next) => {
+                try { localStorage.setItem("routino_subscriptions_v1", JSON.stringify(next)); } catch { toast("Could not save subscriptions locally. Please check browser storage."); return; }
+                setSubscriptions(next);
+                void syncToDatabase({ subscriptions: next }).then(saved => {
+                  if (!saved) toast("Subscriptions saved locally. Database sync is unavailable.");
+                });
+              }}
               initialTab={trackersTab}
               tabChangeKey={trackersTabKey}
               onTabChange={(tab) => {
@@ -3076,6 +3134,7 @@ export default function Home() {
         quickLinks={quickLinks}
         habits={habits}
         notes={notes}
+        subscriptions={subscriptions}
         onImportData={handleImportData}
         onClearCompletedTasks={handleClearCompletedTasks}
         soundEnabled={soundEnabled}

@@ -22,7 +22,11 @@ import { appConfig } from "@/lib/config";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
 import { OutlookConnectionCard } from "@/components/OutlookConnectionCard";
 
+import { isSubscriptionList } from "@/lib/subscriptionValidation";
+import type { Subscription } from "@/types/subscriptions";
+
 type PreferencesModalProps = {
+  subscriptions?: Subscription[];
   isOpen: boolean;
   onClose: () => void;
   focusMinutes: number;
@@ -37,6 +41,7 @@ type PreferencesModalProps = {
     customEvents?: DashboardEvent[];
     quickLinks?: QuickLink[];
     habits?: Habit[];
+    subscriptions?: Subscription[];
     notes?: KeepNote[];
     focusMinutes?: number;
   }) => void;
@@ -61,6 +66,7 @@ export function PreferencesModal({
   quickLinks,
   habits,
   notes,
+  subscriptions,
   onImportData,
   onClearCompletedTasks,
   soundEnabled,
@@ -92,6 +98,7 @@ export function PreferencesModal({
         quickLinks,
         habits,
         notes,
+        subscriptions,
       },
     };
 
@@ -117,12 +124,16 @@ export function PreferencesModal({
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed.data) {
+          if (parsed.data.subscriptions !== undefined && !isSubscriptionList(parsed.data.subscriptions)) {
+            throw new Error("Invalid subscription data");
+          }
           onImportData({
             tasks: parsed.data.tasks,
             customEvents: parsed.data.customEvents,
             quickLinks: parsed.data.quickLinks,
             habits: parsed.data.habits,
             notes: parsed.data.notes,
+            subscriptions: parsed.data.subscriptions,
             focusMinutes: parsed.data.focusMinutes,
           });
           onClose();
