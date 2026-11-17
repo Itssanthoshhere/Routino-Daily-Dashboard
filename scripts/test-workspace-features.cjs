@@ -63,3 +63,18 @@ assert.equal(candidates.some(item => item.id.includes("done")), false);
 assert.equal(candidates.some(item => item.id.includes("overdue:overdue:")), true);
 assert.equal(candidates.some(item => item.title.includes("cancel before renewal")), true);
 console.log("Passed: task activity and recurrence isolation; validated price history and renewal decisions; encrypted-note search exclusion; timed, overdue, completed-task and renewal reminder selection. Source records unchanged.");
+
+const { deliverBrowserReminder } = load("lib/browserReminderDelivery.ts");
+const delivered = new Set(["previous"]);
+let stored;
+let attempts = 0;
+assert.throws(() => deliverBrowserReminder("retry", delivered, ids => { stored = ids; }, () => { attempts++; throw new Error("Browser unavailable"); }));
+assert.deepEqual(Array.from(delivered), ["previous"]);
+assert.deepEqual(stored, ["previous"]);
+const notification = deliverBrowserReminder("retry", delivered, ids => { stored = ids; }, () => { attempts++; return { shown: true }; });
+assert.equal(notification.shown, true);
+assert.deepEqual(stored, ["previous", "retry"]);
+assert.equal(attempts, 2);
+assert.throws(() => deliverBrowserReminder("storage-failure", delivered, () => { throw new Error("Storage blocked"); }, () => { throw new Error("Should not display"); }), /Storage blocked/);
+assert.equal(delivered.has("storage-failure"), false);
+console.log("Passed: failed notification delivery rolls back deduplication, permits retry, and storage failures do not silently mark alerts delivered.");

@@ -274,15 +274,16 @@ export function CommandPalette({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-20 sm:pt-28">
       <div className="relative w-full max-w-xl rounded-2xl border border-line bg-[#fbfcf8] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center gap-3 border-b border-line px-4 py-3.5 bg-white">
+        <div className="m-3 flex items-center gap-3 rounded-xl border border-line bg-white px-3 py-3 transition focus-within:border-forest/40 focus-within:ring-2 focus-within:ring-forest/10">
           <Search size={18} className="text-muted shrink-0" />
           <input
             ref={inputRef}
             type="text"
+            aria-label="Search workspace"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search tasks, notes, subscriptions, recharges, or commands…"
-            className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-muted"
+            className="command-search-input min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-muted"
           />
           <kbd className="hidden sm:inline-block rounded bg-[#f1f3ed] px-2 py-0.5 text-[10px] font-semibold text-muted">
             ESC

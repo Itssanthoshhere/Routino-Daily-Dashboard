@@ -195,3 +195,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
 input[type="checkbox"], input[type="radio"] {
   accent-color: var(--brand-red);
 }
+
+/* The search field uses its rounded container as the visible focus indicator. */
+.command-search-input:focus-visible {
+  outline: none;
+}

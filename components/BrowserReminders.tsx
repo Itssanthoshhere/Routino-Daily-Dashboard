@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { NotificationItem, Task } from "@/types/dashboard";
 import type { Subscription } from "@/types/subscriptions";
 import type { AirtelData } from "@/types/airtel";
+import { deliverBrowserReminder } from "@/lib/browserReminderDelivery";
 import { browserReminderCandidates } from "@/lib/browserReminderCandidates";
 
 const key = (email: string) => `routino_browser_reminders:${email}`;
@@ -66,9 +67,10 @@ export function BrowserReminders({ email, tasks, subscriptions, airtel, onOpenNo
         const item = items.find(item => !delivered.has(item.id) && !sent.current.has(`${today}:${item.id}`));
         if (!item) return;
         // Persist before delivery to avoid repeated alerts across refreshes/tabs.
-        delivered.add(item.id);
-        localStorage.setItem(storageKey, JSON.stringify(Array.from(delivered)));
-        const notification = new Notification("Routino reminder", { body: item.title, tag: `${email}:${today}:${item.id}` });
+        const notification = deliverBrowserReminder(item.id, delivered,
+          ids => localStorage.setItem(storageKey, JSON.stringify(ids)),
+          () => new Notification("Routino reminder", { body: item.title, tag: `${email}:${today}:${item.id}` }),
+        );
         visibleNotifications.add(notification);
         notification.onclose = () => visibleNotifications.delete(notification);
         sent.current.add(`${today}:${item.id}`);
