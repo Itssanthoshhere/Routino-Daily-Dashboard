@@ -1144,9 +1144,13 @@ export default function Home() {
       notes?: KeepNote[];
       activeNav?: string;
     }, baselineTasks?: Task[]) => {
-      if (!liveData?.connected || !workspaceSyncReady) return false;
+      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      let offlineAccount: string | null = null;
+      try { if (offline) offlineAccount = localStorage.getItem("routino_verified_workspace_account"); } catch {}
+      if ((!liveData?.connected || !workspaceSyncReady) && !offlineAccount) return false;
       coreSyncVersion.current += 1;
-      const account = liveData.user?.email?.toLowerCase();
+      const account = liveData?.user?.email?.toLowerCase() || offlineAccount;
+      if (!account) return false;
       const accountKey = `routino_workspace_pending:${account}`;
       const incoming = { ...overrideData, ...(overrideData?.tasks ? {
         replaceTaskIds: overrideData.tasks.filter(task => JSON.stringify(task) !== JSON.stringify((baselineTasks || tasks).find(existing => existing.id === task.id))).map(task => task.id),
@@ -1156,6 +1160,7 @@ export default function Home() {
         const pending = JSON.parse(localStorage.getItem(accountKey) || "{}");
         localStorage.setItem(accountKey, JSON.stringify(queueWorkspacePatch(pending, incoming)));
       } catch { setWorkspaceSaveError(true); return false; }
+      if (offline) { setWorkspaceSaveError(true); return false; }
       const operation = async () => {
         if (currentAccount.current !== account) return false;
         setIsSyncing(true);
@@ -1209,6 +1214,7 @@ export default function Home() {
       .then((res) => {
         if (!active || !res || !res.authenticated || readVersion !== coreSyncVersion.current || sequence !== readSequence) return;
         setWorkspaceSyncReady(true);
+        try { if (res.email) localStorage.setItem("routino_verified_workspace_account", res.email.toLowerCase()); } catch {}
         if (res.dbStatus?.sourceLabel) {
           setDbSource(res.dbStatus.sourceLabel);
         }
