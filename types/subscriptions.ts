@@ -1,4 +1,6 @@
 export type Subscription = {
+  reminderDaysBefore?: number;
+  statusHistory?: { date: string; status: Subscription["status"] }[];
   lastUsedDate?: string;
   trialEndDate?: string;
   cancellationDeadline?: string;
