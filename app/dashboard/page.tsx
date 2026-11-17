@@ -37,6 +37,7 @@ import { TaskModal } from "@/components/TaskModal";
 import { EventModal } from "@/components/EventModal";
 import { MailDrawer } from "@/components/MailDrawer";
 import { QuickLinkModal } from "@/components/QuickLinkModal";
+import { ReadLaterPanel } from "@/components/ReadLaterPanel";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { UserMenuPopover } from "@/components/UserMenuPopover";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -3064,6 +3065,8 @@ export default function Home() {
                     Adjust your plan & timer <ArrowRight size={12} className="ml-1 inline" />
                   </button>
                 </section>
+
+                <ReadLaterPanel links={quickLinks} onAdd={() => setShowQuickLinkModal(true)} />
 
                 {/* Quick links */}
                 <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
