@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskActivityHistory } from "@/components/TaskActivityHistory";
 import { TaskSnooze } from "@/components/TaskSnooze";
 import { recurrenceLabel, type TaskRecurrence } from "@/lib/taskRecurrence";
 
@@ -502,6 +503,7 @@ export function TasksView({
                   </div>
 
                   {/* Expandable subtasks checklist */}
+                  <TaskActivityHistory task={task} />
                   {hasSubtasks && isExpanded && (
                     <div className="bg-[#fafbf7] border-t border-[#f0f2eb] px-4 sm:px-12 py-2.5 space-y-1.5">
                       {task.subtasks!.map((st) => (

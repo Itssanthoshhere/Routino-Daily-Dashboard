@@ -10,6 +10,7 @@ export type SubTask = {
 };
 
 export type Task = {
+  activity?: import("@/lib/taskActivity").TaskActivity[];
   id: string;
   title: string;
   meta: string;
@@ -20,7 +21,7 @@ export type Task = {
   dueDate?: string;
   recurrence?: TaskRecurrence;
   recurrenceSeriesId?: string;
-  recurrenceTemplate?: Omit<Task, "id" | "checked" | "createdAt" | "recurrenceTemplate">;
+  recurrenceTemplate?: Omit<Task, "id" | "checked" | "createdAt" | "recurrenceTemplate" | "activity">;
   createdAt: number;
   subtasks?: SubTask[];
   link?: string;

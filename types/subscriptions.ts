@@ -1,4 +1,6 @@
 export type Subscription = {
+  renewalDecision?: "keep" | "cancel" | "later";
+  priceHistory?: { date: string; amount: number; currency: Subscription["currency"]; cycle: Subscription["cycle"] }[];
   bundleRechargeId?: string;
   confirmedDetailsVersion?: number;
   planName?: string;

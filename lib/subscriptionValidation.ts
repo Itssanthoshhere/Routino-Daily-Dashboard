@@ -16,6 +16,8 @@ export function isSubscription(value: unknown): value is Subscription {
   if (!text(value.id) || !value.id.trim() || !text(value.name) || !value.name.trim() || !amount(value.amount)) return false;
   if (!["INR", "USD", "EUR", "GBP"].includes(String(value.currency)) || !["monthly", "yearly", "quarterly", "unknown", "one-time", "bundled"].includes(String(value.cycle)) || !["active", "paused", "cancelled", "unconfirmed", "completed"].includes(String(value.status))) return false;
   if (!text(value.category) || !text(value.notes) || !text(value.renewalDate) || !optionalDate(value.renewalDate) || !optionalDate(value.startDate) || !optionalDate(value.lastPaidDate) || !optionalDate(value.bundleEndDate)) return false;
+  if (value.renewalDecision !== undefined && !["keep", "cancel", "later"].includes(String(value.renewalDecision))) return false;
+  if (value.priceHistory !== undefined && (!Array.isArray(value.priceHistory) || value.priceHistory.length > 500 || !value.priceHistory.every(entry => record(entry) && isSubscriptionDate(entry.date) && amount(entry.amount) && ["INR", "USD", "EUR", "GBP"].includes(String(entry.currency)) && ["monthly", "yearly", "quarterly", "unknown", "one-time", "bundled"].includes(String(entry.cycle))))) return false;
   if (value.bundledSince !== undefined && !(isSubscriptionDate(value.bundledSince) || (text(value.bundledSince) && /^\d{4}-(0[1-9]|1[0-2])$/.test(value.bundledSince)))) return false;
   if (value.bundleRechargeId !== undefined && !text(value.bundleRechargeId)) return false;
   if (value.planName !== undefined && !text(value.planName)) return false;

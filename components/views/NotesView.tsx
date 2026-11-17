@@ -136,6 +136,7 @@ function getNoteImages(item?: { imageUrl?: string; images?: string[] } | null): 
 }
 
 type NotesViewProps = {
+  searchRequest?: { id: string } | null;
   notes: KeepNote[];
   onAddNote: (note: Omit<KeepNote, "id" | "updatedAt">) => void;
   onUpdateNote: (id: string, updates: Partial<KeepNote>) => void;
@@ -338,6 +339,7 @@ function FormattedContent({ text, isCompact = false }: { text: string; isCompact
 }
 
 export function NotesView({
+  searchRequest,
   notes,
   onAddNote,
   onUpdateNote,
@@ -345,6 +347,7 @@ export function NotesView({
   onReorderNotes,
 }: NotesViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const handledSearchRequest = useRef<typeof searchRequest>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<"all" | KeepNotePriority>("all");
   const [sortBy, setSortBy] = useState<"custom" | "priority" | "newest">("custom");
@@ -925,7 +928,7 @@ export function NotesView({
   };
 
   // Open note for viewing / editing (defaults to preview mode)
-  const handleOpenEdit = (note: KeepNote) => {
+  const handleOpenEdit = useCallback((note: KeepNote) => {
     if (note.isEncrypted && !sessionPin) {
       setShowUnlockModal(true);
       return;
@@ -949,7 +952,18 @@ export function NotesView({
 
     // Default to Preview mode so user sees clean rendered view; switch to edit when needed
     setActiveTab("preview");
-  };
+  }, [sessionPin, decryptedCache]);
+
+  useEffect(() => {
+    if (!searchRequest || handledSearchRequest.current === searchRequest) return;
+    const note = notes.find(item => item.id === searchRequest.id);
+    if (!note || note.isEncrypted) return;
+    handledSearchRequest.current = searchRequest;
+    setSearchQuery(note.title || "");
+    setSelectedTag(null);
+    setPriorityFilter("all");
+    handleOpenEdit(note);
+  }, [searchRequest, notes, handleOpenEdit]);
 
   // Save changes and switch back to preview mode
   const handleSaveAndPreview = async () => {

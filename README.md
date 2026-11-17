@@ -60,7 +60,7 @@ Plan your day, check messages, manage tasks and routines, keep encrypted notes, 
 | **Daily overview** | Schedule, priorities, habits, weather, focus timer, quick links, and printable Daily Desk Sheet | Connected services and account workspace |
 | **Calendar** | Today/week views, overlap warnings, calendar health, custom events, and explicit Google event colorization | Google Calendar, Outlook, and saved custom events |
 | **Inbox** | Mail previews, pagination, triage, email-to-task review, and a live unread badge for the last 48 hours | Read-only Gmail and Outlook |
-| **Tasks and routines** | Editable tasks, subtasks, repeating schedules, snooze, skip, pause/resume, and completion history | Account workspace |
+| **Tasks and routines** | Editable tasks, subtasks, repeating schedules, snooze, skip, pause/resume, and activity history | Account workspace |
 | **Notes** | Browser-side encryption with Web Crypto before persistence | Encrypted account records; your passphrase is required |
 | **Focus tools** | Timer, synthesized ambient audio, keyboard shortcuts, command palette, and quick capture | Workspace settings and browser |
 | **Drive files** | Recent file names, types, timestamps, and links | Google Drive metadata only; no file contents |
@@ -72,6 +72,10 @@ Plan your day, check messages, manage tasks and routines, keep encrypted notes, 
 | **Time audit** | Calendar categorization and spreadsheet reports | Optional Google Apps Script |
 
 The responsive interface includes desktop/mobile navigation, accessible dialogs, print layouts, and consistent crimson hover and keyboard-focus states. Preview records are fictional.
+
+## 🔎 Global workspace search
+
+Use `⌘ K` / `Ctrl K` or the search button to find tasks (including checklist text), calendar events, unlocked notes, subscriptions, and recharge history. Search subscriptions by service, price, currency, status, or renewal date; recharges by date, amount, notes, or payment method. Results open the relevant workspace view. Locked notes and ciphertext are excluded. Search runs locally over loaded account data, without a separate external index. Refine broad queries to narrow capped result lists.
 
 ## ⌨️ Keyboard shortcuts
 
@@ -101,7 +105,13 @@ Create or edit tasks with a due date, priority, checklist, and optional repeat s
 - **Skip:** record skipped history separately from completed work and generate the next valid occurrence.
 - **Pause / Resume series:** stop generation while paused, then resume the original cadence without filling missed dates. An ended series needs its end date updated before it can resume.
 
+**Activity history** on each task shows its creation date and newly recorded edits, reschedules, snoozes, checklist changes, completion/reopening, and repeat actions. The latest 200 events travel with the task through existing account sync and backups. Past edits are not reconstructed.
+
 A repeating task requires a due date. Turning repeat off stops future generation. These schedules do not create operating-system notifications or external reminders.
+
+### Optional browser reminders
+
+Enable **Preferences → General → Browser reminders** to request notification permission. The preference is account-scoped on this browser; other devices need their own permission. Task due/overdue and renewal alerts require an open Routino tab and loaded workspace data. Date-only tasks are due that day; timed tasks wait until their due time. Alerts are deduplicated per item/day, with at most one delivery per minute after startup. Browser/OS settings may suppress delivery, and titles may appear on the lock screen. No background push service is configured.
 
 ## 💳 Subscriptions, recharges, and payment reports
 
@@ -110,6 +120,10 @@ A repeating task requires a due date. Turning repeat off stops future generation
 Add, edit, search, and filter subscriptions, with active plans first. Plans needing attention appear under **Needs review** and can be marked **Completed** without losing payment history. Completed plans are excluded from active spending projections.
 
 The **Total expense** dialog separates recorded payments from monthly/yearly projections, keeps currencies separate, and counts shared bundles once. Journal imports detect named service payments; their start date is the first recorded payment, not a verified signup date. Monthly cadence is inferred only from repeated payments. Duplicate invoice/journal representations are counted once.
+
+**Renewal decisions:** choose **Keep**, **Cancel before renewal**, or **Decide later** when editing a plan. Cancellation intent is also shown in renewal alerts. This is a planning label; billing continues until you cancel with the provider.
+
+**Price history:** creating a subscription records its current rate; changing amount, currency, or billing cycle appends a dated rate. Existing records establish their previous rate when first changed, without assuming a historical effective date. The latest 500 entries remain with the subscription. Compare rate changes in the expanded history and actual paid spending in Monthly report. Rates do not create payment receipts or alter past expenses; comparisons stay within matching currencies and cycles.
 
 ### Airtel Recharge
 
@@ -128,7 +142,7 @@ Renewal records the confirmed payment and validity, archives the previous plan, 
 - **Search all payment history:** filter across months by text/service, date, currency, and amount. **Export rows as CSV** exports all filtered rows, including other pages, with quoted fields and spreadsheet-formula protection.
 - **Expiry reminders:** upcoming seven days and up to 30 days overdue. Expired bundles need review; the app does not assume a paid renewal.
 
-The notification bell links to relevant mail, calendar, overdue-task, expiry, and backup items. Dismissing a notification does not complete a task or renew a plan. Alerts are in-app, without email or push delivery.
+The notification bell links to relevant mail, calendar, overdue-task, expiry, and backup items. Dismissing a notification does not complete a task or renew a plan. Alerts appear in-app, with optional browser reminders as described above. No email or background push delivery is configured.
 
 ## 📬 Live 48-hour Inbox badge
 
@@ -252,6 +266,7 @@ This README describes application behavior and configuration; it does not certif
 npm run dev                         # local development
 npm run lint                        # TypeScript check
 node scripts/test-trackers.cjs       # tracker regression checks
+node scripts/test-workspace-features.cjs # search, history, and reminder checks
 npm run build                       # production build
 ```
 
@@ -261,6 +276,7 @@ These integration checks require configured private storage and perform writes:
 
 | Script | Checks |
 | --- | --- |
+| `node scripts/verify-workspace-features.cjs` | Round-trip task activity, price history and decisions through a disposable database account, check backup metadata and preserve the owner workspace. |
 | `node scripts/verify-tracker-database.cjs` | Independent reads, stale-write rejection, concurrent task saves, and owner-data preservation using a temporary test account. |
 | `node scripts/verify-recycle-bin.cjs` | Transactional deletion capture, task/recharge/journal recovery, encrypted notes, stale restore rejection, and account isolation with disposable records. |
 | `node scripts/verify-external-backup.cjs` | Creates or verifies the owner's daily Blob copy, checks isolation, and confirms the source workspace is unchanged. Can load ignored `.env.backup.local`. |

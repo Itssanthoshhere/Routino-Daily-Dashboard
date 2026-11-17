@@ -4,6 +4,9 @@ import { RecycleBin } from "@/components/RecycleBin";
 import { inboxCountLabel } from "@/lib/inboxCount";
 import { useBackupWarnings } from "@/hooks/useBackupWarnings";
 import { undoRecords } from "@/lib/undoRecords";
+import { airtelRecharges } from "@/lib/airtelRecharges";
+import { withTaskActivity } from "@/lib/taskActivity";
+import { BrowserReminders } from "@/components/BrowserReminders";
 import { workspaceNotifications } from "@/lib/workspaceNotifications";
 import { snoozeTask } from "@/lib/taskSnooze";
 import { mergeTaskRecords } from "@/lib/taskMerge";
@@ -342,6 +345,7 @@ let globalToastSeq = 0;
 export default function Home() {
   /* ── Core state ── */
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
+  const [searchNote, setSearchNote] = useState<{ id: string } | null>(null);
   const [notes, setNotes] = useState<KeepNote[]>(seedNotes);
   const [activeNav, setActiveNav] = useState("Overview");
   const [notice, setNotice] = useState(true);
@@ -1033,6 +1037,7 @@ export default function Home() {
       const isInput = target && (
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
         target.isContentEditable
       );
 
@@ -1043,7 +1048,7 @@ export default function Home() {
         return;
       }
 
-      if (isInput) return;
+      if (isInput || e.metaKey || e.ctrlKey || e.altKey) return;
 
       // ? key (Shift + /)
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
@@ -1283,7 +1288,8 @@ export default function Home() {
     toast(message, "info", { label: "Undo", onClick: () => {
       if (currentAccount.current !== account) { toast("Undo belongs to a different account. No changes made.", "info"); return; }
       setTasks(current => {
-        const restored = undoRecords(current, before, after);
+        const result = undoRecords(current, before, after);
+        const restored = result && withTaskActivity(current, result, Date.now(), "Undid previous action");
         if (!restored) { toast("Task changed since that action. Undo was skipped to preserve newer edits.", "info"); return current; }
         try { localStorage.setItem("routino_tasks", JSON.stringify(restored)); } catch {}
         void syncToDatabase({ tasks: restored }, current);
@@ -1295,7 +1301,7 @@ export default function Home() {
   const toggleTask = (id: string) => {
     setTasks(prev => {
       const task = prev.find(item => item.id === id);
-      const next = completeRepeatingTask(prev, id, new Intl.DateTimeFormat("en-CA").format(new Date()), Date.now());
+      const next = withTaskActivity(prev, completeRepeatingTask(prev, id, new Intl.DateTimeFormat("en-CA").format(new Date()), Date.now()));
       if (task && !task.checked) { playTick(); offerTaskUndo(`"${task.title}" completed${next.length > prev.length ? " · next occurrence created" : ""}`, prev, next); }
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
@@ -1312,7 +1318,7 @@ export default function Home() {
   const saveTaskEdits = (updates: Omit<Task, "id" | "checked" | "createdAt">, scope: "occurrence" | "future" = "future") => {
     if (!editingTaskId) return;
     setTasks(previous => {
-      const next = editTaskOccurrences(previous, editingTaskId, updates, scope);
+      const next = withTaskActivity(previous, editTaskOccurrences(previous, editingTaskId, updates, scope));
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       void syncToDatabase({ tasks: next });
       return next;
@@ -1346,7 +1352,7 @@ export default function Home() {
 
   const toggleSubTask = (taskId: string, subtaskId: string) => {
     setTasks(prev => {
-      const next = prev.map(t => {
+      const next = withTaskActivity(prev, prev.map(t => {
         if (t.id !== taskId || !t.subtasks) return t;
         const nextSubtasks = t.subtasks.map(st => {
           if (st.id !== subtaskId) return st;
@@ -1357,7 +1363,7 @@ export default function Home() {
           return { ...st, completed: nextCompleted };
         });
         return { ...t, subtasks: nextSubtasks };
-      });
+      }));
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
@@ -1441,7 +1447,7 @@ export default function Home() {
     }
     const newTask: Task = { ...data, category: finalCategory, meta: finalMeta, id: "t-" + Date.now(), checked: false, createdAt: Date.now() };
     setTasks(prev => {
-      const next = [newTask, ...prev];
+      const next = withTaskActivity(prev, [newTask, ...prev]);
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
@@ -2118,19 +2124,21 @@ export default function Home() {
               onRepeatAction={(id, action) => {
                 const today = new Intl.DateTimeFormat("en-CA").format(new Date());
                 const before = tasks;
-                const next = action === "skip" ? skipTaskOccurrence(before, id, today, Date.now()) : setSeriesPaused(before, id, action === "pause", today, Date.now());
-                if (next === before) { toast("No occurrence can be changed with these repeat settings. Check the series end date.", "info"); return; }
+                const changed = action === "skip" ? skipTaskOccurrence(before, id, today, Date.now()) : setSeriesPaused(before, id, action === "pause", today, Date.now());
+                if (changed === before) { toast("No occurrence can be changed with these repeat settings. Check the series end date.", "info"); return; }
+                const next = withTaskActivity(before, changed);
                 setTasks(next); try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
                 void syncToDatabase({ tasks: next }, before);
                 offerTaskUndo(action === "skip" ? "Occurrence skipped; history preserved" : action === "pause" ? "Series paused" : "Series resumed", before, next);
               }}
               onSnoozeTask={(id, date) => {
-                const next = snoozeTask(tasks, id, date, new Intl.DateTimeFormat("en-CA").format(new Date()));
-                if (next === tasks) return;
+                const changed = snoozeTask(tasks, id, date, new Intl.DateTimeFormat("en-CA").format(new Date()));
+                if (changed === tasks) return;
+                const next = withTaskActivity(tasks, changed, Date.now(), "Snoozed");
                 setTasks(next); try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {} void syncToDatabase({ tasks: next }); toast("Task moved; repeat schedule preserved");
               }}
               onUpdateTaskRecurrence={(id, recurrence) => {
-                const next = tasks.map(task => task.id === id ? { ...task, recurrence, recurrenceTemplate: undefined, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task);
+                const next = withTaskActivity(tasks, tasks.map(task => task.id === id ? { ...task, recurrence, recurrenceTemplate: undefined, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task));
                 setTasks(next);
                 try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
                 void syncToDatabase({ tasks: next });
@@ -2144,6 +2152,7 @@ export default function Home() {
             <div className="mx-auto w-full max-w-4xl space-y-5"><div><h1 className="text-2xl font-bold text-ink">Recycle Bin</h1><p className="mt-2 text-sm text-muted">Recover deleted records from your workspace without replacing newer data.</p></div><RecycleBin email={liveData?.user?.email} expanded /></div>
           ) : activeNav === "Notes" ? (
             <NotesView
+              searchRequest={searchNote}
               notes={notes}
               onAddNote={addNote}
               onUpdateNote={updateNote}
@@ -2898,9 +2907,9 @@ export default function Home() {
               </div>
 
               {/* ─── Week + Inbox row ─── */}
-              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1.12fr_.88fr]">
+              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)]">
                 {/* Week ahead */}
-                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6 overflow-hidden">
+                <section className="min-w-0 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6 overflow-hidden">
                   <SectionHeading
                     icon={CalendarDays}
                     title="The week ahead"
@@ -2908,12 +2917,12 @@ export default function Home() {
                     right={<button onClick={() => handleSelectNav("Calendar")} className="rounded-lg bg-[#f4f5f0] px-2.5 py-1.5 text-[10px] text-[#77837a] hover:bg-[#eef2ea] transition">{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date())} – {new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(rangeEnd)} <ChevronDown size={12} className="ml-1 inline" /></button>}
                   />
                   <div id="week" className="overflow-x-auto pb-1">
-                    <div className="grid grid-cols-7 gap-1.5 min-w-[340px] sm:min-w-0">
+                    <div className="grid grid-cols-7 gap-1.5 min-w-[420px]">
                       {weekDays.map((day, index) => (
                         <div
                           key={day.day + day.date}
                           onClick={() => handleSelectNav("Calendar")}
-                          className={"min-h-[112px] rounded-xl p-2 cursor-pointer transition-colors " + (index === 0 ? "bg-[#f4f7ef] ring-1 ring-forest/10" : "bg-[#fafbf8] hover:bg-[#f4f7ef]")}
+                          className={"min-w-0 min-h-[112px] rounded-xl p-2 cursor-pointer transition-colors " + (index === 0 ? "bg-[#f4f7ef] ring-1 ring-forest/10" : "bg-[#fafbf8] hover:bg-[#f4f7ef]")}
                         >
                           <p className={"text-center text-[8px] font-bold tracking-wide " + (index === 0 ? "text-forest" : "text-[#9da79e]")}>{day.day}</p>
                           <p className={"mx-auto mt-1 grid h-6 w-6 place-items-center rounded-full text-[10px] " + (index === 0 ? "bg-forest font-semibold text-white" : "text-[#68766c]")}>{day.date}</p>
@@ -2939,7 +2948,7 @@ export default function Home() {
                 </section>
 
                 {/* Inbox / Mail */}
-                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
+                <section className="min-w-0 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
                   <SectionHeading
                     icon={Mail}
                     title="Worth a look"
@@ -2973,9 +2982,9 @@ export default function Home() {
                             {mail.from.slice(0, 2).toUpperCase()}
                           </span>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="truncate text-[10px] font-semibold text-[#33433a]">{mail.from}</p>
-                              <span className="shrink-0 text-[9px] text-[#a1aaa2]">{mail.date}</span>
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <p className="min-w-0 flex-1 basis-40 truncate text-[10px] font-semibold text-[#33433a]">{mail.from}</p>
+                              <span className="max-w-full truncate text-[9px] text-[#a1aaa2]">{mail.date}</span>
                             </div>
                             <p className="mt-1 truncate text-[10px] font-medium text-ink">{mail.subject}</p>
                             <p className="mt-1 line-clamp-1 text-[9px] text-[#8b968d]">{mail.snippet}</p>
@@ -3241,7 +3250,13 @@ export default function Home() {
         onOpenShortcuts={() => setShowShortcuts(true)}
         tasks={tasks}
         events={allEvents}
+        notes={notes}
+        subscriptions={subscriptions}
+        recharges={airtelRecharges(trackersData.isLive ? trackersData.journals || {} : {}, trackerWorkspace.airtel)}
+        onOpenTask={handleOpenExistingTask}
+        onOpenNote={id => { setSearchNote({ id }); handleSelectNav("Notes"); }}
       />
+      <BrowserReminders email={workspaceSyncReady && trackerWorkspace.ready ? liveData?.user?.email : null} tasks={tasks} subscriptions={subscriptions} airtel={trackerWorkspace.airtel} onOpenNotification={handleNotificationClick} />
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <GoogleSetupModal isOpen={showGoogleSetup} onClose={() => setShowGoogleSetup(false)} />
       <PreferencesModal

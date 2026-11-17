@@ -23,7 +23,10 @@ import {
   Wallet,
   Briefcase,
 } from "lucide-react";
-import { Task, DashboardEvent } from "@/types/dashboard";
+import { searchWorkspace } from "@/lib/workspaceSearch";
+import type { Subscription } from "@/types/subscriptions";
+import type { AirtelRecharge } from "@/types/airtel";
+import { Task, KeepNote, DashboardEvent } from "@/types/dashboard";
 import type { TrackersTabKey } from "@/components/views/TrackersView";
 
 type CommandPaletteProps = {
@@ -38,6 +41,11 @@ type CommandPaletteProps = {
   onOpenDailyRoutine?: () => void;
   onOpenPreferences?: () => void;
   onOpenShortcuts?: () => void;
+  notes?: KeepNote[];
+  subscriptions?: Subscription[];
+  recharges?: AirtelRecharge[];
+  onOpenTask?: (id: string) => void;
+  onOpenNote?: (id: string) => void;
   tasks: Task[];
   events: DashboardEvent[];
 };
@@ -55,6 +63,11 @@ export function CommandPalette({
   onOpenPreferences,
   onOpenShortcuts,
   tasks,
+  notes = [],
+  subscriptions = [],
+  recharges = [],
+  onOpenTask,
+  onOpenNote,
   events,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
@@ -62,14 +75,6 @@ export function CommandPalette({
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        if (isOpen) {
-          onClose();
-        } else {
-          // Open handled by parent or toggle
-        }
-      }
       if (e.key === "Escape" && isOpen) {
         onClose();
       }
@@ -89,8 +94,9 @@ export function CommandPalette({
   if (!isOpen) return null;
 
   const filteredTasks = tasks.filter((t) =>
-    t.title.toLowerCase().includes(query.toLowerCase())
+    `${t.title} ${t.meta} ${t.dueDate || ""} ${t.category || ""} ${(t.subtasks || []).map(item => item.title).join(" ")}`.toLowerCase().includes(query.toLowerCase())
   );
+  const workspaceResults = searchWorkspace(query, notes, subscriptions, recharges);
   const filteredEvents = events.filter((e) =>
     (e.summary || "").toLowerCase().includes(query.toLowerCase())
   );
@@ -101,6 +107,7 @@ export function CommandPalette({
   };
 
   const navActions = [
+    { id: "recycle-bin", label: "Open Recycle Bin", icon: ListTodo, iconColor: "text-forest", action: () => onNavigate("Recycle Bin"), keywords: ["recycle", "bin", "trash", "restore", "deleted"] },
     {
       id: "overview",
       label: "Go to Overview",
@@ -274,7 +281,7 @@ export function CommandPalette({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search tasks, meetings, or commands (e.g. 'Focus', 'Calendar')..."
+            placeholder="Search tasks, notes, subscriptions, recharges, or commands…"
             className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-muted"
           />
           <kbd className="hidden sm:inline-block rounded bg-[#f1f3ed] px-2 py-0.5 text-[10px] font-semibold text-muted">
@@ -314,10 +321,10 @@ export function CommandPalette({
                 Tasks ({filteredTasks.length})
               </div>
               <div className="space-y-1">
-                {filteredTasks.slice(0, 4).map((task) => (
+                {filteredTasks.slice(0, query.trim() ? 20 : 4).map((task) => (
                   <button
                     key={task.id}
-                    onClick={() => handleAction(() => onNavigate("Tasks"))}
+                    onClick={() => handleAction(() => onOpenTask ? onOpenTask(task.id) : onNavigate("Tasks"))}
                     className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
                   >
                     <span className={task.checked ? "line-through text-muted" : "font-medium"}>
@@ -330,6 +337,10 @@ export function CommandPalette({
             </div>
           )}
 
+          {query.trim() && <div className="mt-3"><p className="px-2 py-1 text-[10px] text-muted">Workspace results ({workspaceResults.length}) · Locked notes are excluded</p><div className="space-y-1">{workspaceResults.slice(0, 30).map(item => <button key={`${item.kind}:${item.id}`} className="btn-theme flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-xs" onClick={() => handleAction(() => {
+            if (item.kind === "note") { if (onOpenNote) onOpenNote(item.id); else onNavigate("Notes"); }
+            else { onOpenTrackerTab?.(item.kind === "subscription" ? "subscriptions" : "airtel"); window.setTimeout(() => document.getElementById(`${item.kind}-${item.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 150); }
+          })}><span className="min-w-0"><span className="block font-semibold">{item.title}</span><span className="mt-1 block truncate text-muted">{item.detail.replace(/<[^>]*>/g, " ").slice(0, 120)}</span></span><span className="shrink-0 text-muted">{item.kind}</span></button>)}</div>{workspaceResults.length > 30 && <p className="px-2 text-xs text-muted">Showing first 30 results. Refine your search to find more.</p>}</div>}
           {/* Matched Events */}
           {filteredEvents.length > 0 && (
             <div className="mt-3">
@@ -337,7 +348,7 @@ export function CommandPalette({
                 Calendar Events ({filteredEvents.length})
               </div>
               <div className="space-y-1">
-                {filteredEvents.slice(0, 3).map((event) => (
+                {filteredEvents.slice(0, query.trim() ? 20 : 3).map((event) => (
                   <button
                     key={event.id}
                     onClick={() => handleAction(() => onNavigate("Calendar"))}
@@ -353,8 +364,8 @@ export function CommandPalette({
         </div>
 
         <div className="flex items-center justify-between border-t border-line bg-[#f4f5f0] px-4 py-2.5 text-[10px] text-muted">
-          <span>Use <strong>↑</strong> <strong>↓</strong> to navigate</span>
-          <span>Press <strong>Cmd + K</strong> anytime</span>
+          <span>Use <strong>Tab</strong> to navigate, <strong>Enter</strong> to open</span>
+          <span>Search with <strong>⌘ K / Ctrl K</strong></span>
         </div>
       </div>
     </div>

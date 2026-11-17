@@ -1,0 +1,65 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const ts = require("typescript");
+function load(file) {
+  const module = { exports: {} };
+  const code = ts.transpileModule(fs.readFileSync(path.resolve(file), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+  new Function("require", "module", "exports", code)(name => name.startsWith("@/") ? load(`${name.slice(2)}.ts`) : require(name), module, module.exports);
+  return module.exports;
+}
+const { withTaskActivity, isTaskActivity } = load("lib/taskActivity.ts");
+const { saveSubscriptionPrice } = load("lib/subscriptionPriceHistory.ts");
+const { isSubscriptionList } = load("lib/subscriptionValidation.ts");
+const { searchWorkspace } = load("lib/workspaceSearch.ts");
+const { browserReminderCandidates } = load("lib/browserReminderCandidates.ts");
+const { completeRepeatingTask } = load("lib/taskRecurrence.ts");
+const task = { id: "task", title: "Write report", meta: "Work", checked: false, priority: false, createdAt: 1, dueDate: "2026-11-17", recurrence: { frequency: "daily", interval: 1 } };
+const source = JSON.stringify(task);
+assert.equal(withTaskActivity([task], [task], 5)[0], task);
+const created = withTaskActivity([], [task], 5)[0];
+assert.equal(created.activity[0].action, "Created");
+const completed = withTaskActivity([created], completeRepeatingTask([created], task.id, "2026-11-17", 10), 10);
+assert.equal(completed[0].activity.at(-1).action, "Completed");
+assert.deepEqual(completed[1].activity, [{ at: 10, action: "Created" }]);
+assert.equal(withTaskActivity([task], [{ ...task, dueDate: "2026-11-18" }], 15, "Snoozed")[0].activity[0].action, "Snoozed");
+assert.equal(isTaskActivity([{ at: NaN, action: "Edited" }]), false);
+assert.equal(isTaskActivity(undefined), true);
+assert.equal(withTaskActivity([{ ...task, activity: Array.from({ length: 200 }, () => ({ at: 1, action: "Edited" })) }], [{ ...task, title: "Changed" }], 20)[0].activity.length, 200);
+assert.equal(JSON.stringify(task), source);
+const undone = withTaskActivity(completed, [created], 20, "Undid previous action");
+assert.equal(undone[0].activity.at(-1).action, "Undid previous action");
+assert.equal(undone[0].activity.some(event => event.action === "Completed"), true);
+assert.equal(withTaskActivity([], [created], 25, "Restored")[0].activity.length, 2);
+
+const plan = { id: "plan", name: "Example service", amount: 100, currency: "INR", cycle: "monthly", renewalDate: "2026-11-18", status: "active", category: "Media", notes: "", payments: [{ date: "2026-10-18", amount: 100, journal: "Manual", rowId: "old-payment", notes: "" }] };
+const old = JSON.stringify(plan);
+const changed = saveSubscriptionPrice(plan, { ...plan, amount: 150, renewalDecision: "cancel" }, "2026-11-17");
+assert.deepEqual(changed.priceHistory.map(entry => entry.amount), [100, 150]);
+assert.deepEqual(changed.payments, plan.payments);
+assert.equal(changed.priceHistory[0].date, "2026-11-17");
+assert.equal(isSubscriptionList([changed]), true);
+assert.equal(isSubscriptionList([{ ...changed, renewalDecision: "invalid" }]), false);
+assert.equal(isSubscriptionList([{ ...changed, priceHistory: [{ date: "2026-02-30", amount: 20, currency: "INR", cycle: "monthly" }] }]), false);
+assert.equal(saveSubscriptionPrice(changed, { ...changed, notes: "New note" }, "2026-11-18").priceHistory.length, 2);
+assert.equal(saveSubscriptionPrice(changed, { ...changed, currency: "USD" }, "2026-11-18").priceHistory.at(-1).currency, "USD");
+assert.equal(JSON.stringify(plan), old);
+
+const notes = [{ id: "plain", title: "Travel checklist", content: "Passport renewal", updatedAt: 1 }, { id: "locked", title: "Secret", content: "ciphertext", isEncrypted: true, updatedAt: 1 }];
+const recharges = [{ id: "recharge", date: "2026-11-10", amount: 500, notes: "UPI payment", method: "UPI", kind: "plan", paidByOther: false, source: "Manual" }];
+assert.equal(searchWorkspace("passport", notes, [plan], recharges)[0].id, "plain");
+assert.equal(searchWorkspace("secret", notes, [plan], recharges).length, 0);
+assert.equal(searchWorkspace("ciphertext", notes, [plan], recharges).length, 0);
+assert.equal(searchWorkspace("100 INR", notes, [plan], recharges)[0].id, "plan");
+assert.equal(searchWorkspace("UPI 500", notes, [plan], recharges)[0].id, "recharge");
+assert.equal(searchWorkspace("  ", notes, [plan], recharges).length, 0);
+
+const airtel = { plan: null, records: [], deletedIds: [] };
+const now = Date.parse("2026-11-17T10:00:00Z");
+const candidates = browserReminderCandidates([task, { ...task, id: "later", dueDate: "2026-11-17T12:00:00Z" }, { ...task, id: "done", checked: true }, { ...task, id: "overdue", dueDate: "2026-11-16" }], [changed], airtel, "2026-11-17", now);
+assert.equal(candidates.some(item => item.id.includes("due:task:")), true);
+assert.equal(candidates.some(item => item.id.includes("later")), false);
+assert.equal(candidates.some(item => item.id.includes("done")), false);
+assert.equal(candidates.some(item => item.id.includes("overdue:overdue:")), true);
+assert.equal(candidates.some(item => item.title.includes("cancel before renewal")), true);
+console.log("Passed: task activity and recurrence isolation; validated price history and renewal decisions; encrypted-note search exclusion; timed, overdue, completed-task and renewal reminder selection. Source records unchanged.");

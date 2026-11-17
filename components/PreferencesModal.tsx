@@ -1,5 +1,6 @@
 "use client";
 
+import { BrowserReminderSettings } from "@/components/BrowserReminders";
 import { KEYBOARD_SHORTCUTS } from "@/lib/keyboardShortcuts";
 
 import { useState, useRef, useEffect } from "react";
@@ -256,6 +257,7 @@ export function PreferencesModal({
           {/* Tab 1: General & Routine */}
           {activeTab === "general" && (
             <div className="space-y-4">
+              <BrowserReminderSettings email={userEmail} />
               {/* Focus Duration Setting */}
               <div className="rounded-2xl border border-line bg-white p-4">
                 <div className="flex items-center justify-between">
