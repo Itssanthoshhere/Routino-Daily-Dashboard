@@ -7,7 +7,6 @@ import { undoRecords } from "@/lib/undoRecords";
 import { airtelRecharges } from "@/lib/airtelRecharges";
 import { withTaskActivity } from "@/lib/taskActivity";
 import { BrowserReminders } from "@/components/BrowserReminders";
-import { WeeklyReviewPanel } from "@/components/WeeklyReviewPanel";
 import { workspaceNotifications } from "@/lib/workspaceNotifications";
 import { snoozeTask } from "@/lib/taskSnooze";
 import { mergeTaskRecords } from "@/lib/taskMerge";
@@ -2054,7 +2053,6 @@ export default function Home() {
 
           {(activeNav === "Overview" || activeNav === "Trackers") && trackerWorkspace.ready && <ExpiryReminders subscriptions={subscriptions} airtel={trackerWorkspace.airtel} onOpen={handleOpenTrackersTab} />}
 
-          {activeNav === "Overview" && <div className="mx-auto mt-4 w-full max-w-7xl"><WeeklyReviewPanel tasks={tasks} subscriptions={subscriptions} /></div>}
 
           {/* ─── CONDITIONAL VIEWS BASED ON ACTIVE NAV ─── */}
           {activeNav === "Calendar" ? (
