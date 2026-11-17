@@ -3261,6 +3261,15 @@ export default function Home() {
         isOpen={showEventModal}
         onClose={() => { setShowEventModal(false); setViewingEvent(null); }}
         eventToView={viewingEvent}
+        onFocusChange={(event, deleted) => {
+          const next = deleted ? customEvents.filter(item => item.id !== event.id) : [...customEvents.filter(item => item.id !== event.id), event];
+          setCustomEvents(next);
+          try { localStorage.setItem("routino_events", JSON.stringify(next)); } catch {}
+          syncToDatabase({ customEvents: next });
+          setLiveData(previous => previous ? { ...previous, events: (previous.events || []).filter(item => item.id !== event.id) } : previous);
+          setShowEventModal(false); setViewingEvent(null);
+          toast(deleted ? "Focus session removed" : "Focus session rescheduled");
+        }}
         onAddEvent={addEvent}
       />
       <MailDrawer

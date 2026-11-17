@@ -1,4 +1,5 @@
 export type Subscription = {
+  lastUsedDate?: string;
   trialEndDate?: string;
   cancellationDeadline?: string;
   renewalTaskDate?: string;

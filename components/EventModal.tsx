@@ -5,15 +5,17 @@ import { CalendarDays, Clock, Video, Users, ExternalLink, X, Plus, MapPin, Calen
 import { DashboardEvent } from "@/types/dashboard";
 import { appConfig } from "@/lib/config";
 import { getMeetingUrl } from "@/lib/meeting";
+import { FocusEventActions } from "@/components/FocusEventActions";
 
 type EventModalProps = {
   isOpen: boolean;
   onClose: () => void;
   eventToView?: DashboardEvent | null;
   onAddEvent?: (event: DashboardEvent) => void;
+  onFocusChange?: (event: DashboardEvent, deleted: boolean) => void;
 };
 
-export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventModalProps) {
+export function EventModal({ isOpen, onClose, eventToView, onAddEvent, onFocusChange }: EventModalProps) {
   const [summary, setSummary] = useState("");
   const [time, setTime] = useState("10:00 AM");
   const [endTime, setEndTime] = useState("11:00 AM");
@@ -138,6 +140,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
             {(() => {
               const videoMeetUrl = getMeetingUrl(eventToView);
               return (
+                <>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
                   {videoMeetUrl ? (
                     <a
@@ -169,6 +172,8 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent }: EventMo
                     Done
                   </button>
                 </div>
+                {eventToView?.summary?.startsWith("Focus: ") && onFocusChange && <FocusEventActions key={eventToView.id} event={eventToView} onChange={onFocusChange} />}
+                </>
               );
             })()}
           </div>

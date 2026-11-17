@@ -1,6 +1,7 @@
 "use client";
 
 import { SubscriptionPriceHistory } from "@/components/SubscriptionPriceHistory";
+import { SubscriptionInsights } from "@/components/SubscriptionInsights";
 import { CancellationChecklist } from "@/components/CancellationChecklist";
 import { saveSubscriptionPrice } from "@/lib/subscriptionPriceHistory";
 import { PaymentCalendar } from "@/components/PaymentCalendar";
@@ -60,6 +61,7 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
     setDraft(null);
   };
   return <section className="space-y-5">
+    <SubscriptionInsights subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} onChange={onChange} disabled={disabled} />
     {alertMessage && <p role="status" className="rounded-xl border border-line p-3 text-sm">{alertMessage}</p>}
     <div className="flex flex-wrap gap-2">{Array.from(new Set(active.map(item => `${item.category}|${item.currency}`))).map(key => { const [category, currency] = key.split("|"); const total = active.filter(item => item.category === category && item.currency === currency).reduce((sum, item) => sum + monthlyCost(item), 0); return <span key={key} className="rounded-xl border border-line bg-white px-3 py-2 text-xs">{category}: {money(total, currency)} / month</span>; })}</div>
     <div className="flex flex-wrap items-center justify-between gap-3">

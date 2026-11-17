@@ -13,6 +13,7 @@ const optionalDate = (value: unknown) => value === undefined || value === "" || 
 
 export function isSubscription(value: unknown): value is Subscription {
   if (!record(value)) return false;
+  if (![value.lastUsedDate, value.trialEndDate, value.cancellationDeadline, value.renewalTaskDate, value.renewalCalendarDate].every(optionalDate)) return false;
   if (!text(value.id) || !value.id.trim() || !text(value.name) || !value.name.trim() || !amount(value.amount)) return false;
   if (!["INR", "USD", "EUR", "GBP"].includes(String(value.currency)) || !["monthly", "yearly", "quarterly", "unknown", "one-time", "bundled"].includes(String(value.cycle)) || !["active", "paused", "cancelled", "unconfirmed", "completed"].includes(String(value.status))) return false;
   if (!text(value.category) || !text(value.notes) || !text(value.renewalDate) || !optionalDate(value.renewalDate) || !optionalDate(value.startDate) || !optionalDate(value.lastPaidDate) || !optionalDate(value.bundleEndDate)) return false;

@@ -2,6 +2,25 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { googleFetch } from "@/lib/google";
 
+async function update(request: Request, deleted: boolean) {
+  if (!(await auth())?.user) return NextResponse.json({ error: "Sign in first" }, { status: 401 });
+  try {
+    const body = await request.json();
+    if (typeof body.id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(body.id)) return NextResponse.json({ error: "Invalid event" }, { status: 400 });
+    const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(body.id)}`;
+    const existing = await googleFetch(url); const event = await existing.json();
+    if (!existing.ok || !event.summary?.startsWith("Focus: ")) return NextResponse.json({ error: "Focus event not found" }, { status: 404 });
+    const start = new Date(body.start); const end = new Date(body.end);
+    if (!deleted && (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start)) return NextResponse.json({ error: "Invalid time range" }, { status: 400 });
+    const response = await googleFetch(url, { method: deleted ? "DELETE" : "PATCH", headers: { "Content-Type": "application/json" }, ...(!deleted ? { body: JSON.stringify({ start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } }) } : {}) });
+    if (deleted && response.status === 410) return NextResponse.json({ success: true });
+    const failure = response.ok ? null : await response.json().catch(() => null);
+    return NextResponse.json(response.ok ? { success: true } : { error: `Google could not update this event (${response.status}${failure?.error?.errors?.[0]?.reason ? `: ${failure.error.errors[0].reason}` : ""})` }, { status: response.ok ? 200 : 502 });
+  } catch { return NextResponse.json({ error: "Calendar update failed" }, { status: 502 }); }
+}
+export const PATCH = (request: Request) => update(request, false);
+export const DELETE = (request: Request) => update(request, true);
+
 export async function POST(request: Request) {
   if (!(await auth())?.user) return NextResponse.json({ error: "Sign in to Google first." }, { status: 401 });
   try {
