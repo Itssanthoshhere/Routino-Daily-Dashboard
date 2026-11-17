@@ -188,6 +188,16 @@ When editing a repeating task, choose **Only this occurrence** or **This and fut
 
 **Airtel Recharge → Import Airtel transactions** previews pasted Airtel history or CSV/JSON before saving selected successful payments. Enter your number to exclude other numbers. Duplicates, previously removed import records, failed payments, and unsupported statuses are excluded. Choose main plan or data top-up for each imported payment; the saved current plan is not replaced. CSV begins with `date` and supports `number,amount,status,kind,method,time,notes`; JSON accepts an array with the same keys. Dates accept ISO or day/month/year. Same-date, same-amount, same-status transactions are conservatively treated as duplicates and can be entered manually if they are distinct.
 
+## ↩️ Undo, search, and sync health
+
+Task completion/deletion, subscription completion/deletion, and recharge removal offer an **Undo** toast for 15 seconds. Undo reverses only records touched by that action, keeps unrelated later changes, and refuses to replace records that have changed again. Undo also checks the signed-in account. Completing a repeating task and undoing it removes the generated next occurrence only if that occurrence is still unchanged. Tracker restores use the existing revision-checked save path; offline task reversals stay in the pending-save queue. Undo is a short-lived browser action, not permanent trash or a replacement for backups.
+
+**Monthly report** compares recorded spending with the preceding month, per currency. It shows the amount difference and a percentage only when the previous month has recorded spending. **Search all payment history** filters across months by service/text, date range, currency, and amount, with a paginated result list. Missing records are never treated as proof that no spending occurred.
+
+**Database & Sync → Sync health** shows online status, pending local fields, tracker save/conflict state, the latest database update, and database/external backup timestamps. Local draft counts refresh without network calls. Server/storage checks happen when the panel opens or when requested, avoiding constant Blob list operations. A failed backup check is displayed separately from a database connection failure. Use **Retry pending saves** to retry; conflicts still require review.
+
+Shared `btn-theme`, `btn-theme-primary`, and `btn-theme-quiet` styles keep action hover/focus states consistent across task forms, trackers, reports, notifications, and backup settings. Native inputs/selects use a crimson keyboard-focus outline. Destructive actions retain their distinct styling. Overview task Edit controls use compact 11px text.
+
 ## 🔔 Notifications, payment reports, and recovery
 
 The notification bell brings together overdue open tasks, seven-day subscription/recharge expiry reminders, mail and calendar notices. Selecting a reminder opens its tracker or task. Clearing notifications dismisses the current items for the rest of the local day in that browser and account; it does not complete tasks or renew services.

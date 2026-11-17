@@ -1,5 +1,6 @@
 "use client";
 
+import { undoRecords } from "@/lib/undoRecords";
 import { workspaceNotifications } from "@/lib/workspaceNotifications";
 import { snoozeTask } from "@/lib/taskSnooze";
 import { mergeTaskRecords } from "@/lib/taskMerge";
@@ -660,14 +661,14 @@ export default function Home() {
   }, []);
 
   /* ── Toast helper ── */
-  const toast = useCallback((message: string, type: "success" | "info" = "success") => {
+  const toast = useCallback((message: string, type: "success" | "info" = "success", action?: ToastMessage["action"]) => {
     const id = `toast-${Date.now()}-${++globalToastSeq}-${Math.random().toString(36).slice(2, 7)}`;
     setToasts(prev => {
       const isDuplicate = prev.some(t => t.message === message && t.type === type);
-      if (isDuplicate) return prev;
-      return [...prev, { id, message, type }];
+      if (isDuplicate && !action) return prev;
+      return [...prev.filter(item => !action || item.message !== message || item.type !== type), { id, message, type, action }];
     });
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), action ? 15000 : 3500);
   }, []);
 
   /* ── Fetch live data from Google OAuth ── */
@@ -1123,14 +1124,14 @@ export default function Home() {
       replaceAllHabits?: boolean;
       notes?: KeepNote[];
       activeNav?: string;
-    }) => {
+    }, baselineTasks?: Task[]) => {
       if (!liveData?.connected || !workspaceSyncReady) return false;
       coreSyncVersion.current += 1;
       const account = liveData.user?.email?.toLowerCase();
       const accountKey = `routino_workspace_pending:${account}`;
       const incoming = { ...overrideData, ...(overrideData?.tasks ? {
-        replaceTaskIds: overrideData.tasks.filter(task => JSON.stringify(task) !== JSON.stringify(tasks.find(existing => existing.id === task.id))).map(task => task.id),
-        deletedTaskIds: tasks.filter(task => !overrideData.tasks!.some(next => next.id === task.id)).map(task => task.id),
+        replaceTaskIds: overrideData.tasks.filter(task => JSON.stringify(task) !== JSON.stringify((baselineTasks || tasks).find(existing => existing.id === task.id))).map(task => task.id),
+        deletedTaskIds: (baselineTasks || tasks).filter(task => !overrideData.tasks!.some(next => next.id === task.id)).map(task => task.id),
       } : {}) };
       try {
         const pending = JSON.parse(localStorage.getItem(accountKey) || "{}");
@@ -1264,11 +1265,25 @@ export default function Home() {
   };
 
   /* ── Handlers ── */
+  const offerTaskUndo = (message: string, before: Task[], after: Task[]) => {
+    const account = currentAccount.current;
+    toast(message, "info", { label: "Undo", onClick: () => {
+      if (currentAccount.current !== account) { toast("Undo belongs to a different account. No changes made.", "info"); return; }
+      setTasks(current => {
+        const restored = undoRecords(current, before, after);
+        if (!restored) { toast("Task changed since that action. Undo was skipped to preserve newer edits.", "info"); return current; }
+        try { localStorage.setItem("routino_tasks", JSON.stringify(restored)); } catch {}
+        void syncToDatabase({ tasks: restored }, current);
+        return restored;
+      });
+    } });
+  };
+
   const toggleTask = (id: string) => {
     setTasks(prev => {
       const task = prev.find(item => item.id === id);
       const next = completeRepeatingTask(prev, id, new Intl.DateTimeFormat("en-CA").format(new Date()), Date.now());
-      if (task && !task.checked) { playTick(); toast(`"${task.title}" completed${next.length > prev.length ? " · next occurrence created" : ""}`); }
+      if (task && !task.checked) { playTick(); offerTaskUndo(`"${task.title}" completed${next.length > prev.length ? " · next occurrence created" : ""}`, prev, next); }
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
@@ -1296,11 +1311,12 @@ export default function Home() {
     const task = tasks.find(t => t.id === id);
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
+      if (task) offerTaskUndo(`"${task.title}" removed`, prev, next);
       try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
     });
-    if (task) toast(`"${task.title}" removed`, "info");
+
   };
 
   const clearCompletedTasks = () => {
@@ -2036,9 +2052,18 @@ export default function Home() {
               subscriptions={subscriptions}
               airtel={trackerWorkspace.airtel}
               onRechargeRenewal={patch => trackerWorkspace.update(patch)}
-              onAirtelChange={(airtel) => { trackerWorkspace.update({ airtel }); }}
+              onAirtelChange={(airtel) => {
+                const before = trackerWorkspace.airtel;
+                const account = currentAccount.current;
+                if (trackerWorkspace.update({ airtel }) && airtel.deletedIds.some(id => !before.deletedIds.includes(id))) toast("Recharge removed", "info", { label: "Undo", onClick: () => { if (currentAccount.current !== account) { toast("Undo belongs to a different account. No changes made.", "info"); return; } if (!trackerWorkspace.undo({ airtel: before }, { airtel })) toast("Undo unavailable: records changed or sync needs review.", "info"); } });
+              }}
               subscriptionsDisabled={!trackerWorkspace.ready || trackerWorkspace.status === "conflict"}
-              onSubscriptionsChange={(next) => { trackerWorkspace.update({ subscriptions: next }); }}
+              onSubscriptionsChange={(next) => {
+                const before = subscriptions;
+                const account = currentAccount.current;
+                const undoable = before.some(item => !next.some(row => row.id === item.id) || (item.status !== "completed" && next.some(row => row.id === item.id && row.status === "completed")));
+                if (trackerWorkspace.update({ subscriptions: next }) && undoable) toast("Subscription updated", "info", { label: "Undo", onClick: () => { if (currentAccount.current !== account) { toast("Undo belongs to a different account. No changes made.", "info"); return; } if (!trackerWorkspace.undo({ subscriptions: before }, { subscriptions: next })) toast("Undo unavailable: records changed or sync needs review.", "info"); } });
+              }}
               trackerSyncStatus={trackerWorkspace.status}
               trackerSyncMessage={trackerWorkspace.message}
               onRetryTrackerSync={() => { void trackerWorkspace.retry(); }}
@@ -2731,7 +2756,7 @@ export default function Home() {
                                       </a>
                                     )}
                                     {task.priority && !task.checked ? <span className="mt-0.5 rounded-md bg-[#fcf0e7] px-1.5 py-1 text-[8px] font-bold tracking-wide text-[#b4794e]">FIRST</span> : null}
-                                    <button onClick={() => editTask(task)} aria-label={`Edit ${task.title}`} className="rounded p-1 text-muted hover:text-forest">Edit</button>
+                                    <button onClick={() => editTask(task)} aria-label={`Edit ${task.title}`} className="btn-theme-quiet shrink-0 rounded-md px-2 py-1 text-[11px] font-medium leading-none text-muted">Edit</button>
                                     <button
                                       onClick={() => deleteTask(task.id)}
                                       className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6] cursor-pointer"
@@ -2814,7 +2839,7 @@ export default function Home() {
                                         )}
                                       </span>
                                     </span>
-                                    <button onClick={() => editTask(task)} aria-label={`Edit ${task.title}`} className="rounded p-1 text-muted hover:text-forest">Edit</button>
+                                    <button onClick={() => editTask(task)} aria-label={`Edit ${task.title}`} className="btn-theme-quiet shrink-0 rounded-md px-2 py-1 text-[11px] font-medium leading-none text-muted">Edit</button>
                                     <button
                                       onClick={() => deleteTask(task.id)}
                                       className="mt-0.5 rounded p-1 text-transparent transition group-hover:text-[#c4a88a] hover:!text-[#c05746] hover:bg-[#fce8e6] cursor-pointer"
@@ -3212,6 +3237,9 @@ export default function Home() {
         onSyncDatabase={handleManualSync}
         isSyncing={isSyncing}
         lastSyncedAt={lastSyncedAt}
+        coreSaveError={workspaceSaveError}
+        trackerSyncStatus={trackerWorkspace.status}
+        trackerSavedAt={trackerWorkspace.savedAt}
         dbSource={dbSource}
         onOutlookChange={fetchOutlookData}
       />

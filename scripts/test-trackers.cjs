@@ -181,3 +181,47 @@ const tampered = JSON.parse(encryptedBackup); tampered.ciphertext = Buffer.from(
 assert.throws(() => decryptBackup('owner@example.test', JSON.stringify(tampered), backupKey));
 assert.throws(() => encryptBackup('owner@example.test', { text: 'a'.repeat(MAX_BACKUP_BYTES) }, backupKey));
 console.log('Passed: notification routing, task snooze cadence, monthly actual payments, recharge renewal preservation, and encrypted-backup isolation/tamper/size checks.');
+
+const { undoRecords, undoMembership } = load('lib/undoRecords.ts');
+const taskAfterCompletion = completeRepeatingTask([originalTask], originalTask.id, '2026-11-17', 3);
+const extraTask = { ...originalTask, id: 'unrelated', title: 'Later addition' };
+assert.deepEqual(undoRecords([...taskAfterCompletion, extraTask], [originalTask], taskAfterCompletion), [originalTask, extraTask]);
+assert.deepEqual(undoRecords([extraTask], [originalTask, extraTask], [extraTask]), [originalTask, extraTask]);
+assert.equal(undoRecords([{ ...taskAfterCompletion[0], title: 'Changed later' }, taskAfterCompletion[1]], [originalTask], taskAfterCompletion), null);
+assert.equal(undoRecords([taskAfterCompletion[0], { ...taskAfterCompletion[1], checked: true }], [originalTask], taskAfterCompletion), null);
+assert.deepEqual(undoMembership(['removed', 'later'], [], ['removed']), ['later']);
+assert.equal(undoMembership([], [], ['removed']), null);
+const { filterPayments, compareMonthlySpending } = load('lib/monthlySpending.ts');
+const paymentFixture = [
+ { id: 'oct', name: 'Music', date: '2026-10-01', currency: 'INR', amount: 100 },
+ { id: 'nov', name: 'Music', date: '2026-11-01', currency: 'INR', amount: 150 },
+ { id: 'usd-nov', name: 'Hosting', date: '2026-11-02', currency: 'USD', amount: 2 },
+];
+assert.deepEqual(filterPayments(paymentFixture, { query: 'music', from: '2026-11-01', maximum: '150', currency: 'INR' }).map(row => row.id), ['nov']);
+assert.equal(filterPayments(paymentFixture, { minimum: '200', maximum: '100' }).length, 0);
+assert.equal(filterPayments(paymentFixture, { minimum: 'bad' }).length, 0);
+const comparison = compareMonthlySpending(paymentFixture, '2026-11');
+assert.equal(comparison.previousMonth, '2026-10');
+assert.equal(comparison.currencies.find(item => item.currency === 'INR').percent, 50);
+assert.equal(comparison.currencies.find(item => item.currency === 'USD').percent, null);
+assert.equal(compareMonthlySpending(paymentFixture, '2027-01').previousMonth, '2026-12');
+assert.deepEqual(compareMonthlySpending(paymentFixture, '').currencies, []);
+async function healthRoutes() {
+  const denied = load('app/api/sync-health/route.ts', { 'next/server': { NextResponse: { json: (body, options) => ({ body, options }) } }, '@/lib/auth': { auth: async () => null } });
+  assert.equal((await denied.GET()).options.status, 401);
+  const health = load('app/api/sync-health/route.ts', {
+    'next/server': { NextResponse: { json: (body, options) => ({ body, options }) } }, '@/lib/auth': { auth: async () => ({ user: { email: 'owner@example.test' } }) },
+    '@/lib/db': { getDatabaseStatus: () => ({ configured: true, provider: 'neon-postgres' }), getUserWorkspace: async () => { throw new Error('Database offline'); } },
+    '@/lib/workspaceBackups': { listWorkspaceBackups: async email => { assert.equal(email, 'owner@example.test'); return [{ createdAt: '2026-11-17' }]; } },
+    '@/lib/externalBackups': { externalBackupConfigured: () => true, listExternalBackups: async () => { throw new Error('Storage unavailable'); } },
+  });
+  const result = await health.GET();
+  assert.equal(result.body.database.reachable, false); assert.equal(result.body.snapshots.latestAt, '2026-11-17'); assert.equal(result.body.external.reachable, false);
+  assert.equal(result.options.headers['Cache-Control'], 'private, no-store');
+}
+healthRoutes().then(() => console.log('Passed: selective undo, newer-edit protection, history filters, month comparisons, and isolated sync-health failures.'), error => { console.error(error); process.exitCode = 1; });
+const queuedDeletion = queueWorkspacePatch({}, { tasks: [], replaceTaskIds: [], deletedTaskIds: ['restored-task'] });
+const queuedRestore = queueWorkspacePatch(queuedDeletion, { tasks: [{ ...originalTask, id: 'restored-task' }], replaceTaskIds: ['restored-task'], deletedTaskIds: [] });
+assert.deepEqual(queuedRestore.deletedTaskIds, []);
+assert.deepEqual(queuedRestore.replaceTaskIds, ['restored-task']);
+assert.equal(queuedRestore.tasks[0].id, 'restored-task');

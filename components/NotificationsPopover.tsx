@@ -51,7 +51,7 @@ export function NotificationsPopover({
         {notifications.length > 0 && (
           <button
             onClick={onClearAll}
-            className="text-[10px] font-medium text-muted hover:text-ink transition"
+            className="btn-theme-quiet text-[10px] font-medium text-muted hover:text-ink transition"
           >
             Clear all
           </button>

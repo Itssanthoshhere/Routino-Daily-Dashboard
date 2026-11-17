@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
+import { SyncHealth } from "@/components/SyncHealth";
 import { ExternalBackups } from "@/components/ExternalBackups";
 import { WorkspaceBackups } from "@/components/WorkspaceBackups";
 import { OutlookConnectionCard } from "@/components/OutlookConnectionCard";
@@ -58,6 +59,9 @@ type PreferencesModalProps = {
   userEmail?: string | null;
   onSyncDatabase?: () => Promise<boolean>;
   isSyncing?: boolean;
+  coreSaveError?: boolean;
+  trackerSyncStatus?: string;
+  trackerSavedAt?: string | null;
   lastSyncedAt?: string | null;
   dbSource?: string;
   onOutlookChange?: () => void;
@@ -83,6 +87,9 @@ export function PreferencesModal({
   onSyncDatabase,
   isSyncing = false,
   lastSyncedAt,
+  coreSaveError,
+  trackerSyncStatus,
+  trackerSavedAt,
   dbSource = "Local Cache",
   onOutlookChange,
 }: PreferencesModalProps) {
@@ -386,6 +393,7 @@ export function PreferencesModal({
                 )}
               </div>
 
+              <SyncHealth email={userEmail} coreError={coreSaveError} syncing={isSyncing} trackerStatus={trackerSyncStatus} trackerSavedAt={trackerSavedAt} onRetry={onSyncDatabase} />
               <WorkspaceBackups email={userEmail} />
               <ExternalBackups email={userEmail} />
 

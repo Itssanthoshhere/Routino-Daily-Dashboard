@@ -159,3 +159,39 @@ button, a {
     display: none !important;
   }
 }
+
+/* Shared action styles: opt in without changing button layout or destructive actions. */
+@layer components {
+  .btn-theme, .btn-theme-primary, .btn-theme-quiet {
+    transition: background-color 150ms, border-color 150ms, color 150ms;
+  }
+  .btn-theme:enabled:hover {
+    background-color: var(--brand-red);
+    border-color: var(--brand-red);
+    color: white;
+  }
+  .btn-theme-primary:enabled:hover {
+    background-color: var(--brand-red-dark);
+    border-color: var(--brand-red-dark);
+    color: white;
+  }
+  .btn-theme-quiet:enabled:hover {
+    background-color: #fff1f2;
+    color: var(--brand-red);
+  }
+  .btn-theme:focus-visible, .btn-theme-primary:focus-visible, .btn-theme-quiet:focus-visible {
+    outline: 2px solid var(--brand-red);
+    outline-offset: 3px;
+  }
+}
+
+/* Keep native form focus visible and consistent with the workspace brand. */
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--brand-red);
+  outline-offset: 2px;
+  border-color: var(--brand-red);
+  --tw-ring-color: var(--brand-red);
+}
+input[type="checkbox"], input[type="radio"] {
+  accent-color: var(--brand-red);
+}

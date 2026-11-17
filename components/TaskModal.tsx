@@ -267,7 +267,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
                 <button
                   type="button"
                   onClick={() => setDueDate("")}
-                  className="text-[10px] text-muted hover:text-[#b91c1c] transition cursor-pointer"
+                  className="btn-theme-quiet text-[10px] text-muted hover:text-[#b91c1c] transition cursor-pointer"
                 >
                   Clear date
                 </button>
@@ -335,7 +335,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
                     <button
                       type="button"
                       onClick={() => handleRemoveSubtask(st.id)}
-                      className="p-1 text-muted hover:text-[#c05746] transition"
+                      className="btn-theme-quiet p-1 text-muted hover:text-[#c05746] transition"
                     >
                       <Trash2 size={12} />
                     </button>

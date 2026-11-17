@@ -31,3 +31,24 @@ export function monthlySpending(payments: SpendingPayment[], month: string) {
   const totals = Array.from(new Set(rows.map(row => row.currency))).map(currency => ({ currency, amount: rows.filter(row => row.currency === currency).reduce((sum, row) => sum + row.amount, 0) }));
   return { rows, services: Array.from(grouped.values()).sort((a, b) => a.currency.localeCompare(b.currency) || b.amount - a.amount), totals };
 }
+
+export type PaymentFilters = { query?: string; from?: string; to?: string; minimum?: string; maximum?: string; currency?: string };
+export function filterPayments(payments: SpendingPayment[], filters: PaymentFilters): SpendingPayment[] {
+  const minimum = filters.minimum?.trim() ? Number(filters.minimum) : undefined;
+  const maximum = filters.maximum?.trim() ? Number(filters.maximum) : undefined;
+  if ((minimum !== undefined && (!Number.isFinite(minimum) || minimum < 0)) || (maximum !== undefined && (!Number.isFinite(maximum) || maximum < 0)) || (minimum !== undefined && maximum !== undefined && minimum > maximum) || (filters.from && filters.to && filters.from > filters.to)) return [];
+  const query = filters.query?.trim().toLowerCase() || "";
+  return payments.filter(row => (!query || `${row.name} ${row.date} ${row.amount}`.toLowerCase().includes(query)) && (!filters.from || row.date >= filters.from) && (!filters.to || row.date <= filters.to) && (minimum === undefined || row.amount >= minimum) && (maximum === undefined || row.amount <= maximum) && (!filters.currency || row.currency === filters.currency));
+}
+export function compareMonthlySpending(payments: SpendingPayment[], month: string) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { previousMonth: "", currencies: [] };
+  const date = new Date(`${month}-01T12:00:00Z`); date.setUTCMonth(date.getUTCMonth() - 1);
+  const previousMonth = date.toISOString().slice(0, 7);
+  const current = monthlySpending(payments, month).totals, previous = monthlySpending(payments, previousMonth).totals;
+  return { previousMonth, currencies: Array.from(new Set([...current, ...previous].map(item => item.currency))).map(currency => {
+    const amount = current.find(item => item.currency === currency)?.amount || 0;
+    const baseline = previous.find(item => item.currency === currency)?.amount || 0;
+    const difference = Math.round((amount - baseline) * 100) / 100;
+    return { currency, amount, previous: baseline, difference, percent: baseline > 0 ? Math.round(difference / baseline * 1000) / 10 : null };
+  }) };
+}

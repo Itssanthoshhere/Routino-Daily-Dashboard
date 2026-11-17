@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { undoRecords, undoMembership } from "@/lib/undoRecords";
 import { emptyAirtelData, type AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 import { isAirtelData } from "@/lib/airtelValidation";
@@ -146,6 +147,23 @@ export function useTrackerWorkspace(email?: string | null) {
     return true;
   }, [email, cache, flush]);
 
+  const undo = useCallback((before: Partial<Data>, after: Partial<Data>) => {
+    const current = state.current.data;
+    const patch: Partial<Data> = {};
+    if (before.subscriptions && after.subscriptions) {
+      const restored = undoRecords(current.subscriptions, before.subscriptions, after.subscriptions);
+      if (!restored) return false;
+      patch.subscriptions = restored;
+    }
+    if (before.airtel && after.airtel) {
+      const records = undoRecords(current.airtel.records, before.airtel.records, after.airtel.records);
+      const deletedIds = undoMembership(current.airtel.deletedIds, before.airtel.deletedIds, after.airtel.deletedIds);
+      if (!records || !deletedIds) return false;
+      patch.airtel = { ...current.airtel, records, deletedIds };
+    }
+    return update(patch);
+  }, [update]);
+
   const importSubscriptions = useCallback((detected: Subscription[]) => {
     const current = state.current;
     if (!current.ready || current.data.subscriptionJournalImported || !detected.length) return;
@@ -159,5 +177,5 @@ export function useTrackerWorkspace(email?: string | null) {
     const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "routino-tracker-backup.json"; anchor.click(); URL.revokeObjectURL(url);
   }, [key]);
 
-  return { ...data, update, importSubscriptions, status, message, ready, durable, savedAt, retry: flush, reloadSaved: () => refresh(true), downloadLocalCopy };
+  return { ...data, update, undo, importSubscriptions, status, message, ready, durable, savedAt, retry: flush, reloadSaved: () => refresh(true), downloadLocalCopy };
 }
