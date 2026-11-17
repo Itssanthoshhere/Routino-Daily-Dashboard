@@ -3066,7 +3066,12 @@ export default function Home() {
                   </button>
                 </section>
 
-                <ReadLaterPanel links={quickLinks} onAdd={() => setShowQuickLinkModal(true)} />
+                <ReadLaterPanel links={quickLinks} onAdd={() => setShowQuickLinkModal(true)} onUpdate={link => {
+                  const next = quickLinks.map(item => item.id === link.id ? link : item);
+                  setQuickLinks(next);
+                  try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+                  syncToDatabase({ quickLinks: next });
+                }} />
 
                 {/* Quick links */}
                 <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">

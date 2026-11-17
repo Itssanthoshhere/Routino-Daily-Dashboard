@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Check, ExternalLink } from "lucide-react";
 import { QuickLink } from "@/types/dashboard";
 
-export function ReadLaterPanel({ links, onAdd }: { links: QuickLink[]; onAdd: () => void }) {
+export function ReadLaterPanel({ links, onAdd, onUpdate }: { links: QuickLink[]; onAdd: () => void; onUpdate: (link: QuickLink) => void }) {
+  const [editing, setEditing] = useState<QuickLink | null>(null);
   const readingLinks = useMemo(() => links.filter(link => link.available && /github|docs|developer|tech|read|repo/i.test(`${link.title} ${link.subtitle} ${link.url}`)), [links]);
   const [read, setRead] = useState<string[]>([]);
   useEffect(() => { try { const value = JSON.parse(localStorage.getItem("routino_read_later") || "[]"); if (Array.isArray(value)) setRead(value); } catch {} }, []);
