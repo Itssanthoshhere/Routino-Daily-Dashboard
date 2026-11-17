@@ -353,10 +353,11 @@ export default function Home() {
   const [activeNav, setActiveNav] = useState("Overview");
   const [notice, setNotice] = useState(true);
   const [liveData, setLiveData] = useState<DashboardData | null>(null);
+  const [verifiedWorkspaceAccount, setVerifiedWorkspaceAccount] = useState<string | null>(null);
   const trackerWorkspace = useTrackerWorkspace(liveData?.connected ? liveData.user?.email : null);
   const subscriptions = trackerWorkspace.subscriptions;
   const currentAccount = useRef<string | null>(null);
-  currentAccount.current = liveData?.connected ? liveData.user?.email?.toLowerCase() || null : null;
+  currentAccount.current = verifiedWorkspaceAccount || (liveData?.connected ? liveData.user?.email?.toLowerCase() || null : null);
   const [customEvents, setCustomEvents] = useState<DashboardEvent[]>([]);
   const customEventsRef = useRef(customEvents);
   customEventsRef.current = customEvents;
@@ -1151,9 +1152,9 @@ export default function Home() {
       const offline = typeof navigator !== "undefined" && !navigator.onLine;
       let offlineAccount: string | null = null;
       try { if (offline) offlineAccount = localStorage.getItem("routino_verified_workspace_account"); } catch {}
-      if ((!liveData?.connected || !workspaceSyncReady) && !offlineAccount) return false;
+      if ((!verifiedWorkspaceAccount || !workspaceSyncReady) && !offlineAccount) return false;
       coreSyncVersion.current += 1;
-      const account = liveData?.user?.email?.toLowerCase() || offlineAccount;
+      const account = verifiedWorkspaceAccount || offlineAccount;
       if (!account) return false;
       const accountKey = `routino_workspace_pending:${account}`;
       const incoming = { ...overrideData, ...(overrideData?.tasks ? {
@@ -1187,23 +1188,22 @@ export default function Home() {
       coreSaveChain.current = queued;
       return queued;
     },
-    [liveData?.connected, workspaceSyncReady, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, notes, activeNav]
+    [verifiedWorkspaceAccount, workspaceSyncReady, tasks, customEvents, quickLinks, focusMinutes, soundEnabled, habits, notes, activeNav]
   );
 
   useEffect(() => {
-    if (!workspaceSyncReady || !liveData?.user?.email) return;
+    if (!workspaceSyncReady || !verifiedWorkspaceAccount) return;
     const retryPending = () => {
-      try { if (localStorage.getItem(`routino_workspace_pending:${liveData.user!.email!.toLowerCase()}`)) void syncToDatabase(); } catch {}
+      try { if (localStorage.getItem(`routino_workspace_pending:${verifiedWorkspaceAccount}`)) void syncToDatabase(); } catch {}
     };
     retryPending();
     window.addEventListener("online", retryPending);
     window.addEventListener("focus", retryPending);
     return () => { window.removeEventListener("online", retryPending); window.removeEventListener("focus", retryPending); };
-  }, [workspaceSyncReady, liveData?.user?.email, syncToDatabase]);
+  }, [workspaceSyncReady, verifiedWorkspaceAccount, syncToDatabase]);
 
   /* ── Load user workspace from Database on session connect ── */
   useEffect(() => {
-    if (!liveData?.connected) { setWorkspaceSyncReady(false); return; }
     setWorkspaceSyncReady(false);
     let active = true;
     let readSequence = 0;
@@ -1212,12 +1212,17 @@ export default function Home() {
       const sequence = ++readSequence;
       return fetch("/api/user-data", { cache: "no-store" })
       .then(async (r) => {
+        if (r.status === 401 && active) {
+          setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false);
+          try { localStorage.removeItem("routino_verified_workspace_account"); } catch {}
+        }
         if (!r.ok) return null;
         return r.json();
       })
       .then((res) => {
         if (!active || !res || !res.authenticated || readVersion !== coreSyncVersion.current || sequence !== readSequence) return;
         setWorkspaceSyncReady(true);
+        setVerifiedWorkspaceAccount(res.email?.toLowerCase() || null);
         try { if (res.email) localStorage.setItem("routino_verified_workspace_account", res.email.toLowerCase()); } catch {}
         if (res.dbStatus?.sourceLabel) {
           setDbSource(res.dbStatus.sourceLabel);
@@ -2011,7 +2016,7 @@ export default function Home() {
             <div className="text-[12px] text-muted">Workspace <span className="mx-2 text-[#c4cbc3]">/</span><span className="font-semibold text-ink">{activeNav}</span></div>
           </div>
           <div className="flex items-center gap-2">
-            <SyncCenter email={liveData?.user?.email} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
+            <SyncCenter email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
             <Link
               href="/"
               className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#526056] hover:bg-[#f1f3ed] hover:text-ink transition"
