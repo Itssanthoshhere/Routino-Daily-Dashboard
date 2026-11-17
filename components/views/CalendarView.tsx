@@ -21,6 +21,9 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
+import { Task } from "@/types/dashboard";
+import { FocusSlot } from "@/lib/focusSlots";
+import { FocusSlotFinder } from "@/components/FocusSlotFinder";
 import { connectGoogle } from "@/app/actions";
 import { getMeetingUrl, findScheduleConflicts, isBananaYellowColor } from "@/lib/meeting";
 
@@ -29,6 +32,8 @@ type CalendarViewProps = {
   onOpenAddEvent: () => void;
   onSelectEvent: (event: DashboardEvent) => void;
   isConnected: boolean;
+  tasks: Task[];
+  onScheduleTask: (task: Task, slot: FocusSlot) => void;
 };
 
 const hues = ["#7b8df4", "#e7a15a", "#5fa77d", "#d16b5b"];
@@ -38,6 +43,8 @@ export function CalendarView({
   onOpenAddEvent,
   onSelectEvent,
   isConnected,
+  tasks,
+  onScheduleTask,
 }: CalendarViewProps) {
   const [selectedTag, setSelectedTag] = useState<string>("ALL");
   const [weekOffset, setWeekOffset] = useState<number>(0);
@@ -47,6 +54,7 @@ export function CalendarView({
   const [colorizeMessage, setColorizeMessage] = useState<string | null>(null);
   const [colorizeError, setColorizeError] = useState<string | null>(null);
   const [showReauthPrompt, setShowReauthPrompt] = useState(false);
+  const [showFocusFinder, setShowFocusFinder] = useState(false);
 
   // Background auto-colorize once per browser session
   useEffect(() => {
@@ -360,6 +368,9 @@ export function CalendarView({
   };
 
   return (
+    <>
+    {showFocusFinder && <div className="mb-4"><FocusSlotFinder events={events} tasks={tasks} onScheduleTask={(task, slot) => { onScheduleTask(task, slot); setShowFocusFinder(false); }} onClose={() => setShowFocusFinder(false)} /></div>}
+
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Calendar Header */}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center border-b border-line pb-5">
@@ -384,9 +395,22 @@ export function CalendarView({
           )}
           <button
             onClick={onOpenAddEvent}
-            className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[12px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition"
+            className="flex items-center gap-2 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[12px] font-medium text-[#5c6960] hover:bg-[#f1f3ed] transition cursor-pointer"
           >
             <Plus size={14} /> Schedule Event
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowFocusFinder((prev) => !prev)}
+            className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-[12px] font-medium transition cursor-pointer ${
+              showFocusFinder
+                ? "border-forest bg-[#eef5ee] text-forest font-semibold"
+                : "border-line bg-white text-[#5c6960] hover:bg-[#f1f3ed]"
+            }`}
+            title="Find open focus slots across your schedule"
+          >
+            <Clock size={14} className={showFocusFinder ? "text-forest" : "text-muted"} />
+            <span>Find focus time</span>
           </button>
           {isConnected && (
             <button
@@ -887,6 +911,7 @@ export function CalendarView({
                     >
                       <Plus size={13} /> Add event
                     </button>
+                    <button type="button" onClick={() => setShowFocusFinder(true)} className="flex items-center gap-1.5 rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold text-forest hover:bg-[#eef5ee]"><Clock size={13} /> Find focus time</button>
                   </div>
                 </div>
               )}
@@ -899,5 +924,6 @@ export function CalendarView({
         )}
       </div>
     </div>
+    </>
   );
 }

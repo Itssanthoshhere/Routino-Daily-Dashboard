@@ -1613,6 +1613,23 @@ export default function Home() {
     toast(`"${event.summary}" scheduled`);
   };
 
+  const scheduleTaskIntoCalendar = (task: Task, slot: { start: Date; end: Date }) => {
+    const descParts = [task.meta].filter(Boolean);
+    if (task.link) descParts.push(`Link: ${task.link}`);
+    addEvent({
+      id: `focus-${task.id}-${Date.now()}`,
+      summary: `Focus: ${task.title}`,
+      description: descParts.join(" · ") || "Scheduled from Routino task",
+      start: { dateTime: slot.start.toISOString() },
+      end: { dateTime: slot.end.toISOString() },
+      source: "custom",
+      isCustom: true,
+      tag: "FOCUS",
+      color: "#16a34a",
+    });
+    setActiveNav("Calendar");
+  };
+
   const addQuickLink = (link: QuickLink) => {
     setQuickLinks(prev => {
       const next = [...prev, link];
@@ -2061,6 +2078,8 @@ export default function Home() {
               onOpenAddEvent={() => { setViewingEvent(null); setShowEventModal(true); }}
               onSelectEvent={(ev) => { setViewingEvent(ev); setShowEventModal(true); }}
               isConnected={isConnected}
+              tasks={tasks}
+              onScheduleTask={scheduleTaskIntoCalendar}
             />
           ) : activeNav === "Time Audit" ? (
             <TimeAuditView
