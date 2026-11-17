@@ -1,5 +1,7 @@
 "use client";
 
+import { KEYBOARD_SHORTCUTS } from "@/lib/keyboardShortcuts";
+
 import { useState, useRef, useEffect } from "react";
 import {
   X,
@@ -457,21 +459,13 @@ export function PreferencesModal({
                   <Keyboard size={14} className="text-forest" /> Quick Keyboard Cheatsheet
                 </h4>
                 <p className="text-[11px] text-muted">
-                  Use these shortcuts anywhere across Routino to fly through your day without touching your mouse:
+                  Use single-key shortcuts outside text fields. Use ⌘ K on Mac or Ctrl K on Windows/Linux for search.
                 </p>
                 <div className="mt-3 divide-y divide-[#f1f3ed]">
-                  {[
-                    { key: "1 / 2 / 3 / 4", desc: "Switch views (Overview, Calendar, Inbox, Tasks)" },
-                    { key: "F", desc: "Launch Deep Work Focus Timer" },
-                    { key: "T", desc: "Add New Priority Task" },
-                    { key: "E", desc: "Schedule Calendar Event" },
-                    { key: "⌘ K / Ctrl K", desc: "Open Command Palette / Search" },
-                    { key: "?", desc: "Open Floating Shortcuts Sheet" },
-                    { key: "Esc", desc: "Close any open modal or popover" },
-                  ].map((s) => (
-                    <div key={s.key} className="flex items-center justify-between py-2 text-[11px]">
-                      <span className="text-ink font-medium">{s.desc}</span>
-                      <kbd className="rounded-md border border-[#d6ddd4] bg-[#f7f8f4] px-2 py-0.5 font-mono font-bold text-ink">
+                  {KEYBOARD_SHORTCUTS.map((s) => (
+                    <div key={s.key} className="flex items-center justify-between gap-3 py-2 text-[11px]">
+                      <span className="text-ink font-medium">{s.description}</span>
+                      <kbd className="shrink-0 whitespace-nowrap rounded-md border border-[#d6ddd4] bg-[#f7f8f4] px-2 py-0.5 font-mono font-bold text-ink">
                         {s.key}
                       </kbd>
                     </div>
