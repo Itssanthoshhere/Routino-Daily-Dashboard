@@ -34,6 +34,8 @@ async function main() {
   let result;
   handlers.fetch({ request: { method: 'GET', url: `${base}/dashboard?tab=tasks`, mode: 'navigate' }, respondWith: promise => { result = promise; } });
   assert.equal((await result).status, 200);
+  handlers.fetch({ request: { method: 'GET', url: `${base}/`, mode: 'navigate' }, respondWith: promise => { result = promise; } });
+  assert.equal((await result).status, 200, 'Root navigation must fall back to dashboard');
   let intercepted = false;
   handlers.fetch({ request: { method: 'GET', url: `${base}/api/user-data` }, respondWith: () => { intercepted = true; } });
   assert.equal(intercepted, false, 'Private API responses must not be cached');

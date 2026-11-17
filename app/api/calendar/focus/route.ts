@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { googleFetch } from "@/lib/google";
+import { focusStartAllowed } from "@/lib/reminderTiming";
 
 async function update(request: Request, deleted: boolean) {
   if (!(await auth())?.user) return NextResponse.json({ error: "Sign in first" }, { status: 401 });
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const start = new Date(body.start);
     const end = new Date(body.end);
-    if (typeof body.title !== "string" || !body.title.trim() || body.title.length > 1000 || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start || start.getTime() < Date.now() || end.getTime() - start.getTime() > 6 * 3600000) {
+    if (typeof body.title !== "string" || !body.title.trim() || body.title.length > 1000 || !focusStartAllowed(start) || !Number.isFinite(end.getTime()) || end <= start || end.getTime() <= Date.now() || end.getTime() - start.getTime() > 6 * 3600000) {
       return NextResponse.json({ error: "Choose a valid future focus session." }, { status: 400 });
     }
     const response = await googleFetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {

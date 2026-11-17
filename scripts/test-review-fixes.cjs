@@ -1,0 +1,22 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const ts = require('typescript');
+function load(file) {
+  const module = { exports: {} };
+  new Function('module', 'exports', ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(module, module.exports);
+  return module.exports;
+}
+const { focusStartAllowed, renewalReminderStart } = load('lib/reminderTiming.ts');
+const { meetingActionKey, hasMeetingAction } = load('lib/meetingActions.ts');
+const now = new Date('2026-11-17T10:00:04Z');
+assert.equal(focusStartAllowed(new Date('2026-11-17T10:00:00Z'), now.getTime()), true);
+assert.equal(focusStartAllowed(new Date(now.getTime() - 300001), now.getTime()), false);
+assert.equal(focusStartAllowed(new Date('invalid'), now.getTime()), false);
+const localNow = new Date(2026, 10, 17, 10);
+assert.equal(renewalReminderStart('2026-11-17', localNow).getTime(), localNow.getTime() + 900000);
+assert.equal(renewalReminderStart('2026-11-16', localNow).getTime(), localNow.getTime() + 900000);
+assert.equal(renewalReminderStart('2026-11-18', localNow).getTime(), new Date(2026, 10, 18, 9).getTime());
+assert.equal(hasMeetingAction([{ meta: 'Edited metadata', meetingActionKey: meetingActionKey('note', 'action') }], 'note', 'action'), true);
+assert.equal(hasMeetingAction([{ meta: 'Meeting note: note · Action: action' }], 'note', 'action'), true);
+assert.equal(hasMeetingAction([{ meta: '', meetingActionKey: meetingActionKey('other', 'action') }], 'note', 'action'), false);
+console.log('Passed: immediate booking grace boundary, same-day/past reminder fallback, future reminders, edited-task source identity, legacy task matching.');

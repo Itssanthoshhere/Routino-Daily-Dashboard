@@ -2,6 +2,7 @@
 
 import { SubscriptionPriceHistory } from "@/components/SubscriptionPriceHistory";
 import { SubscriptionInsights } from "@/components/SubscriptionInsights";
+import { renewalReminderStart } from "@/lib/reminderTiming";
 import { CancellationChecklist } from "@/components/CancellationChecklist";
 import { saveSubscriptionPrice } from "@/lib/subscriptionPriceHistory";
 import { PaymentCalendar } from "@/components/PaymentCalendar";
@@ -26,12 +27,12 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
   const calendarAlert = async (subscription: Subscription, date: string) => {
     setCreatingAlert(true); setAlertMessage("");
     try {
-      const start = new Date(`${date}T09:00:00`);
-      if (start.getTime() <= Date.now()) throw new Error(`The advance reminder date (${date}) has passed. Choose a shorter lead time or update the deadline.`);
+      const start = renewalReminderStart(date);
+      const adjusted = new Date(`${date}T09:00:00`).getTime() <= Date.now();
       const response = await fetch("/api/calendar/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: `Review renewal: ${subscription.name}`, description: `Review before autopay. Recorded renewal: ${subscription.renewalDate}`, start: start.toISOString(), end: new Date(start.getTime() + 15 * 60000).toISOString() }) });
       const result = await response.json(); if (!response.ok) throw new Error(result.error || "Calendar alert failed");
       onChange(storedSubscriptions.map(item => item.id === subscription.id ? { ...item, renewalCalendarDate: date } : item));
-      setAlertMessage("Renewal review added to Google Calendar.");
+      setAlertMessage(adjusted ? "The original reminder time has passed. Review scheduled in Google Calendar for 15 minutes from now." : "Renewal review added to Google Calendar.");
     } catch (error) { setAlertMessage(error instanceof Error ? error.message : "Calendar alert failed"); } finally { setCreatingAlert(false); }
   };
   const today = localToday();

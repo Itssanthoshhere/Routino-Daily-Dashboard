@@ -38,6 +38,7 @@ import { EventModal } from "@/components/EventModal";
 import { MailDrawer } from "@/components/MailDrawer";
 import { QuickLinkModal } from "@/components/QuickLinkModal";
 import { SyncCenter } from "@/components/SyncCenter";
+import { hasMeetingAction, meetingActionKey } from "@/lib/meetingActions";
 import { ReadLaterPanel } from "@/components/ReadLaterPanel";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { UserMenuPopover } from "@/components/UserMenuPopover";
@@ -1896,7 +1897,6 @@ export default function Home() {
   /* ── Render ── */
   return (
     <div className="min-h-screen">
-      <SyncCenter email={liveData?.user?.email} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
       {workspaceSaveError && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[80] rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:left-auto sm:max-w-md">Workspace changes are kept locally but database sync failed. They will retry when connected.<button className="ml-3 font-semibold underline" onClick={() => { void syncToDatabase(); }}>Retry now</button></div>}
       {/* ─── Sidebar (desktop) ─── */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col justify-between border-r border-line bg-[#fbfcf8] lg:flex">
@@ -2011,6 +2011,7 @@ export default function Home() {
             <div className="text-[12px] text-muted">Workspace <span className="mx-2 text-[#c4cbc3]">/</span><span className="font-semibold text-ink">{activeNav}</span></div>
           </div>
           <div className="flex items-center gap-2">
+            <SyncCenter email={liveData?.user?.email} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
             <Link
               href="/"
               className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#526056] hover:bg-[#f1f3ed] hover:text-ink transition"
@@ -2188,10 +2189,11 @@ export default function Home() {
             <div className="mx-auto w-full max-w-4xl space-y-5"><div><h1 className="text-2xl font-bold text-ink">Recycle Bin</h1><p className="mt-2 text-sm text-muted">Recover deleted records from your workspace without replacing newer data.</p></div><RecycleBin email={liveData?.user?.email} expanded /></div>
           ) : activeNav === "Notes" ? (
             <NotesView
+              actionTasks={tasks}
               onActionTask={(note, text, itemId) => {
                 const source = `Meeting note: ${note.id} · Action: ${itemId}`;
-                if (tasks.some(task => task.meta === source)) { toast("This action already has a task"); return; }
-                addTask({ title: text, meta: source, category: "meeting", priority: false });
+                if (hasMeetingAction(tasks, note.id, itemId)) { toast("This action already has a task"); return; }
+                addTask({ title: text, meta: source, meetingActionKey: meetingActionKey(note.id, itemId), category: "meeting", priority: false });
               }}
               searchRequest={searchNote}
               notes={notes}

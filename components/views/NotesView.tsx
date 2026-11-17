@@ -41,6 +41,8 @@ import {
   Tag,
 } from "lucide-react";
 import { KeepNote, KeepNoteChecklistItem, KeepNotePriority } from "@/types/dashboard";
+import type { Task } from "@/types/dashboard";
+import { hasMeetingAction } from "@/lib/meetingActions";
 import {
   isEncryptedPayload,
   encryptPayload,
@@ -136,6 +138,7 @@ function getNoteImages(item?: { imageUrl?: string; images?: string[] } | null): 
 }
 
 type NotesViewProps = {
+  actionTasks?: Task[];
   onActionTask?: (note: KeepNote, text: string, itemId: string) => void;
   searchRequest?: { id: string } | null;
   notes: KeepNote[];
@@ -340,6 +343,7 @@ function FormattedContent({ text, isCompact = false }: { text: string; isCompact
 }
 
 export function NotesView({
+  actionTasks = [],
   onActionTask,
   searchRequest,
   notes,
@@ -2371,7 +2375,7 @@ export function NotesView({
                       <span className={item.done ? "line-through text-muted" : "text-ink"}>
                         {item.text}
                       </span>
-                      {note.meetingEventId && !note.isEncrypted && !item.done && onActionTask && <button className="btn-theme ml-auto shrink-0 rounded border border-line px-2 py-1 text-[10px]" onClick={event => { event.stopPropagation(); onActionTask(note, item.text, item.id); }}>Create task</button>}
+                      {note.meetingEventId && !note.isEncrypted && !item.done && onActionTask && <button disabled={hasMeetingAction(actionTasks, note.id, item.id)} className="btn-theme ml-auto shrink-0 rounded border border-line px-2 py-1 text-[10px] disabled:opacity-60" onClick={event => { event.stopPropagation(); onActionTask(note, item.text, item.id); }}>{hasMeetingAction(actionTasks, note.id, item.id) ? "Task added ✓" : "Create task"}</button>}
                     </div>
                   ))}
                   {!note.meetingEventId && displayChecklist.length > 5 && (

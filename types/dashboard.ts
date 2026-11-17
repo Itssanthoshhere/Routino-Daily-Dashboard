@@ -10,6 +10,7 @@ export type SubTask = {
 };
 
 export type Task = {
+  meetingActionKey?: string;
   activity?: import("@/lib/taskActivity").TaskActivity[];
   id: string;
   title: string;
