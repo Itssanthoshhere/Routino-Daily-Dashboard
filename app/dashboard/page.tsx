@@ -37,6 +37,7 @@ import { TaskModal } from "@/components/TaskModal";
 import { EventModal } from "@/components/EventModal";
 import { MailDrawer } from "@/components/MailDrawer";
 import { QuickLinkModal } from "@/components/QuickLinkModal";
+import { SyncCenter } from "@/components/SyncCenter";
 import { ReadLaterPanel } from "@/components/ReadLaterPanel";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
 import { UserMenuPopover } from "@/components/UserMenuPopover";
@@ -1893,6 +1894,7 @@ export default function Home() {
   /* ── Render ── */
   return (
     <div className="min-h-screen">
+      <SyncCenter email={liveData?.user?.email} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
       {workspaceSaveError && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[80] rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:left-auto sm:max-w-md">Workspace changes are kept locally but database sync failed. They will retry when connected.<button className="ml-3 font-semibold underline" onClick={() => { void syncToDatabase(); }}>Retry now</button></div>}
       {/* ─── Sidebar (desktop) ─── */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col justify-between border-r border-line bg-[#fbfcf8] lg:flex">
