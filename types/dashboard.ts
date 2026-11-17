@@ -104,6 +104,7 @@ export type KeepNoteChecklistItem = {
 export type KeepNotePriority = "high" | "medium" | "low" | "none";
 
 export type KeepNote = {
+  meetingEventId?: string;
   id: string;
   title: string;
   content: string;

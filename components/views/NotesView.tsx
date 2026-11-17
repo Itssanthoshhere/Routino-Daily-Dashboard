@@ -136,6 +136,7 @@ function getNoteImages(item?: { imageUrl?: string; images?: string[] } | null): 
 }
 
 type NotesViewProps = {
+  onActionTask?: (note: KeepNote, text: string, itemId: string) => void;
   searchRequest?: { id: string } | null;
   notes: KeepNote[];
   onAddNote: (note: Omit<KeepNote, "id" | "updatedAt">) => void;
@@ -339,6 +340,7 @@ function FormattedContent({ text, isCompact = false }: { text: string; isCompact
 }
 
 export function NotesView({
+  onActionTask,
   searchRequest,
   notes,
   onAddNote,
@@ -2348,7 +2350,7 @@ export function NotesView({
               {/* Checklist preview */}
               {displayChecklist && displayChecklist.length > 0 && (
                 <div className="mt-3 space-y-1.5 border-t border-black/5 pt-2">
-                  {displayChecklist.slice(0, 5).map((item) => (
+                  {(note.meetingEventId ? displayChecklist : displayChecklist.slice(0, 5)).map((item) => (
                     <div
                       key={item.id}
                       onClick={(e) => {
@@ -2369,9 +2371,10 @@ export function NotesView({
                       <span className={item.done ? "line-through text-muted" : "text-ink"}>
                         {item.text}
                       </span>
+                      {note.meetingEventId && !note.isEncrypted && !item.done && onActionTask && <button className="btn-theme ml-auto shrink-0 rounded border border-line px-2 py-1 text-[10px]" onClick={event => { event.stopPropagation(); onActionTask(note, item.text, item.id); }}>Create task</button>}
                     </div>
                   ))}
-                  {displayChecklist.length > 5 && (
+                  {!note.meetingEventId && displayChecklist.length > 5 && (
                     <p className="text-[10px] text-muted">
                       +{displayChecklist.length - 5} more items
                     </p>

@@ -12,10 +12,11 @@ type EventModalProps = {
   onClose: () => void;
   eventToView?: DashboardEvent | null;
   onAddEvent?: (event: DashboardEvent) => void;
+  onCreateMeetingNote?: (event: DashboardEvent) => void;
   onFocusChange?: (event: DashboardEvent, deleted: boolean) => void;
 };
 
-export function EventModal({ isOpen, onClose, eventToView, onAddEvent, onFocusChange }: EventModalProps) {
+export function EventModal({ isOpen, onClose, eventToView, onAddEvent, onFocusChange, onCreateMeetingNote }: EventModalProps) {
   const [summary, setSummary] = useState("");
   const [time, setTime] = useState("10:00 AM");
   const [endTime, setEndTime] = useState("11:00 AM");
@@ -173,6 +174,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent, onFocusCh
                   </button>
                 </div>
                 {eventToView?.summary?.startsWith("Focus: ") && onFocusChange && <FocusEventActions key={eventToView.id} event={eventToView} onChange={onFocusChange} />}
+                {onCreateMeetingNote && <button className="btn-theme mt-3 rounded-xl border border-line px-4 py-2 text-xs font-semibold" onClick={() => onCreateMeetingNote(eventToView)}>Create Meeting Note</button>}
                 </>
               );
             })()}

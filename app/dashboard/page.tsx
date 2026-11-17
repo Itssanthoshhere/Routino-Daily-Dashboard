@@ -2178,6 +2178,11 @@ export default function Home() {
             <div className="mx-auto w-full max-w-4xl space-y-5"><div><h1 className="text-2xl font-bold text-ink">Recycle Bin</h1><p className="mt-2 text-sm text-muted">Recover deleted records from your workspace without replacing newer data.</p></div><RecycleBin email={liveData?.user?.email} expanded /></div>
           ) : activeNav === "Notes" ? (
             <NotesView
+              onActionTask={(note, text, itemId) => {
+                const source = `Meeting note: ${note.id} · Action: ${itemId}`;
+                if (tasks.some(task => task.meta === source)) { toast("This action already has a task"); return; }
+                addTask({ title: text, meta: source, category: "meeting", priority: false });
+              }}
               searchRequest={searchNote}
               notes={notes}
               onAddNote={addNote}
@@ -3261,6 +3266,14 @@ export default function Home() {
         isOpen={showEventModal}
         onClose={() => { setShowEventModal(false); setViewingEvent(null); }}
         eventToView={viewingEvent}
+        onCreateMeetingNote={event => {
+          const existing = notes.find(note => note.meetingEventId === event.id);
+          if (existing) { setSearchNote({ id: existing.id }); } else {
+            const when = (value?: string) => value ? new Date(value.length === 10 ? `${value}T12:00:00` : value).toLocaleString() : "Not provided";
+            addNote({ meetingEventId: event.id, title: `Meeting: ${event.summary || "Untitled meeting"}`, content: `# ${event.summary || "Untitled meeting"}\n\nStart: ${when(event.start?.dateTime || event.start?.date)}\nEnd: ${when(event.end?.dateTime || event.end?.date)}\nAttendees: ${event.attendees?.join(", ") || "Not provided"}\n${event.htmlLink ? `Calendar: ${event.htmlLink}\n` : ""}\n## Notes\n\n## Decisions\n- Add decisions here\n\n## Action Items\nAdd action items using the note checklist; use Create task to send them to Tasks.`, color: "blue", checklist: [] });
+          }
+          setShowEventModal(false); setViewingEvent(null); setActiveNav("Notes");
+        }}
         onFocusChange={(event, deleted) => {
           const next = deleted ? customEvents.filter(item => item.id !== event.id) : [...customEvents.filter(item => item.id !== event.id), event];
           setCustomEvents(next);
