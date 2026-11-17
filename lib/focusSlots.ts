@@ -23,8 +23,8 @@ export function findFocusSlots(
 
     const busy = events
       .flatMap((event) => {
-        const start = event.start?.dateTime ? new Date(event.start.dateTime) : null;
-        const end = event.end?.dateTime ? new Date(event.end.dateTime) : null;
+        const start = event.start?.dateTime ? new Date(event.start.dateTime) : event.start?.date ? new Date(`${event.start.date}T00:00:00`) : null;
+        const end = event.end?.dateTime ? new Date(event.end.dateTime) : event.end?.date ? new Date(`${event.end.date}T00:00:00`) : null;
         return start && end && end > dayStart && start < dayEnd
           ? [{ start: start < dayStart ? dayStart : start, end: end > dayEnd ? dayEnd : end }]
           : [];

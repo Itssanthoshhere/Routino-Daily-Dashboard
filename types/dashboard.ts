@@ -85,6 +85,8 @@ export type DashboardMail = {
 };
 
 export type QuickLink = {
+  read?: boolean;
+  readingText?: string;
   id: string;
   title: string;
   subtitle: string;

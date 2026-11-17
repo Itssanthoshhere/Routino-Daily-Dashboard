@@ -19,9 +19,15 @@ import {
 } from "lucide-react";
 import { playChime, playTick } from "@/lib/sound";
 import { ambientSound, AmbientSoundType } from "@/lib/ambientSound";
+import { FocusSlotFinder } from "@/components/FocusSlotFinder";
+import { DashboardEvent, Task } from "@/types/dashboard";
+import { FocusSlot } from "@/lib/focusSlots";
 
 type FocusTimerModalProps = {
   isOpen: boolean;
+  events?: DashboardEvent[];
+  tasks?: Task[];
+  onScheduleTask?: (task: Task, slot: FocusSlot) => void | Promise<void>;
   onClose: () => void;
   onSessionComplete?: (minutes: number) => void;
 };
@@ -33,7 +39,8 @@ const PRESETS = [
   { label: "Long Break", minutes: 15 },
 ];
 
-export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTimerModalProps) {
+export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [], tasks = [], onScheduleTask }: FocusTimerModalProps) {
+  const [showFinder, setShowFinder] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(25);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
@@ -182,6 +189,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete }: FocusTim
         </div>
 
         {/* Preset Selector */}
+        {onScheduleTask && <div className="mt-3"><button onClick={() => setShowFinder(!showFinder)} className="text-xs font-semibold text-forest">Find focus time in Calendar</button>{showFinder && <FocusSlotFinder events={events} tasks={tasks} onScheduleTask={async (task, slot) => { await onScheduleTask(task, slot); setShowFinder(false); onClose(); }} onClose={() => setShowFinder(false)} />}</div>}
         <div className="mt-4 grid grid-cols-5 gap-1.5">
           {PRESETS.map((preset) => (
             <button

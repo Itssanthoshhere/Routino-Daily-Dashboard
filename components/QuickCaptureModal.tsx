@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { X, Zap, CheckSquare, StickyNote, PenTool, Sparkles, Check, Plane } from "lucide-react";
+import { X, Zap, CheckSquare, StickyNote, PenTool, Sparkles, Check, Plane, Mic } from "lucide-react";
 import type { Task, KeepNote } from "@/types/dashboard";
 import { inferTaskCategory } from "@/lib/meeting";
 
 type CaptureType = "task" | "note" | "scratchpad";
+type Recognition = { start: () => void; stop: () => void; abort: () => void; lang: string; continuous: boolean; interimResults: boolean; onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: (() => void) | null; onend: (() => void) | null };
 
 type QuickCaptureModalProps = {
   isOpen: boolean;
@@ -30,6 +31,28 @@ export function QuickCaptureModal({
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<Recognition | null>(null);
+  const [listening, setListening] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState("");
+  useEffect(() => {
+    if (!isOpen) { recognitionRef.current?.abort(); setListening(false); }
+    return () => { recognitionRef.current?.abort(); };
+  }, [isOpen]);
+  const startVoice = () => {
+    if (listening) { recognitionRef.current?.stop(); return; }
+    const browser = window as typeof window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
+    const Constructor = browser.SpeechRecognition || browser.webkitSpeechRecognition;
+    if (!Constructor) { setVoiceMessage("Speech recognition is unavailable in this browser. You can still type your thought."); return; }
+    const recognition = new Constructor();
+    recognitionRef.current = recognition;
+    recognition.lang = navigator.language || "en-IN";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = event => { const transcript = Array.from(event.results).map(result => result[0].transcript).join(" ").trim(); setText(previous => [previous.trim(), transcript].filter(Boolean).join(" ")); };
+    recognition.onerror = () => { setListening(false); setVoiceMessage("Could not hear you. Check microphone permission and try again."); };
+    recognition.onend = () => setListening(false);
+    try { recognition.start(); setListening(true); setVoiceMessage(""); } catch { setVoiceMessage("Microphone could not start. Please try again."); }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -48,6 +71,7 @@ export function QuickCaptureModal({
   const handleCapture = (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
+    recognitionRef.current?.abort();
 
     if (type === "task") {
       const catLabel = currentCategory === "project" ? "Project" : currentCategory === "travel" ? "Travel" : currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1);
@@ -135,6 +159,8 @@ export function QuickCaptureModal({
 
         {/* Input Form */}
         <form onSubmit={handleCapture} className="mt-3.5 space-y-3">
+          <button type="button" onClick={startVoice} aria-pressed={listening} className="flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-forest hover:bg-forest hover:text-white"><Mic size={14} />{listening ? "Stop listening" : "Speak your thought"}</button>
+          <p role="status" className="text-[10px] text-muted">{voiceMessage || (listening ? "Listening… your words will appear below." : "Review your transcript before saving. Your browser may use its speech service to process audio.")}</p>
           <input
             ref={inputRef}
             type="text"

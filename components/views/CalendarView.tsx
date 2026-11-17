@@ -33,7 +33,7 @@ type CalendarViewProps = {
   onSelectEvent: (event: DashboardEvent) => void;
   isConnected: boolean;
   tasks: Task[];
-  onScheduleTask: (task: Task, slot: FocusSlot) => void;
+  onScheduleTask: (task: Task, slot: FocusSlot) => void | Promise<void>;
 };
 
 const hues = ["#7b8df4", "#e7a15a", "#5fa77d", "#d16b5b"];
@@ -369,7 +369,7 @@ export function CalendarView({
 
   return (
     <>
-    {showFocusFinder && <div className="mb-4"><FocusSlotFinder events={events} tasks={tasks} onScheduleTask={(task, slot) => { onScheduleTask(task, slot); setShowFocusFinder(false); }} onClose={() => setShowFocusFinder(false)} /></div>}
+    {showFocusFinder && <div className="mb-4"><FocusSlotFinder events={events} tasks={tasks} onScheduleTask={async (task, slot) => { await onScheduleTask(task, slot); setShowFocusFinder(false); }} onClose={() => setShowFocusFinder(false)} /></div>}
 
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* Calendar Header */}

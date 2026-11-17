@@ -56,6 +56,7 @@ export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "pla
 type TabKey = TrackersTabKey;
 
 export type TrackersViewProps = {
+  onRenewalTask?: (subscription: Subscription, date: string) => void;
   airtel?: AirtelData;
   onRechargeRenewal?: (patch: { airtel: AirtelData; subscriptions: Subscription[] }) => boolean | void;
   onAirtelChange?: (data: AirtelData) => void;
@@ -301,7 +302,7 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   };
 }
 
-export function TrackersView({ initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, onRechargeRenewal, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
+export function TrackersView({ onRenewalTask, initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, onRechargeRenewal, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab || "eb");
 
   useEffect(() => {
@@ -1109,7 +1110,7 @@ export function TrackersView({ initialTab, tabChangeKey, onTabChange, onJournalS
       {/* ═══════════════════════════════════════════════════════════
           TAB 1: PG ELECTRICITY (EB) METER TRACKER
       ═══════════════════════════════════════════════════════════ */}
-      {activeTab === "subscriptions" && onSubscriptionsChange && <SubscriptionManager airtel={airtel} subscriptions={subscriptions} onChange={onSubscriptionsChange} disabled={subscriptionsDisabled} />}
+      {activeTab === "subscriptions" && onSubscriptionsChange && <SubscriptionManager onRenewalTask={onRenewalTask} airtel={airtel} subscriptions={subscriptions} onChange={onSubscriptionsChange} disabled={subscriptionsDisabled} />}
 
       {activeTab === "airtel" && airtel && onRechargeRenewal && <AirtelRenewal airtel={airtel} subscriptions={subscriptions} disabled={!!subscriptionsDisabled} onSave={onRechargeRenewal} />}
       {activeTab === "airtel" && <AirtelRechargeTracker journals={data.journals || {}} isLive={data.isLive} saved={airtel || emptyAirtelData()} onChange={onAirtelChange} disabled={subscriptionsDisabled} />}

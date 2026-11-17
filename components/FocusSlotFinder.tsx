@@ -8,12 +8,14 @@ import { findFocusSlots, FocusSlot } from "@/lib/focusSlots";
 type Props = {
   events: DashboardEvent[];
   tasks: Task[];
-  onScheduleTask: (task: Task, slot: FocusSlot) => void;
+  onScheduleTask: (task: Task, slot: FocusSlot) => void | Promise<void>;
   onClose?: () => void;
 };
 
 export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Props) {
   const [duration, setDuration] = useState(45);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const [selectedTask, setSelectedTask] = useState(
     tasks.find((t) => !t.checked && !t.skipped)?.id || ""
   );
@@ -121,17 +123,19 @@ export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Prop
 
       <button
         type="button"
-        disabled={!selectedTask || !slots.length}
-        onClick={() => {
+        disabled={saving || !selectedTask || !slots.length}
+        onClick={async () => {
           const task = openTasks.find((item) => item.id === selectedTask);
           if (task && slots[selectedSlot]) {
-            onScheduleTask(task, slots[selectedSlot]);
+            setSaving(true); setError("");
+            try { await onScheduleTask(task, slots[selectedSlot]); } catch (error) { setError(error instanceof Error ? error.message : "Could not schedule session"); } finally { setSaving(false); }
           }
         }}
         className="mt-3.5 w-full rounded-xl bg-forest px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#8b1116] transition disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
       >
-        Schedule task into Calendar
+        {saving ? "Scheduling…" : "Schedule into Google Calendar"}
       </button>
+      {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );
 }

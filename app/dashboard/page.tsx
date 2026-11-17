@@ -949,7 +949,7 @@ export default function Home() {
       tag: ev.tag || "OUTLOOK",
       color: ev.color || "#0078d4",
     }));
-    return [...live, ...outlook, ...customEvents];
+    return [...live, ...outlook, ...customEvents.filter(event => !live.some(item => item.id === event.id))];
   }, [liveData, outlookData, customEvents]);
 
   const todayEvents = useMemo(() => allEvents.filter(ev => {
@@ -1614,17 +1614,21 @@ export default function Home() {
     toast(`"${event.summary}" scheduled`);
   };
 
-  const scheduleTaskIntoCalendar = (task: Task, slot: { start: Date; end: Date }) => {
+  const scheduleTaskIntoCalendar = async (task: Task, slot: { start: Date; end: Date }) => {
     const descParts = [task.meta].filter(Boolean);
     if (task.link) descParts.push(`Link: ${task.link}`);
+    const response = await fetch("/api/calendar/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: task.title, description: descParts.join(" · "), start: slot.start.toISOString(), end: slot.end.toISOString() }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Could not create Google Calendar event");
     addEvent({
-      id: `focus-${task.id}-${Date.now()}`,
+      id: result.event.id,
+      htmlLink: result.event.htmlLink,
       summary: `Focus: ${task.title}`,
       description: descParts.join(" · ") || "Scheduled from Routino task",
       start: { dateTime: slot.start.toISOString() },
       end: { dateTime: slot.end.toISOString() },
-      source: "custom",
-      isCustom: true,
+      source: "google",
+      isCustom: false,
       tag: "FOCUS",
       color: "#16a34a",
     });
@@ -2089,6 +2093,7 @@ export default function Home() {
             />
           ) : activeNav === "Trackers" ? (
             <TrackersView
+              onRenewalTask={(subscription, date) => addTask({ title: `Review renewal: ${subscription.name}`, meta: `Review billing before ${date}`, dueDate: date, category: "personal", priority: true })}
               onJournalSubscriptions={trackerWorkspace.importSubscriptions}
               subscriptions={subscriptions}
               airtel={trackerWorkspace.airtel}
@@ -3066,7 +3071,12 @@ export default function Home() {
                   </button>
                 </section>
 
-                <ReadLaterPanel links={quickLinks} onAdd={() => setShowQuickLinkModal(true)} onUpdate={link => {
+                <ReadLaterPanel links={quickLinks} onAdd={() => setShowQuickLinkModal(true)} onDelete={id => {
+                  const next = quickLinks.filter(item => item.id !== id);
+                  setQuickLinks(next);
+                  try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+                  syncToDatabase({ quickLinks: next });
+                }} onUpdate={link => {
                   const next = quickLinks.map(item => item.id === link.id ? link : item);
                   setQuickLinks(next);
                   try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
@@ -3228,6 +3238,9 @@ export default function Home() {
         }}
       />
       <FocusTimerModal
+        events={allEvents}
+        tasks={tasks}
+        onScheduleTask={scheduleTaskIntoCalendar}
         isOpen={showFocusTimer}
         onClose={() => setShowFocusTimer(false)}
         onSessionComplete={handleFocusComplete}

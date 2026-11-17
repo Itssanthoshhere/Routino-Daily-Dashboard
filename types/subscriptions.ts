@@ -1,4 +1,8 @@
 export type Subscription = {
+  trialEndDate?: string;
+  cancellationDeadline?: string;
+  renewalTaskDate?: string;
+  renewalCalendarDate?: string;
   cancellationChecklist?: { id: string; label: string; done: boolean }[];
   renewalDecision?: "keep" | "cancel" | "later";
   priceHistory?: { date: string; amount: number; currency: Subscription["currency"]; cycle: Subscription["cycle"] }[];
