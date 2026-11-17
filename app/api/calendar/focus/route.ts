@@ -10,9 +10,10 @@ async function update(request: Request, deleted: boolean) {
     const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(body.id)}`;
     const existing = await googleFetch(url); const event = await existing.json();
     if (!existing.ok || !event.summary?.startsWith("Focus: ")) return NextResponse.json({ error: "Focus event not found" }, { status: 404 });
+    if (body.expectedStart && (new Date(event.start?.dateTime).getTime() !== new Date(body.expectedStart).getTime() || new Date(event.end?.dateTime).getTime() !== new Date(body.expectedEnd).getTime())) return NextResponse.json({ error: "Session changed since that action; undo skipped." }, { status: 409 });
     const start = new Date(body.start); const end = new Date(body.end);
     if (!deleted && (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start)) return NextResponse.json({ error: "Invalid time range" }, { status: 400 });
-    const response = await googleFetch(url, { method: deleted ? "DELETE" : "PATCH", headers: { "Content-Type": "application/json" }, ...(!deleted ? { body: JSON.stringify({ start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } }) } : {}) });
+    const response = await googleFetch(url, { method: deleted ? "DELETE" : "PATCH", headers: { "Content-Type": "application/json", ...(event.etag ? { "If-Match": event.etag } : {}) }, ...(!deleted ? { body: JSON.stringify({ start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } }) } : {}) });
     if (deleted && response.status === 410) return NextResponse.json({ success: true });
     const failure = response.ok ? null : await response.json().catch(() => null);
     return NextResponse.json(response.ok ? { success: true } : { error: `Google could not update this event (${response.status}${failure?.error?.errors?.[0]?.reason ? `: ${failure.error.errors[0].reason}` : ""})` }, { status: response.ok ? 200 : 502 });

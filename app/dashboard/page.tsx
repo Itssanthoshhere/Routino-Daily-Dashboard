@@ -357,6 +357,8 @@ export default function Home() {
   const currentAccount = useRef<string | null>(null);
   currentAccount.current = liveData?.connected ? liveData.user?.email?.toLowerCase() || null : null;
   const [customEvents, setCustomEvents] = useState<DashboardEvent[]>([]);
+  const customEventsRef = useRef(customEvents);
+  customEventsRef.current = customEvents;
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(seedLinks);
   const backupAlerts = useBackupWarnings(liveData?.connected ? liveData.user?.email : null);
   const backupAlertKey = JSON.stringify(backupAlerts);
@@ -3283,13 +3285,41 @@ export default function Home() {
           setShowEventModal(false); setViewingEvent(null); setActiveNav("Notes");
         }}
         onFocusChange={(event, deleted) => {
+          const before = viewingEvent;
+          const account = currentAccount.current;
           const next = deleted ? customEvents.filter(item => item.id !== event.id) : [...customEvents.filter(item => item.id !== event.id), event];
           setCustomEvents(next);
           try { localStorage.setItem("routino_events", JSON.stringify(next)); } catch {}
           syncToDatabase({ customEvents: next });
           setLiveData(previous => previous ? { ...previous, events: (previous.events || []).filter(item => item.id !== event.id) } : previous);
           setShowEventModal(false); setViewingEvent(null);
-          toast(deleted ? "Focus session removed" : "Focus session rescheduled");
+          let undoInProgress = false;
+          let undoComplete = false;
+          toast(deleted ? "Focus session removed" : "Focus session rescheduled", "info", before ? { label: "Undo", onClick: async () => {
+            if (undoInProgress || undoComplete) return;
+            if (currentAccount.current !== account) { toast("Sign in to the original account to undo this change."); return; }
+            const currentEvent = customEventsRef.current.find(item => item.id === event.id);
+            if ((!deleted && JSON.stringify(currentEvent) !== JSON.stringify(event)) || (deleted && currentEvent)) { toast("Session changed since that action; undo skipped."); return; }
+            let restored = before;
+            undoInProgress = true;
+            try {
+              if (before.source === "google") {
+                const response = await fetch("/api/calendar/focus", { method: deleted ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(deleted ? { title: (before.summary || "Focus session").replace(/^Focus: /, ""), description: before.description, start: before.start?.dateTime, end: before.end?.dateTime } : { id: before.id, start: before.start?.dateTime, end: before.end?.dateTime, expectedStart: event.start?.dateTime, expectedEnd: event.end?.dateTime }) });
+                const result = await response.json(); if (!response.ok) throw new Error(result.error || "Calendar undo failed");
+                if (deleted) restored = { ...before, id: result.event.id, htmlLink: result.event.htmlLink };
+              }
+              if (currentAccount.current !== account) { toast("Calendar restored, but the active account changed. Refresh the original account to load it."); undoComplete = true; return; }
+              setCustomEvents(current => {
+                const existing = current.find(item => item.id === event.id);
+                if ((!deleted && JSON.stringify(existing) !== JSON.stringify(event)) || (deleted && existing)) { toast("Session changed since that action; undo skipped."); return current; }
+                const updated = [...current.filter(item => item.id !== event.id), restored];
+                try { localStorage.setItem("routino_events", JSON.stringify(updated)); } catch {}
+                void syncToDatabase({ customEvents: updated }); return updated;
+              });
+              undoComplete = true;
+              toast("Focus session restored");
+            } catch (error) { toast(error instanceof Error ? error.message : "Undo failed"); } finally { undoInProgress = false; }
+          } } : undefined);
         }}
         onAddEvent={addEvent}
       />
