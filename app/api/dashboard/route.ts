@@ -1,3 +1,4 @@
+import { countRecentGmailUnread } from "@/lib/recentUnread";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { googleFetch } from "@/lib/google";
@@ -20,10 +21,10 @@ export async function GET() {
 
     const timeMin = encodeURIComponent(pastWindow.toISOString());
     const timeMax = encodeURIComponent(futureWindow.toISOString());
-    const [calendarListRes, mail, mail48hRes, driveRes] = await Promise.all([
+    const [calendarListRes, mail, recentUnread, driveRes] = await Promise.all([
       googleFetch("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader"),
       googleFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+-category:promotions+-category:social&maxResults=8"),
-      googleFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread+newer_than:2d+-category:promotions+-category:social&maxResults=1"),
+      countRecentGmailUnread(googleFetch),
       googleFetch("https://www.googleapis.com/drive/v3/files?pageSize=1&fields=files(id)&spaces=drive").catch(() => null),
     ]);
 
@@ -149,26 +150,8 @@ export async function GET() {
     });
 
     const mailData = mail.ok ? await mail.json() : { messages: [], resultSizeEstimate: 0 };
-    let unread48hEstimate: number | null = null;
-    let unread48hStatus: "ok" | "failed" | "not_queried" = "not_queried";
-
-    if (mail48hRes) {
-      if (mail48hRes.ok) {
-        try {
-          const d48 = await mail48hRes.json();
-          if (typeof d48.resultSizeEstimate === "number") {
-            unread48hEstimate = d48.resultSizeEstimate;
-            unread48hStatus = "ok";
-          } else {
-            unread48hStatus = "failed";
-          }
-        } catch {
-          unread48hStatus = "failed";
-        }
-      } else {
-        unread48hStatus = "failed";
-      }
-    }
+    const unread48hEstimate = recentUnread.estimate;
+    const unread48hStatus = recentUnread.count !== null ? "ok" : "failed";
 
     let driveStatus: "checked" | "needs_consent" | "permission_denied" | "failed" = "failed";
     if (driveRes) {
@@ -229,6 +212,7 @@ export async function GET() {
       },
       events: finalEvents,
       unread: messages.filter(Boolean),
+      recentUnreadCount: recentUnread.count,
       unreadEstimate: typeof mailData.resultSizeEstimate === "number" ? mailData.resultSizeEstimate : messages.filter(Boolean).length,
       unread48hEstimate,
       unread48hStatus,

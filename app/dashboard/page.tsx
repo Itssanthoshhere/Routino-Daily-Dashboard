@@ -1,11 +1,14 @@
 "use client";
 
+import { RecycleBin } from "@/components/RecycleBin";
+import { inboxCountLabel } from "@/lib/inboxCount";
+import { useBackupWarnings } from "@/hooks/useBackupWarnings";
 import { undoRecords } from "@/lib/undoRecords";
 import { workspaceNotifications } from "@/lib/workspaceNotifications";
 import { snoozeTask } from "@/lib/taskSnooze";
 import { mergeTaskRecords } from "@/lib/taskMerge";
 import { queueWorkspacePatch } from "@/lib/workspacePatch";
-import { completeRepeatingTask, editTaskOccurrences } from "@/lib/taskRecurrence";
+import { completeRepeatingTask, editTaskOccurrences, skipTaskOccurrence, setSeriesPaused } from "@/lib/taskRecurrence";
 import { isSubscriptionList } from "@/lib/subscriptionValidation";
 import { ExpiryReminders } from "@/components/ExpiryReminders";
 import { useTrackerWorkspace } from "@/hooks/useTrackerWorkspace";
@@ -18,7 +21,7 @@ import {
   ArrowDownRight, ArrowRight, ArrowUpRight, Bell, CalendarDays, Check,
   ChevronDown, ChevronUp, CheckCircle2, CheckSquare, Circle, Clock3, ExternalLink, FileText, Focus, FolderOpen, Github, Globe,
   Inbox, Keyboard, Lightbulb, Link2, ListTodo, Mail, MapPin, Menu, MoreHorizontal, Plane, Plus, Printer, Search, Shuffle, Sparkles,
-  StickyNote, Target, Timer, TriangleAlert, Video, X, PieChart, Gauge,
+  StickyNote, Target, Timer, Trash2, TriangleAlert, Video, X, PieChart, Gauge,
   Key, Zap, Wallet, Briefcase, Copy, ShieldCheck, HardDrive, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
@@ -87,6 +90,7 @@ const nav = [
   { icon: Inbox, label: "Inbox" },
   { icon: ListTodo, label: "Tasks" },
   { icon: StickyNote, label: "Notes" },
+  { icon: Trash2, label: "Recycle Bin" },
 ];
 
 const TAB_TO_PARAM: Record<string, string> = {
@@ -97,6 +101,7 @@ const TAB_TO_PARAM: Record<string, string> = {
   Inbox: "inbox",
   Tasks: "tasks",
   Notes: "notes",
+  "Recycle Bin": "recycle-bin",
 };
 
 const PARAM_TO_TAB: Record<string, string> = {
@@ -108,6 +113,7 @@ const PARAM_TO_TAB: Record<string, string> = {
   inbox: "Inbox",
   tasks: "Tasks",
   notes: "Notes",
+  "recycle-bin": "Recycle Bin",
 };
 
 const TRACKER_SHORTCUTS: Record<string, TrackersTabKey> = {
@@ -346,6 +352,8 @@ export default function Home() {
   currentAccount.current = liveData?.connected ? liveData.user?.email?.toLowerCase() || null : null;
   const [customEvents, setCustomEvents] = useState<DashboardEvent[]>([]);
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(seedLinks);
+  const backupAlerts = useBackupWarnings(liveData?.connected ? liveData.user?.email : null);
+  const backupAlertKey = JSON.stringify(backupAlerts);
   const [notificationDay, setNotificationDay] = useState(() => new Intl.DateTimeFormat("en-CA").format(new Date()));
   const [dismissedNotifications, setDismissedNotifications] = useState<string[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>(seedNotifications);
@@ -354,6 +362,7 @@ export default function Home() {
   const [outlookData, setOutlookData] = useState<{
     connected: boolean;
     profile?: { email: string; name?: string };
+    recentUnreadCount?: number | null;
     events: DashboardEvent[];
     unread: DashboardMail[];
     syncStatus?: {
@@ -384,6 +393,7 @@ export default function Home() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [showGoogleSetup, setShowGoogleSetup] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
+  const [preferencesDataToken, setPreferencesDataToken] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const coreSyncVersion = useRef(0);
@@ -519,7 +529,7 @@ export default function Home() {
   const currentIntention = DAILY_INTENTIONS[intentionIndex] || DAILY_INTENTIONS[0];
 
   /* ── Derived ── */
-  const done = tasks.filter(t => t.checked).length;
+  const done = tasks.filter(t => t.checked && !t.skipped).length;
   const today = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
 
   /* ── LocalStorage Hydration ── */
@@ -745,6 +755,7 @@ export default function Home() {
             return {
               connected: true,
               profile: data.profile,
+              recentUnreadCount: data.recentUnreadCount ?? null,
               events: data.events || [],
               unread: [...freshUnread, ...deeper],
               syncStatus: data.syncStatus,
@@ -867,7 +878,7 @@ export default function Home() {
     const isGoogle = Boolean(liveData?.connected);
     const isOutlook = Boolean(outlookData?.connected);
 
-    const realNotifications: NotificationItem[] = workspaceNotifications(tasks, subscriptions, trackerWorkspace.airtel, notificationDay);
+    const realNotifications: NotificationItem[] = [...workspaceNotifications(tasks, subscriptions, trackerWorkspace.airtel, notificationDay), ...backupAlerts.map(item => ({ id: item.id, title: item.title, time: item.detail, type: "system" as const, read: false, openPreferences: true }))];
 
     if (isGoogle && googleMail.length > 0) {
       realNotifications.push({
@@ -916,7 +927,7 @@ export default function Home() {
     }
 
     setNotifications(realNotifications.filter(item => !dismissedNotifications.includes(item.id)));
-  }, [liveData, googleMail, outlookData, tasks, subscriptions, trackerWorkspace.airtel, notificationDay, dismissedNotifications]);
+  }, [liveData, googleMail, outlookData, tasks, subscriptions, trackerWorkspace.airtel, notificationDay, dismissedNotifications, backupAlertKey]);
 
   useEffect(() => {
     if (liveData?.connected || outlookData?.connected) setNotice(false);
@@ -1006,12 +1017,14 @@ export default function Home() {
 
   const is48hEstimateAvailable = liveData?.unread48hEstimate !== null && liveData?.unread48hEstimate !== undefined;
 
-  const unreadInboxCount = useMemo(() => {
+  const unreadPreviewCount = useMemo(() => {
     if (!isConnected) return mailItems.filter((m) => !m.read).length;
     if (is48hEstimateAvailable) return `~${liveData!.unread48hEstimate}`;
     if (typeof liveData?.unreadEstimate === "number") return `~${liveData.unreadEstimate}`;
     return mailItems.filter((m) => !m.read).length;
   }, [isConnected, is48hEstimateAvailable, liveData, mailItems]);
+
+  const inboxBadge = inboxCountLabel([{ connected: !!liveData?.connected, count: liveData?.recentUnreadCount }, { connected: !!outlookData.connected, count: outlookData.recentUnreadCount }]);
 
   /* ── Keyboard shortcuts ── */
   useEffect(() => {
@@ -1253,8 +1266,8 @@ export default function Home() {
     void loadWorkspace();
     const onVisible = () => { if (document.visibilityState === "visible") void loadWorkspace(); };
     const interval = window.setInterval(onVisible, 30000);
-    window.addEventListener("focus", onVisible); document.addEventListener("visibilitychange", onVisible);
-    return () => { active = false; clearInterval(interval); window.removeEventListener("focus", onVisible); document.removeEventListener("visibilitychange", onVisible); };
+    window.addEventListener("focus", onVisible); window.addEventListener("routino:workspace-restored", onVisible); document.addEventListener("visibilitychange", onVisible);
+    return () => { active = false; clearInterval(interval); window.removeEventListener("focus", onVisible); window.removeEventListener("routino:workspace-restored", onVisible); document.removeEventListener("visibilitychange", onVisible); };
   }, [liveData?.connected, liveData?.user?.email]);
 
   const handleManualSync = async () => {
@@ -1613,6 +1626,7 @@ export default function Home() {
   };
   const handleNotificationClick = (item: NotificationItem) => {
     dismissNotifications([item.id]);
+    if (item.openPreferences) { setPreferencesDataToken(token => token + 1); setShowPreferences(true); }
     if (item.trackerTab) handleOpenTrackersTab(item.trackerTab);
     if (item.taskId) { setHighlightedTaskId(item.taskId); }
 
@@ -1860,7 +1874,7 @@ export default function Home() {
             {nav.map(({ icon: Icon, label }) => (
               <button key={label} onClick={() => handleSelectNav(label)} className={"flex w-full items-center gap-3 rounded-xl px-3 py-2 xl:py-2.5 text-left text-[12px] xl:text-[13px] transition " + (activeNav === label ? "bg-[#fdf2f2] font-semibold text-forest" : "text-[#77827b] hover:bg-[#f1f3ed]")}>
                 <Icon size={16} />{label}
-                {label === "Inbox" && <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{unreadInboxCount}</span>}
+                {label === "Inbox" && inboxBadge !== null && <span aria-label={inboxBadge === "—" ? "48-hour unread count unavailable" : `${inboxBadge} unread in the last 48 hours`} title={inboxBadge === "—" ? "48-hour unread count unavailable; refresh account sync" : "Unread in the last 48 hours · Gmail excludes Promotions and Social"} className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">{inboxBadge}<span className="ml-1 text-[8px] font-medium">48h</span></span>}
                 {label === "Tasks" && <span className="ml-auto rounded-full bg-[#e8efe4] px-2 py-0.5 text-[10px] font-bold text-forest">{tasks.filter(t => !t.checked).length}</span>}
                 {label === "Notes" && notes.length > 0 && <span className="ml-auto rounded-full bg-[#fdf2f2] px-2 py-0.5 text-[10px] font-bold text-forest">{notes.length}</span>}
               </button>
@@ -1942,7 +1956,7 @@ export default function Home() {
         onClose={() => setShowMobileSidebar(false)}
         activeNav={activeNav}
         onSelectNav={handleSelectNav}
-        unreadCount={unreadInboxCount}
+        unreadCount={inboxBadge}
         isConnected={!!liveData?.connected}
         isOutlookConnected={Boolean(outlookData?.connected)}
         onOpenPreferences={() => setShowPreferences(true)}
@@ -2101,6 +2115,15 @@ export default function Home() {
               onToggleTask={toggleTask}
               onDeleteTask={deleteTask}
               onEditTask={editTask}
+              onRepeatAction={(id, action) => {
+                const today = new Intl.DateTimeFormat("en-CA").format(new Date());
+                const before = tasks;
+                const next = action === "skip" ? skipTaskOccurrence(before, id, today, Date.now()) : setSeriesPaused(before, id, action === "pause", today, Date.now());
+                if (next === before) { toast("No occurrence can be changed with these repeat settings. Check the series end date.", "info"); return; }
+                setTasks(next); try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+                void syncToDatabase({ tasks: next }, before);
+                offerTaskUndo(action === "skip" ? "Occurrence skipped; history preserved" : action === "pause" ? "Series paused" : "Series resumed", before, next);
+              }}
               onSnoozeTask={(id, date) => {
                 const next = snoozeTask(tasks, id, date, new Intl.DateTimeFormat("en-CA").format(new Date()));
                 if (next === tasks) return;
@@ -2117,6 +2140,8 @@ export default function Home() {
               onToggleSubTask={toggleSubTask}
               highlightedTaskId={highlightedTaskId}
             />
+          ) : activeNav === "Recycle Bin" ? (
+            <div className="mx-auto w-full max-w-4xl space-y-5"><div><h1 className="text-2xl font-bold text-ink">Recycle Bin</h1><p className="mt-2 text-sm text-muted">Recover deleted records from your workspace without replacing newer data.</p></div><RecycleBin email={liveData?.user?.email} expanded /></div>
           ) : activeNav === "Notes" ? (
             <NotesView
               notes={notes}
@@ -2211,7 +2236,7 @@ export default function Home() {
                       title="Open Inbox"
                     >
                       <Inbox size={11} className="text-[#bd8054]" />
-                      Gmail ({unreadInboxCount} unread {is48hEstimateAvailable ? "est. / 48h" : "est."})
+                      Gmail ({unreadPreviewCount} unread {is48hEstimateAvailable ? "est. / 48h" : "est."})
                     </button>
                     <button
                       type="button"
@@ -2283,7 +2308,7 @@ export default function Home() {
                 {/* Inbox summary */}
                 <button onClick={() => handleSelectNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">Needs a response</span><Inbox size={16} className="text-[#bd8054] group-hover:text-[#a0622e] transition" /></div>
-                  <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{unreadInboxCount}</span><span className="text-[11px] text-muted">{is48hEstimateAvailable ? "unread est. (48h)" : "unread est."}</span></div>
+                  <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{unreadPreviewCount}</span><span className="text-[11px] text-muted">{is48hEstimateAvailable ? "unread est. (48h)" : "unread est."}</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? (is48hEstimateAvailable ? "Estimated messages in last 48h (Gmail query)" : "Estimated total unread messages") : "Connect Google to load your inbox"}</div>
                 </button>
 
@@ -2650,7 +2675,7 @@ export default function Home() {
                               : "hover:text-ink"
                           }`}
                         >
-                          Completed ({completedOverviewTasks.length})
+                          History ({completedOverviewTasks.length})
                         </button>
                       </div>
 
@@ -2700,6 +2725,7 @@ export default function Home() {
                                       <span className={"block text-[11px] font-medium transition-all duration-200 " + (task.checked ? "text-[#9aa49b] line-through" : "text-[#314239]")}>{task.title}</span>
                                       <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-[#98a198]">
                                         {task.meta}
+                                        {task.skipped && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">Skipped · not completed</span>}
                                         {task.category && (
                                           <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold ${
                                             task.category === "urgent" ? "bg-[#fce8e6] text-[#c05746]" :
@@ -2821,6 +2847,7 @@ export default function Home() {
                                       <span className="block text-[11px] font-medium text-[#9aa49b] line-through">{task.title}</span>
                                       <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[9.5px] text-[#a4aca4]">
                                         {task.meta}
+                                        {task.skipped && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">Skipped · not completed</span>}
                                         {hasSubtasks && (
                                           <span>· {completedSubCount}/{totalSubCount} sub-steps</span>
                                         )}
@@ -2928,7 +2955,7 @@ export default function Home() {
                     right={
                       <div className="flex items-center gap-1.5">
                         <button onClick={() => handleSelectNav("Inbox")} className="rounded-full bg-[#f7eee4] px-2.5 py-1 text-[9px] font-bold text-[#a2764b] hover:bg-[#ebdcc9] transition">
-                          {unreadInboxCount} UNREAD →
+                          {unreadPreviewCount} UNREAD →
                         </button>
                       </div>
                     }
@@ -3218,6 +3245,7 @@ export default function Home() {
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <GoogleSetupModal isOpen={showGoogleSetup} onClose={() => setShowGoogleSetup(false)} />
       <PreferencesModal
+        openDataToken={preferencesDataToken}
         isOpen={showPreferences}
         onClose={() => setShowPreferences(false)}
         focusMinutes={focusMinutes}

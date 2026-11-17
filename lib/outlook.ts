@@ -228,3 +228,24 @@ export async function fetchOutlookMessages(
     nextLink: typeof json["@odata.nextLink"] === "string" ? json["@odata.nextLink"] : null,
   };
 }
+
+/** Count unread Outlook Inbox messages received in the last 48 hours. */
+export async function fetchOutlookRecentUnreadCount(accessToken: string): Promise<number> {
+  const initial = new URL('https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages');
+  initial.searchParams.set('$filter', `isRead eq false and receivedDateTime ge ${new Date(Date.now() - 48 * 3600000).toISOString()}`);
+  initial.searchParams.set('$top', '500'); initial.searchParams.set('$select', 'id');
+  let url = initial.toString(); const ids = new Set<string>(), seen = new Set<string>();
+  for (let page = 0; page < 10; page++) {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'graph.microsoft.com' || parsed.pathname !== initial.pathname || seen.has(url)) throw new Error('Invalid Outlook count pagination.');
+    seen.add(url);
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
+    if (!response.ok) throw new Error('Recent Outlook unread count unavailable.');
+    const data = await response.json(); if (!Array.isArray(data.value)) throw new Error('Invalid Outlook unread count.');
+    for (const message of data.value) { if (typeof message?.id !== 'string') throw new Error('Invalid Outlook message ID.'); ids.add(message.id); }
+    if (!data['@odata.nextLink']) return ids.size;
+    if (typeof data['@odata.nextLink'] !== 'string') throw new Error('Invalid Outlook count pagination.');
+    url = data['@odata.nextLink'];
+  }
+  throw new Error('Recent Outlook unread count exceeded the pagination limit.');
+}

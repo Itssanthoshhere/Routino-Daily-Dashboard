@@ -15,6 +15,7 @@ import {
   FolderOpen,
   PieChart,
   Gauge,
+  Trash2,
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 
@@ -23,7 +24,7 @@ type MobileSidebarProps = {
   onClose: () => void;
   activeNav: string;
   onSelectNav: (label: string) => void;
-  unreadCount: number | string;
+  unreadCount: number | string | null;
   isConnected: boolean;
   isOutlookConnected?: boolean;
   onOpenPreferences?: () => void;
@@ -38,6 +39,7 @@ const navItems = [
   { icon: Inbox, label: "Inbox" },
   { icon: ListTodo, label: "Tasks" },
   { icon: StickyNote, label: "Notes" },
+  { icon: Trash2, label: "Recycle Bin" },
 ];
 
 export function MobileSidebar({
@@ -111,9 +113,9 @@ export function MobileSidebar({
             >
               <Icon size={16} />
               {label}
-              {label === "Inbox" && (
-                <span className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">
-                  {unreadCount}
+              {label === "Inbox" && unreadCount !== null && (
+                <span aria-label={unreadCount === "—" ? "48-hour unread count unavailable" : `${unreadCount} unread in the last 48 hours`} title={unreadCount === "—" ? "48-hour unread count unavailable; refresh account sync" : "Unread in the last 48 hours · Gmail excludes Promotions and Social"} className="ml-auto rounded-full bg-[#f0dfc4] px-2 py-0.5 text-[10px] font-bold text-[#9b6c2a]">
+                  {unreadCount}<span className="ml-1 text-[8px] font-medium">48h</span>
                 </span>
               )}
             </button>

@@ -1,3 +1,5 @@
+import { ensureRecycleBin } from "@/lib/recycleBinStore";
+import type { RecycleEntry } from "@/lib/recycleBin";
 import { backupWorkspace } from "@/lib/workspaceBackups";
 import fs from "fs/promises";
 import path from "path";
@@ -9,6 +11,7 @@ import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 export type UserWorkspaceData = {
+  recycleBin?: RecycleEntry[];
   subscriptions?: Subscription[];
   airtel?: AirtelData;
   trackerRevision?: number;
@@ -350,6 +353,7 @@ export async function saveUserWorkspace(
         data JSONB NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`;
+      await ensureRecycleBin();
       await backupWorkspace(normalizedEmail);
       const patch = changedFields ? Object.fromEntries(changedFields.filter(key => key in data).map(key => [key, data[key as keyof UserWorkspaceData]])) : data;
       if (taskMerge) {
@@ -427,6 +431,7 @@ export async function saveTrackerWorkspace(email: string, patch: TrackerPatch, r
   const payload = { ...patch, trackerRevision: revision + 1, updatedAt };
   if (sql) {
     await sql`CREATE TABLE IF NOT EXISTS routino_workspaces (email TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+    await ensureRecycleBin();
     await backupWorkspace(normalized);
     // An empty document allows the first tracker save without inventing core workspace defaults.
     await sql`INSERT INTO routino_workspaces (email, data) VALUES (${normalized}, '{}'::jsonb) ON CONFLICT DO NOTHING`;

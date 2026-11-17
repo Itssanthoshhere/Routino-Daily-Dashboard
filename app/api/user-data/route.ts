@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     if (Array.isArray(tasks) && tasks.some(task => task?.recurrenceTemplate !== undefined && (!task.recurrenceTemplate || typeof task.recurrenceTemplate !== "object" || typeof task.recurrenceTemplate.title !== "string" || typeof task.recurrenceTemplate.meta !== "string" || typeof task.recurrenceTemplate.priority !== "boolean" || !isTaskRecurrence(task.recurrenceTemplate.recurrence) || typeof task.recurrenceTemplate.dueDate !== "string" || !isSubscriptionDate(task.recurrenceTemplate.dueDate.slice(0, 10))))) {
       return NextResponse.json({ error: "Invalid recurring task template." }, { status: 400 });
     }
-    if (Array.isArray(tasks) && tasks.some(task => !task || typeof task.id !== "string" || (task.recurrence !== undefined && (!isTaskRecurrence(task.recurrence) || (typeof task.dueDate !== "string" || !isSubscriptionDate(task.dueDate.slice(0, 10))))))) {
+    if (Array.isArray(tasks) && tasks.some(task => !task || typeof task.id !== "string" || (task.skipped !== undefined && typeof task.skipped !== "boolean") || (task.recurrence !== undefined && (!isTaskRecurrence(task.recurrence) || (typeof task.dueDate !== "string" || !isSubscriptionDate(task.dueDate.slice(0, 10))))))) {
       return NextResponse.json({ error: "Invalid task records." }, { status: 400 });
     }
     const taskIds = (value: unknown) => Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];

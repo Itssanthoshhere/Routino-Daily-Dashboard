@@ -126,8 +126,8 @@ export function useTrackerWorkspace(email?: string | null) {
     const onFocus = () => { if (current.pending) void flush(); else void refresh(); };
     const onVisible = () => { if (document.visibilityState === "visible") onFocus(); };
     const interval = window.setInterval(onVisible, 30000);
-    window.addEventListener("focus", onFocus); window.addEventListener("online", onFocus); document.addEventListener("visibilitychange", onVisible);
-    return () => { current.generation += 1; clearInterval(interval); window.removeEventListener("focus", onFocus); window.removeEventListener("online", onFocus); document.removeEventListener("visibilitychange", onVisible); };
+    window.addEventListener("focus", onFocus); window.addEventListener("routino:workspace-restored", onFocus); window.addEventListener("online", onFocus); document.addEventListener("visibilitychange", onVisible);
+    return () => { current.generation += 1; clearInterval(interval); window.removeEventListener("focus", onFocus); window.removeEventListener("routino:workspace-restored", onFocus); window.removeEventListener("online", onFocus); document.removeEventListener("visibilitychange", onVisible); };
   }, [key, email, refresh, flush]);
 
   const update = useCallback((patch: Partial<Data>) => {

@@ -30,6 +30,7 @@ type TasksViewProps = {
   tasks: Task[];
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
+  onRepeatAction?: (id: string, action: "skip" | "pause" | "resume") => void;
   onSnoozeTask?: (id: string, date: string) => void;
   onEditTask?: (task: Task) => void;
   onUpdateTaskRecurrence?: (id: string, recurrence: TaskRecurrence | undefined) => void;
@@ -45,6 +46,7 @@ export function TasksView({
   onDeleteTask,
   onEditTask,
   onSnoozeTask,
+  onRepeatAction,
   onUpdateTaskRecurrence,
   onAddTask,
   onOpenTaskModal,
@@ -77,7 +79,9 @@ export function TasksView({
     setExpandedTasks((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const doneCount = tasks.filter((t) => t.checked).length;
+  const historyCount = tasks.filter(t => t.checked).length;
+  const skippedCount = tasks.filter(t => t.skipped).length;
+  const doneCount = tasks.filter(t => t.checked && !t.skipped).length;
   const todayTasksCount = tasks.filter((t) => !t.checked && (t.dueDate === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")))).length;
   const upcomingTasksCount = tasks.filter((t) => !t.checked && Boolean(t.dueDate && t.dueDate > todayStr)).length;
   const projectTasksCount = tasks.filter((t) => t.category === "project").length;
@@ -198,7 +202,7 @@ export function TasksView({
           <div>
             <h3 className="text-[14px] font-semibold text-ink">Daily Progress</h3>
             <p className="mt-0.5 text-[11px] text-muted">
-              {doneCount} of {tasks.length} tasks completed ({Math.round(progressPercent)}%)
+              {doneCount} of {tasks.length} tasks completed ({Math.round(progressPercent)}%){skippedCount ? ` · ${skippedCount} skipped` : ""}
             </p>
           </div>
           <span className="text-[22px] font-bold text-forest">{Math.round(progressPercent)}%</span>
@@ -281,7 +285,7 @@ export function TasksView({
                 : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
             }`}
           >
-            Active ({tasks.length - doneCount})
+            Active ({tasks.length - historyCount})
           </button>
           <button
             onClick={() => setSelectedFilter("today")}
@@ -347,7 +351,7 @@ export function TasksView({
                 : "bg-white border border-line text-muted hover:bg-[#f1f3ed]"
             }`}
           >
-            Completed ({doneCount})
+            History ({historyCount})
           </button>
         </div>
       </div>
@@ -382,7 +386,7 @@ export function TasksView({
                 >
                   {isFirstCompleted && (
                     <div className="bg-[#fafbf8] px-4 py-2 border-b border-[#eff1ec] flex items-center justify-between text-[10.5px] font-bold text-muted uppercase tracking-wider">
-                      <span>Completed ({sortedTasks.filter((t) => t.checked).length})</span>
+                      <span>Completed / skipped ({sortedTasks.filter((t) => t.checked).length})</span>
                     </div>
                   )}
                   <div className="group hover:bg-[#fbfcf9] transition">
@@ -409,9 +413,11 @@ export function TasksView({
                         </p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted">
                           <span>{task.meta}</span>
+                          {task.skipped && <span className="rounded bg-amber-50 px-2 py-0.5 text-amber-800">Skipped · not completed</span>}
                           {task.recurrence && <span className="rounded bg-[#f0f2eb] px-2 py-0.5 font-semibold">{recurrenceLabel(task.recurrence)}</span>}
-                          {!task.checked && onUpdateTaskRecurrence && <select aria-label={`Repeat ${task.title}`} className="max-w-32 rounded border border-line bg-white px-1 py-0.5 text-[10px]" value={task.recurrence?.frequency || "none"} onChange={event => onUpdateTaskRecurrence(task.id, event.target.value === "none" ? undefined : { frequency: event.target.value as TaskRecurrence["frequency"], interval: 1, anchorDate: task.dueDate?.slice(0, 10) })}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>}
+                          {!task.checked && onUpdateTaskRecurrence && <select aria-label={`Repeat ${task.title}`} className="max-w-32 rounded border border-line bg-white px-1 py-0.5 text-[10px]" value={task.recurrence?.frequency || "none"} onChange={event => onUpdateTaskRecurrence(task.id, event.target.value === "none" ? undefined : { frequency: event.target.value as TaskRecurrence["frequency"], interval: 1, paused: task.recurrence?.paused, anchorDate: task.dueDate?.slice(0, 10) })}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>}
                           {!task.checked && onSnoozeTask && <TaskSnooze title={task.title} onSnooze={date => onSnoozeTask(task.id, date)} />}
+                          {task.recurrence && onRepeatAction && <>{!task.checked && !task.recurrence.paused && <button type="button" className="btn-theme-quiet rounded border border-line px-2 py-0.5" onClick={() => onRepeatAction(task.id, "skip")}>Skip this occurrence</button>}{(!task.checked || task.recurrence.paused) && <button type="button" className="btn-theme-quiet rounded border border-line px-2 py-0.5" onClick={() => onRepeatAction(task.id, task.recurrence!.paused ? "resume" : "pause")}>{task.recurrence.paused ? "Resume series" : "Pause series"}</button>}</>}
                           {task.category && (
                             <span
                               className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${

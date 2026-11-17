@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   X,
   Settings,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { appConfig } from "@/lib/config";
 import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashboard";
+import { RecycleBin } from "@/components/RecycleBin";
 import { SyncHealth } from "@/components/SyncHealth";
 import { ExternalBackups } from "@/components/ExternalBackups";
 import { WorkspaceBackups } from "@/components/WorkspaceBackups";
@@ -31,6 +32,7 @@ import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 type PreferencesModalProps = {
+  openDataToken?: number;
   subscriptions?: Subscription[];
   airtel?: AirtelData;
   isOpen: boolean;
@@ -68,6 +70,7 @@ type PreferencesModalProps = {
 };
 
 export function PreferencesModal({
+  openDataToken = 0,
   isOpen,
   onClose,
   focusMinutes,
@@ -94,6 +97,7 @@ export function PreferencesModal({
   onOutlookChange,
 }: PreferencesModalProps) {
   const [activeTab, setActiveTab] = useState<"general" | "data" | "shortcuts" | "about">("general");
+  useEffect(() => { if (openDataToken) setActiveTab("data"); }, [openDataToken]);
   const [copiedStatus, setCopiedStatus] = useState(false);
   const [syncSuccessToast, setSyncSuccessToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -394,6 +398,7 @@ export function PreferencesModal({
               </div>
 
               <SyncHealth email={userEmail} coreError={coreSaveError} syncing={isSyncing} trackerStatus={trackerSyncStatus} trackerSavedAt={trackerSavedAt} onRetry={onSyncDatabase} />
+              <RecycleBin email={userEmail} />
               <WorkspaceBackups email={userEmail} />
               <ExternalBackups email={userEmail} />
 

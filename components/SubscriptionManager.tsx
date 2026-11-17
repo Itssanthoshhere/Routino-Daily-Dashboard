@@ -1,5 +1,6 @@
 "use client";
 
+import { PaymentCalendar } from "@/components/PaymentCalendar";
 import { MonthlySpending } from "@/components/MonthlySpending";
 import { useRef, useState } from "react";
 import { CreditCard, Plus, Pencil, Trash2, Search } from "lucide-react";
@@ -43,7 +44,7 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
   return <section className="space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h3 className="text-xl font-bold text-ink">Subscription Manager</h3><p className="mt-1 text-xs text-muted">Keep recurring costs and renewal dates in one place. Saved with your workspace.</p></div>
-      <div className="flex flex-wrap gap-2"><MonthlySpending subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} /><button onClick={() => expenseDialog.current?.showModal()} className="btn-theme rounded-xl border border-line bg-white px-4 py-2 text-sm font-semibold text-ink">Total expense</button>
+      <div className="flex flex-wrap gap-2"><PaymentCalendar subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} /><MonthlySpending subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} /><button onClick={() => expenseDialog.current?.showModal()} className="btn-theme rounded-xl border border-line bg-white px-4 py-2 text-sm font-semibold text-ink">Total expense</button>
       <button disabled={disabled} onClick={() => setDraft(blank())} className="btn-theme-primary inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Plus size={16} />Add subscription</button></div>
     </div>
     <div className="grid gap-3 sm:grid-cols-3">

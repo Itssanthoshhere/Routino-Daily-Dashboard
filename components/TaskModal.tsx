@@ -104,7 +104,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
       priority,
       category: finalCategory,
       dueDate: dueDate ? dueDate + (initialTask?.dueDate?.slice(10) || "") : undefined,
-      recurrence: repeat === "none" ? undefined : { frequency: repeat, interval: repeat === "weekdays" ? 1 : interval, until: repeatUntil || undefined, anchorDate: dueDate === initialTask?.dueDate?.slice(0, 10) ? initialTask.recurrence?.anchorDate || dueDate : dueDate },
+      recurrence: repeat === "none" ? undefined : { frequency: repeat, paused: initialTask?.recurrence?.paused, interval: repeat === "weekdays" ? 1 : interval, until: repeatUntil || undefined, anchorDate: dueDate === initialTask?.dueDate?.slice(0, 10) ? initialTask.recurrence?.anchorDate || dueDate : dueDate },
       subtasks: subtasks.length > 0 ? subtasks : undefined,
       link: initialTask?.link || undefined,
     }, editScope);

@@ -225,3 +225,87 @@ const queuedRestore = queueWorkspacePatch(queuedDeletion, { tasks: [{ ...origina
 assert.deepEqual(queuedRestore.deletedTaskIds, []);
 assert.deepEqual(queuedRestore.replaceTaskIds, ['restored-task']);
 assert.equal(queuedRestore.tasks[0].id, 'restored-task');
+
+const { skipTaskOccurrence, setSeriesPaused, isTaskRecurrence } = load('lib/taskRecurrence.ts');
+const skippedTasks = skipTaskOccurrence([originalTask], originalTask.id, '2026-11-17', 10);
+assert.equal(skippedTasks[0].skipped, true); assert.equal(skippedTasks[0].checked, true); assert.equal(skippedTasks[1].skipped, undefined); assert.equal(skippedTasks[1].dueDate, '2026-11-18');
+const pausedTasks = setSeriesPaused([originalTask, historyTask], originalTask.id, true, '2026-11-17', 10);
+assert.equal(pausedTasks[0].recurrence.paused, true); assert.deepEqual(pausedTasks[1], historyTask);
+assert.equal(completeRepeatingTask(pausedTasks, originalTask.id, '2026-11-17', 10).length, 2);
+assert.equal(skipTaskOccurrence(pausedTasks, originalTask.id, '2026-11-17', 10), pausedTasks);
+const completedPaused = completeRepeatingTask([pausedTasks[0]], originalTask.id, '2026-11-17', 10);
+const resumed = setSeriesPaused(completedPaused, originalTask.id, false, '2026-11-20', 11);
+assert.equal(resumed.length, 2); assert.equal(resumed[1].dueDate, '2026-11-21'); assert.equal(resumed[1].recurrence.paused, false); assert.deepEqual(resumed[0], completedPaused[0]);
+assert.equal(isTaskRecurrence({ frequency: 'daily', interval: 1, paused: 'yes' }), false);
+const { paymentCsv } = load('lib/paymentCsv.ts');
+const csv = paymentCsv([{ id: 'csv', date: '2026-11-17', name: '=SUM(1,2)', amount: 199, currency: 'INR' }, { id: 'quotes', date: '2026-11-17', name: 'Music "Family", annual', amount: 2, currency: 'USD' }]);
+assert.ok(csv.startsWith('\uFEFF"Date","Service","Amount","Currency"\r\n'));
+assert.ok(csv.includes('"\'=SUM(1,2)"')); assert.ok(csv.includes('"Music ""Family"", annual"')); assert.ok(csv.includes('"199.00","INR"'));
+const { paymentCalendarEvents } = load('lib/paymentCalendar.ts');
+const calendarPlan = { ...plan, cycle: 'monthly', renewalDate: '2026-01-31' };
+assert.equal(paymentCalendarEvents([calendarPlan], { records: [], deletedIds: [], plan: null }, '2026-02')[0].date, '2026-02-28');
+assert.equal(paymentCalendarEvents([{ ...calendarPlan, cycle: 'quarterly' }], { records: [], deletedIds: [], plan: null }, '2026-02').length, 0);
+assert.equal(paymentCalendarEvents([{ ...calendarPlan, cycle: 'yearly', renewalDate: '2024-02-29' }], { records: [], deletedIds: [], plan: null }, '2025-02')[0].date, '2025-02-28');
+assert.equal(paymentCalendarEvents([{ ...plan, cycle: 'bundled', bundleRechargeId: rechargePlan.id, bundleEndDate: rechargePlan.endDate }], { records: [], deletedIds: [], plan: rechargePlan }, '2027-02').length, 1);
+const { backupWarnings } = load('lib/backupWarnings.ts');
+const clockNow = Date.parse('2026-11-17T12:00:00Z');
+const healthFixture = { checkedAt: '2026-11-17T12:00:00Z', snapshots: { supported: true, reachable: true, latestAt: '2026-11-14T12:00:00Z' }, external: { configured: true, reachable: true, latestAt: '2026-11-17T12:00:00Z' } };
+assert.equal(backupWarnings(healthFixture, clockNow).length, 1);
+assert.match(backupWarnings(healthFixture, clockNow)[0].title, /48 hours/);
+assert.equal(backupWarnings({ ...healthFixture, snapshots: { ...healthFixture.snapshots, latestAt: '2026-11-15T12:00:00Z' } }, clockNow).length, 0);
+assert.match(backupWarnings({ ...healthFixture, external: { ...healthFixture.external, reachable: false } }, clockNow).find(item => item.id.includes('external')).title, /unavailable/);
+const { restoreDeletedRecord } = load('lib/recycleBin.ts');
+const deleted = { id: 'deleted-entry', kind: 'tasks', record: originalTask, deletedAt: '2026-11-17T00:00:00Z' };
+const beforeRestore = { tasks: [extraTask], notes: [{ id: 'cipher', content: 'encrypted' }], recycleBin: [deleted] };
+const restore = restoreDeletedRecord(beforeRestore, deleted.id);
+assert.equal(restore.success, true); assert.deepEqual(restore.data.tasks, [extraTask, originalTask]); assert.deepEqual(restore.data.notes, beforeRestore.notes); assert.equal(beforeRestore.recycleBin.length, 1);
+assert.equal(restoreDeletedRecord({ tasks: [originalTask], recycleBin: [deleted] }, deleted.id).success, false);
+const journalRestore = restoreDeletedRecord({ airtel: { records: [], deletedIds: ['journal-id'], plan: rechargePlan }, recycleBin: [{ ...deleted, kind: 'airtel', journalOnly: true, record: { id: 'journal-id' } }] }, deleted.id);
+assert.deepEqual(journalRestore.data.airtel.deletedIds, []); assert.deepEqual(journalRestore.data.airtel.records, []); assert.deepEqual(journalRestore.data.airtel.plan, rechargePlan);
+async function recycleAuth() {
+ const denied = load('app/api/recycle-bin/route.ts', { 'next/server': { NextResponse: { json: (body, options) => ({ body, options }) } }, '@/lib/auth': { auth: async () => null } });
+ assert.equal((await denied.GET()).options.status, 401); assert.equal((await denied.POST({})).options.status, 401);
+}
+recycleAuth().then(() => console.log('Passed: skip/pause/resume history, safe CSV export, calendar month-end dates and bundles, backup age warnings, and individual record recovery.'), error => { console.error(error); process.exitCode = 1; });
+const standaloneBundle = { ...plan, cycle: 'bundled', bundleEndDate: '2026-11-19' };
+assert.equal(paymentCalendarEvents([standaloneBundle], { records: [], deletedIds: [], plan: null }, '2026-11').length, 1);
+assert.equal(expiryReminders([standaloneBundle], { records: [], deletedIds: [], plan: null }, '2026-11-17').length, 1);
+const { inboxCountLabel, validInboxCount } = load('lib/inboxCount.ts');
+assert.equal(inboxCountLabel([{ connected: false, count: 201 }]), null);
+assert.equal(inboxCountLabel([{ connected: true, count: 0 }]), '0');
+assert.equal(inboxCountLabel([{ connected: true, count: null }]), '—');
+assert.equal(inboxCountLabel([{ connected: true, count: 12 }, { connected: true, count: 3 }]), '15');
+assert.equal(validInboxCount(-1), false); assert.equal(validInboxCount(NaN), false);
+async function inboxRoutes() {
+ let recentOk = true;
+ const dashboardApi = load('app/api/dashboard/route.ts', {
+  'next/server': { NextResponse: { json: (body, options) => ({ body, options }) } }, '@/lib/auth': { auth: async () => ({ user: { email: 'fixture@example.test' } }) },
+  '@/lib/google': { googleFetch: async url => {
+   if (url.includes('newer_than') || url.includes('newer_than%3A')) return { ok: recentOk, json: async () => ({ messages: [], resultSizeEstimate: 201 }) };
+   if (url.includes('/messages?')) return { ok: true, json: async () => ({ messages: [], resultSizeEstimate: 201 }) };
+   return { ok: true, json: async () => ({ items: [], files: [] }) };
+  } },
+ });
+ const result = await dashboardApi.GET();
+ assert.equal(result.body.recentUnreadCount, 0); assert.equal(result.body.unread48hEstimate, 201);
+ recentOk = false; assert.equal((await dashboardApi.GET()).body.recentUnreadCount, null);
+ console.log('Passed: 48-hour unread counts, zero and unavailable states, and separation from Gmail query estimates.');
+}
+inboxRoutes().catch(error => { console.error(error); process.exitCode = 1; });
+async function recentUnreadPagination() {
+ const { countRecentGmailUnread } = load('lib/recentUnread.ts');
+ const urls = [];
+ const counted = await countRecentGmailUnread(async url => {
+  urls.push(url);
+  return { ok: true, json: async () => url.includes('pageToken=next') ? { messages: [{ id: 'second' }, { id: 'first' }] } : { messages: [{ id: 'first' }], nextPageToken: 'next', resultSizeEstimate: 201 } };
+ });
+ assert.equal(counted.count, 2); assert.equal(counted.estimate, 201); assert.ok(urls[0].includes('newer_than%3A2d'));
+ const bounded = await countRecentGmailUnread(async () => ({ ok: true, json: async () => ({ messages: [{ id: 'first' }], nextPageToken: 'more' }) }), 1);
+ assert.equal(bounded.count, null);
+ const failed = await countRecentGmailUnread(async () => ({ ok: false, json: async () => ({}) })); assert.equal(failed.count, null);
+ console.log('Passed: recent unread pagination, ID deduplication, and safe incomplete-count handling.');
+}
+recentUnreadPagination().catch(error => { console.error(error); process.exitCode = 1; });
+
+const endedPausedSeries = [{ ...originalTask, checked: true, recurrence: { frequency: 'daily', interval: 1, paused: true, until: '2026-11-17' } }];
+assert.equal(setSeriesPaused(endedPausedSeries, originalTask.id, false, '2026-11-20', 11), endedPausedSeries);

@@ -14,6 +14,7 @@ export type Task = {
   title: string;
   meta: string;
   checked: boolean;
+  skipped?: boolean;
   priority: boolean;
   category?: "work" | "personal" | "meeting" | "urgent" | "project" | "travel";
   dueDate?: string;
@@ -135,6 +136,7 @@ export type NotificationItem = {
   type: "calendar" | "task" | "mail" | "system";
   read: boolean;
   actionText?: string;
+  openPreferences?: boolean;
   trackerTab?: "airtel" | "subscriptions";
   taskId?: string;
   navTarget?: "Overview" | "Calendar" | "Inbox" | "Tasks" | "Notes" | "Time Audit" | "Trackers";
@@ -186,6 +188,7 @@ export type DashboardData = {
   };
   events: DashboardEvent[];
   unread: DashboardMail[];
+  recentUnreadCount?: number | null;
   unreadEstimate?: number;
   unread48hEstimate?: number | null;
   unread48hStatus?: "ok" | "failed" | "not_queried";

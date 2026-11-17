@@ -188,6 +188,26 @@ When editing a repeating task, choose **Only this occurrence** or **This and fut
 
 **Airtel Recharge → Import Airtel transactions** previews pasted Airtel history or CSV/JSON before saving selected successful payments. Enter your number to exclude other numbers. Duplicates, previously removed import records, failed payments, and unsupported statuses are excluded. Choose main plan or data top-up for each imported payment; the saved current plan is not replaced. CSV begins with `date` and supports `number,amount,status,kind,method,time,notes`; JSON accepts an array with the same keys. Dates accept ISO or day/month/year. Same-date, same-amount, same-status transactions are conservatively treated as duplicates and can be entered manually if they are distinct.
 
+## 📬 Live 48-hour Inbox badge
+
+The desktop/mobile Inbox badge counts unread messages from the **last 48 hours**, matching the app's Gmail query (excluding Promotions/Social) and Outlook Inbox messages received in that window. It counts paginated message IDs instead of substituting Gmail's search estimate, a full-mailbox total, or the size of the loaded preview. It refreshes with account sync/focus. Zero is valid; failed/incomplete pagination shows unavailable (`—`), and the badge is hidden when no account is connected. Count requests are bounded to ten 500-ID pages per provider to avoid unbounded API work; reaching the limit reports unavailable rather than a partial total. Filtered previews and separately labelled estimates are unchanged.
+
+## 🗑️ Recovery, payment dates, and backup alerts
+
+**Recycle Bin** in the desktop/mobile sidebar opens a dedicated workspace page at `/dashboard?tab=recycle-bin`. The same recovery controls remain available in **Database & Sync → Recycle Bin**. It retains individual deleted tasks, notes, habits, custom events, quick links, subscriptions, and recharge records until restored. An additive PostgreSQL trigger captures removals inside the same write transaction; old deletions cannot be reconstructed retroactively. The bin is stored within the account workspace and included in database/external snapshots. It requires Neon Postgres; other storage providers keep their existing save behavior but do not provide this database bin. Ordinary local workspace exports still contain active records only.
+
+Restoring one item checks the exact database row version, refuses existing IDs, preserves unrelated records, and refreshes the workspace without discarding local drafts. Sync/export pending edits first. Restoring a recharge payment does not activate an old plan or purchase anything. Journal-only records are unhidden by removing their tombstone. Undo may leave a historical deletion whose ID is already active; the bin refuses to overwrite it. No permanent-purge action is provided.
+
+**Subscriptions → Payments calendar** shows recorded renewal dates, projected monthly/quarterly/yearly dates, and recharge/bundle expiry. Month-end and leap-year days are clamped from the original renewal anchor. Projections are labelled and never recorded as paid. Linked bundle expiries share one Airtel item, with no assumed recharge price. Select a day to view its entries.
+
+Recurring tasks offer **Skip this occurrence**, **Pause series**, and **Resume series**. Skip records a distinct skipped history entry, does not count it as completed work, and generates the next valid occurrence. Pause affects open tasks in the series and prevents new occurrences when they are completed; resume continues the original cadence and skips missed dates. Completed history is preserved. These actions also offer short-lived Undo.
+
+**Monthly report → Search all payment history → Export rows as CSV** downloads every filtered result, including rows beyond the visible page. CSV uses UTF-8, quoted fields, separate currencies, and formula-like text escaping for spreadsheet safety.
+
+The notification bell and Sync health panel flag missing/unreadable backups and backups older than **48 hours**. Automatic health checks are cached per account/browser for six hours, with a 15-minute retry delay after failures. Opening Sync health or selecting Check now updates the alert cache immediately. These are in-app alerts, not email/push messages. Configuration and schedule checks still matter; a recent timestamp alone does not guarantee a future backup will succeed.
+
+`scripts/verify-recycle-bin.cjs` verifies transactional capture, task/recharge/journal restoration, encrypted-note preservation, stale-version rejection and account isolation using disposable database records. The script also verifies the owner's source workspace remains unchanged.
+
 ## ↩️ Undo, search, and sync health
 
 Task completion/deletion, subscription completion/deletion, and recharge removal offer an **Undo** toast for 15 seconds. Undo reverses only records touched by that action, keeps unrelated later changes, and refuses to replace records that have changed again. Undo also checks the signed-in account. Completing a repeating task and undoing it removes the generated next occurrence only if that occurrence is still unchanged. Tracker restores use the existing revision-checked save path; offline task reversals stay in the pending-save queue. Undo is a short-lived browser action, not permanent trash or a replacement for backups.

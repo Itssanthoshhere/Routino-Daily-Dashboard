@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getOutlookAccount, saveOutlookAccount } from "@/lib/db";
 import {
+  fetchOutlookRecentUnreadCount,
   fetchOutlookEvents,
   fetchOutlookMessages,
   getOutlookRedirectUri,
@@ -65,9 +66,10 @@ export async function GET() {
       }
     }
 
-    const [eventsResult, messagesResult] = await Promise.allSettled([
+    const [eventsResult, messagesResult, inboxCountResult] = await Promise.allSettled([
       fetchOutlookEvents(accessToken),
       fetchOutlookMessages(accessToken),
+      fetchOutlookRecentUnreadCount(accessToken),
     ]);
 
     const eventsOk = eventsResult.status === "fulfilled";
@@ -100,6 +102,7 @@ export async function GET() {
       events,
       unread,
       unreadNextLink: unreadPage.nextLink,
+      recentUnreadCount: inboxCountResult.status === "fulfilled" ? inboxCountResult.value : null,
       syncStatus,
     });
   } catch (error) {
