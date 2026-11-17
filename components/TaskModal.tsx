@@ -12,9 +12,10 @@ type TaskModalProps = {
   onClose: () => void;
   onAddTask: (task: Omit<Task, "id" | "checked" | "createdAt">, scope?: "occurrence" | "future") => void;
   initialTask?: Partial<Omit<Task, "id" | "checked" | "createdAt">> | null;
+  availableTasks?: Task[];
 };
 
-export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = false }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = false, availableTasks = [] }: TaskModalProps) {
   const [editScope, setEditScope] = useState<"occurrence" | "future">("future");
   const [title, setTitle] = useState("");
   const [meta, setMeta] = useState("");
@@ -27,6 +28,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
   const [hasUserPickedCategory, setHasUserPickedCategory] = useState(false);
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [subtaskInput, setSubtaskInput] = useState("");
+  const [dependsOn, setDependsOn] = useState<string[]>((initialTask as Task | null)?.dependsOn || []);
 
   useEffect(() => {
     if (isOpen) {
@@ -52,6 +54,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
         setSubtasks([]);
       }
       setSubtaskInput("");
+      setDependsOn((initialTask as Task | null)?.dependsOn || []);
     }
   }, [isOpen, initialTask]);
 
@@ -107,6 +110,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
       recurrence: repeat === "none" ? undefined : { frequency: repeat, paused: initialTask?.recurrence?.paused, interval: repeat === "weekdays" ? 1 : interval, until: repeatUntil || undefined, anchorDate: dueDate === initialTask?.dueDate?.slice(0, 10) ? initialTask.recurrence?.anchorDate || dueDate : dueDate },
       subtasks: subtasks.length > 0 ? subtasks : undefined,
       link: initialTask?.link || undefined,
+      dependsOn: dependsOn.length ? dependsOn : undefined,
     }, editScope);
 
     setTitle("");
@@ -217,6 +221,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
           </div>
 
           {editing && (initialTask?.recurrence || initialTask?.recurrenceTemplate) && <label className="block text-xs font-semibold">Apply changes to<select className="mt-1 w-full rounded-lg border border-line px-3 py-2" value={editScope} onChange={event => setEditScope(event.target.value as typeof editScope)}><option value="future">This and future occurrences</option><option value="occurrence">Only this occurrence</option></select><span className="mt-1 block font-normal text-muted">Completed history is preserved. Existing future dates and checklist progress stay intact.</span></label>}
+          {availableTasks.filter(task => !task.checked).length > 0 && <label className="block text-xs font-semibold">Blocked until these tasks are complete<select multiple className="mt-1 h-20 w-full rounded-lg border border-line px-3 py-2" value={dependsOn} onChange={event => setDependsOn(Array.from(event.target.selectedOptions, option => option.value))}>{availableTasks.filter(task => !task.checked).map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</select><span className="mt-1 block font-normal text-muted">Dependencies stay attached to the task and are preserved across devices.</span></label>}
           <div className="rounded-xl border border-line bg-white p-3 space-y-3">
             <label className="block text-xs font-semibold">
               Repeat

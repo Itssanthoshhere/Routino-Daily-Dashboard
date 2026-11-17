@@ -1,4 +1,5 @@
 export type Subscription = {
+  cancellationChecklist?: { id: string; label: string; done: boolean }[];
   renewalDecision?: "keep" | "cancel" | "later";
   priceHistory?: { date: string; amount: number; currency: Subscription["currency"]; cycle: Subscription["cycle"] }[];
   bundleRechargeId?: string;

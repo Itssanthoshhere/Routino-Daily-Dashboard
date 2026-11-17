@@ -60,6 +60,10 @@ export function TasksView({
   const [quickCategory, setQuickCategory] = useState<"work" | "personal" | "meeting" | "urgent" | "project" | "travel">("work");
   const [hasUserChangedCategory, setHasUserChangedCategory] = useState(false);
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+  const [savedViews, setSavedViews] = useState<string[]>([]);
+  const [viewName, setViewName] = useState("");
+  useEffect(() => { try { const value = JSON.parse(localStorage.getItem("routino_task_views") || "[]"); if (Array.isArray(value)) setSavedViews(value.filter(item => typeof item === "string")); } catch {} }, []);
+  const saveView = () => { const name = viewName.trim(); if (!name) return; const next = Array.from(new Set([...savedViews, name])).slice(-12); setSavedViews(next); setViewName(""); try { localStorage.setItem("routino_task_views", JSON.stringify(next)); } catch {} };
 
   const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
 
@@ -268,6 +272,8 @@ export function TasksView({
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1"><input aria-label="Saved task view name" value={viewName} onChange={event => setViewName(event.target.value)} placeholder="Save view…" className="w-24 rounded-lg border border-line bg-white px-2 py-1.5 text-[11px]" /><button type="button" onClick={saveView} className="btn-theme rounded-lg border border-line px-2 py-1.5 text-[11px]">Save</button></div>
+          {savedViews.map(view => <button key={view} type="button" onClick={() => { setSearchQuery(view); setSelectedFilter("all"); }} className="btn-theme rounded-xl border border-line bg-white px-3 py-1.5 text-[11px]">{view}</button>)}
           <button
             onClick={() => setSelectedFilter("all")}
             className={`rounded-xl px-3 py-1.5 text-[11px] font-semibold transition cursor-pointer ${
@@ -372,6 +378,7 @@ export function TasksView({
               const completedSubCount = task.subtasks?.filter((s) => s.completed).length || 0;
               const totalSubCount = task.subtasks?.length || 0;
               const isExpanded = expandedTasks[task.id];
+              const blockedBy = (task.dependsOn || []).map(id => tasks.find(item => item.id === id)).filter((item): item is Task => Boolean(item && !item.checked));
               const isFirstCompleted =
                 task.checked && (idx === 0 || !sortedTasks[idx - 1].checked) && selectedFilter !== "completed";
 
@@ -457,6 +464,7 @@ export function TasksView({
                                 : `Due ${task.dueDate}`}
                             </span>
                           )}
+                          {blockedBy.length > 0 && <span className="inline-flex rounded bg-amber-50 px-1.5 py-0.5 text-[8px] font-bold text-amber-800">BLOCKED · {blockedBy.length} dependency{blockedBy.length === 1 ? "" : "ies"}</span>}
                           {hasSubtasks && (
                             <button
                               type="button"

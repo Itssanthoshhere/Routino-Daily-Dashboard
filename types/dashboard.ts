@@ -25,6 +25,7 @@ export type Task = {
   createdAt: number;
   subtasks?: SubTask[];
   link?: string;
+  dependsOn?: string[];
 };
 
 export type Habit = {
