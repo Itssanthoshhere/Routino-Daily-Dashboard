@@ -30,6 +30,8 @@ export type Task = {
 };
 
 export type Habit = {
+  counterStartDate?: string;
+  trackingMode?: "daily" | "days-since";
   id: string;
   name: string;
   streak: number;

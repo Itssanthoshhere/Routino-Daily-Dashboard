@@ -1,4 +1,6 @@
 "use client";
+import { habitCounter } from "@/lib/habitCounter";
+import { useLocalDay } from "@/hooks/useLocalDay";
 
 import { useState } from "react";
 import {
@@ -56,8 +58,9 @@ export function HabitsManagerModal({
   onAddNewHabit,
   onDeleteHabit,
 }: HabitsManagerModalProps) {
+  const counterDate = useLocalDay();
   const [filter, setFilter] = useState<"all" | "completed" | "pending">("all");
-  const todayStr = getLocalDateString();
+  const todayStr = getLocalDateString(counterDate);
 
   if (!isOpen) return null;
 
@@ -231,14 +234,14 @@ export function HabitsManagerModal({
                       </p>
                       <div className="mt-0.5 flex items-center gap-2">
                         <span
-                          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                          className={`inline-flex items-start gap-1.5 rounded px-2 py-1 text-[9px] font-bold ${
                             habit.streak > 0
                               ? "bg-[#fff7ed] text-[#c2410c]"
                               : "bg-[#f1f3ed] text-muted"
                           }`}
                         >
-                          <Flame size={10} className={habit.streak > 0 ? "fill-orange-500 text-orange-500" : ""} />
-                          {habit.streak} {habit.streak === 1 ? "day" : "days"} streak
+                          <Flame size={10} className={`mt-0.5 shrink-0 ${habit.streak > 0 ? "fill-orange-500 text-orange-500" : ""}`} />
+                          <span className="min-w-0 leading-relaxed">{habitCounter(habit, counterDate)}</span>
                         </span>
                         <span className="text-[10px] text-muted">
                           {habit.completedDates.length} total logged

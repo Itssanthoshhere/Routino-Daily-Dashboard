@@ -1,4 +1,6 @@
 "use client";
+import { habitCounter } from "@/lib/habitCounter";
+import { useLocalDay } from "@/hooks/useLocalDay";
 
 import { useState } from "react";
 import {
@@ -60,12 +62,13 @@ export function HabitTracker({
   onUpdateHabit,
   onDeleteHabit,
 }: HabitTrackerProps) {
+  const counterDate = useLocalDay();
   const [showHabitModal, setShowHabitModal] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [showManagerModal, setShowManagerModal] = useState(false);
   const [showWeeklyInsights, setShowWeeklyInsights] = useState(false);
 
-  const todayStr = getLocalDateString();
+  const todayStr = getLocalDateString(counterDate);
 
   // Generate the last 7 days for the weekly mini progress bar
   const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -241,7 +244,7 @@ export function HabitTracker({
 
                   <div className="mt-1 flex items-center gap-1.5">
                     <span
-                      className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] font-bold ${
+                      className={`inline-flex items-start gap-1.5 rounded px-2 py-1 text-[9px] font-bold ${
                         habit.streak > 0
                           ? "bg-[#fff7ed] text-[#c2410c]"
                           : "bg-[#f1f3ed] text-muted"
@@ -249,9 +252,9 @@ export function HabitTracker({
                     >
                       <IconComp
                         size={10}
-                        className={habit.streak > 0 ? "fill-orange-500 text-orange-500" : ""}
+                        className={`mt-0.5 shrink-0 ${habit.streak > 0 ? "fill-orange-500 text-orange-500" : ""}`}
                       />
-                      {habit.streak} {habit.streak === 1 ? "day" : "days"} streak
+                      <span className="min-w-0 leading-relaxed">{habitCounter(habit, counterDate)}</span>
                     </span>
                   </div>
                 </div>
