@@ -1,4 +1,5 @@
 "use client";
+import { taskTags } from "@/lib/taskOrganization";
 
 import { useEffect, useState, useRef } from "react";
 import {
@@ -94,7 +95,7 @@ export function CommandPalette({
   if (!isOpen) return null;
 
   const filteredTasks = tasks.filter((t) =>
-    `${t.title} ${t.meta} ${t.dueDate || ""} ${t.category || ""} ${(t.tags || []).join(" ")} ${t.projectName || ""} ${t.milestone || ""} ${(t.documents || []).map(doc=>doc.name).join(" ")} ${(t.subtasks || []).map(item => item.title).join(" ")}`.toLowerCase().includes(query.toLowerCase())
+    `${t.title} ${t.meta} ${t.dueDate || ""} ${t.category || ""} ${taskTags(t).join(" ")} ${t.projectName || ""} ${t.milestone || ""} ${(t.documents || []).map(doc=>doc.name).join(" ")} ${(t.subtasks || []).map(item => item.title).join(" ")}`.toLowerCase().includes(query.toLowerCase())
   );
   const workspaceResults = searchWorkspace(query, notes, subscriptions, recharges);
   const filteredEvents = events.filter((e) =>

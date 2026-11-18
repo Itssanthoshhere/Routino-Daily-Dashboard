@@ -30,3 +30,9 @@ console.log('Passed: bulk Undo, generated-occurrence Undo, and future-scope meta
 const {snoozeTask}=load('lib/taskSnooze.ts');
 const snoozed=snoozeTask([{...base,inbox:true}],base.id,'2026-11-21','2026-11-19');assert.equal(snoozed[0].inbox,false);assert.equal(validTask(snoozed[0]),true);
 console.log('Passed: scheduling an inbox task leaves the inbox with a valid dated record.');
+const legacyProject={...base,category:'project'},projectBefore=JSON.stringify(legacyProject);
+assert.deepEqual(taskTags(legacyProject),['project','finance']);assert.equal(JSON.stringify(legacyProject),projectBefore);
+assert.deepEqual(taskTags({...base,tags:['project','college'],category:'project'}),['project','college']);
+assert.deepEqual(taskTags({...base,tags:[],projectName:'Spendo'}),['project']);
+assert.deepEqual(taskTags({...base,tags:[],projectName:'  '}),[]);
+console.log('Passed: derived project tags for legacy categories and named groups, explicit tag deduplication, and unchanged source records.');

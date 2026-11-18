@@ -8,9 +8,12 @@ export function normalizeTaskTags(value: string | string[]): string[] {
   const parts = typeof value === "string" ? value.split(/[,\s]+/) : value;
   return Array.from(new Set(parts.map(tag => tag.normalize("NFKC").replace(/^#/, "").trim().toLowerCase()).filter(tag => tagPattern.test(tag)))).slice(0,20);
 }
-export function taskTags(task: Pick<Task,"tags"|"meta">): string[] {
-  return normalizeTaskTags(task.tags || Array.from(task.meta.matchAll(new RegExp("(?:^|\\s)#([\\p{L}\\p{M}\\p{N}_-]+)", "gu")), match=>match[1]));
+export function taskTags(task: Pick<Task,"tags"|"meta"> & Partial<Pick<Task,"category"|"projectName">>): string[] {
+  const tags = normalizeTaskTags(task.tags || Array.from(task.meta.matchAll(new RegExp("(?:^|\\s)#([\\p{L}\\p{M}\\p{N}_-]+)", "gu")), match=>match[1]));
+  // Category/group tags are derived for display and filtering, without rewriting saved tasks.
+  return task.category === "project" || task.projectName?.trim() ? ["project", ...tags.filter(tag=>tag!=="project")] : tags;
 }
+
 export const inTaskInbox = (task: Pick<Task,"inbox"|"dueDate"|"checked"|"skipped">) => task.inbox === true && !task.dueDate && !task.checked && !task.skipped;
 export type TaskBulkAction = { type:"complete" } | { type:"date"; date:string } | { type:"category"; category: NonNullable<Task["category"]> };
 /** Each selected open occurrence changes once. Completed history and unrelated records are retained. */
