@@ -58,11 +58,11 @@ Plan your day, check messages, manage tasks and routines, keep encrypted notes, 
 | Area | What it includes | Data source |
 | --- | --- | --- |
 | **Daily overview** | Schedule, priorities, habits, weather, focus timer, quick links, and printable Daily Desk Sheet | Connected services and account workspace |
-| **Calendar** | Today/week views, overlap warnings, calendar health, custom events, and explicit Google event colorization | Google Calendar, Outlook, and saved custom events |
+| **Calendar** | Today/week views, overlap warnings, focus-slot finder, Google focus scheduling/edit/delete with Undo, meeting-note creation, and colorization | Google Calendar, read-only Outlook, and saved custom events |
 | **Inbox** | Mail previews, pagination, triage, email-to-task review, and a live unread badge for the last 48 hours | Read-only Gmail and Outlook |
 | **Tasks and routines** | Editable tasks, subtasks, repeating schedules, snooze, skip, pause/resume, and activity history | Account workspace |
 | **Notes** | Browser-side encryption with Web Crypto before persistence | Encrypted account records; your passphrase is required |
-| **Focus tools** | Timer, synthesized ambient audio, keyboard shortcuts, command palette, and quick capture | Workspace settings and browser |
+| **Focus tools** | Timer, synthesized ambient audio, focus-slot finder, keyboard shortcuts, command palette, and voice Quick Capture | Workspace settings, browser speech support, and Google Calendar |
 | **Drive files** | Recent file names, types, timestamps, and links | Google Drive metadata only; no file contents |
 | **Subscription Manager** | Active-first plans, status filters, payment history, total expense, payment calendar, and monthly reports | Journal imports and editable account records |
 | **Airtel Recharge** | Separate recharge history, main plans/top-ups, current validity, allowances, and selected benefits | Journal records and manual/imported account records |
@@ -72,6 +72,22 @@ Plan your day, check messages, manage tasks and routines, keep encrypted notes, 
 | **Time audit** | Calendar categorization and spreadsheet reports | Optional Google Apps Script |
 
 The responsive interface includes desktop/mobile navigation, accessible dialogs, print layouts, and consistent crimson hover and keyboard-focus states. Preview records are fictional.
+
+## 📅 Focus scheduling and meeting notes
+
+**Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability.
+
+Select an unfinished task to create a focus event in your primary Google Calendar. The app waits for Google’s response, shows errors, and keeps a linked workspace copy. Focus events can be rescheduled or deleted from their details. **Undo** checks the account and newer edits; restoring a deleted future Google event creates a new event/link. Outlook remains read-only. No automatic purchase, booking, or invitation workflow is implied.
+
+**Create Meeting Note** prepares a saved Routino note with the title, available start/end and attendees, calendar link, and sections for notes, decisions, and action items. This is a template, not an automatic transcript or AI meeting summary. Existing event-linked notes reopen rather than duplicating. Unfinished checklist items in unencrypted meeting notes can become tasks; persistent action keys prevent duplicate conversion after task metadata edits. These are Routino notes, not writes to Google Keep.
+
+## 🎙️ Voice capture and reading lists
+
+Open **Q → microphone** to dictate into Task, Note, or Scratchpad, then review/edit the transcript before saving. Native browser speech recognition requires microphone permission and browser support. It may process audio through an online browser speech service; offline or entirely local recognition is not guaranteed. No separate speech API key is configured.
+
+**Tech radar · Read later** complements Quick Links with a developer-link reading list, read/unread state, title/URL editing, and confirmed deletion. Removing an item also removes its shared Quick Link. Reading-time estimates use optional article text supplied through Edit (200 words/minute); the app does not fetch article contents. Read-state updates use the existing workspace sync path.
+
+Daily habits retain their completion history and streaks. Optional elapsed-day counters use a saved start date or last completion date and refresh at local midnight and when the tab resumes. Elapsed days do not fabricate daily completions or increase the streak; tick each day to extend a daily streak.
 
 ## 🔎 Global workspace search
 
@@ -125,6 +141,10 @@ The **Total expense** dialog separates recorded payments from monthly/yearly pro
 
 **Price history:** creating a subscription records its current rate; changing amount, currency, or billing cycle appends a dated rate. Existing records establish their previous rate when first changed, without assuming a historical effective date. The latest 500 entries remain with the subscription. Compare rate changes in the expanded history and actual paid spending in Monthly report. Rates do not create payment receipts or alter past expenses; comparisons stay within matching currencies and cycles.
 
+**Planning and usage:** monthly/annual equivalents and category totals keep currencies separate. The upcoming-payment timeline covers three calendar months and labels projections and access expiries. Comparable recorded price increases are highlighted. **Used recently** records the date you confirm usage; it does not monitor provider activity. Status changes saved through Edit append dated history, without reconstructing earlier pauses.
+
+Optional trial-end and cancellation deadlines guide **Add Google Calendar alert** and **Add review task**. Choose 1, 3, or 7 days before the deadline (default 3). A passed Calendar alert time moves to 15 minutes from now with a notice. Saved reminder dates prevent ordinary repeated clicks for the same date; changing a deadline or lead time does not automatically update an already-created reminder. Provider cancellation still requires your action.
+
 ### Airtel Recharge
 
 The dedicated tracker separates main plans from data top-ups and keeps payment dates distinct from activation/validity dates. Saved plans can include allowances and benefits you actually use. Included subscriptions link to the recharge payment; one-time upgrades remain separate from recurring charges. Failed attempts and other-number transactions are excluded from spending totals.
@@ -164,7 +184,7 @@ Task completion/deletion, recurring-task actions, subscription completion/deleti
 
 | Integration | Access | Behavior |
 | --- | --- | --- |
-| Google Calendar | Read events; `calendar.events` for explicit auto-colorization | Event colors change only when the user runs colorization. |
+| Google Calendar | Read events; `calendar.events` for focus scheduling, focus edit/delete, renewal review events, and colorization | Explicit scheduling actions write to the primary calendar. Calendar view also runs session-based colorization when connected. |
 | Gmail | Read-only message access | No sending, archiving, labelling, or deleting mail. |
 | Google Drive | `drive.metadata.readonly` | File metadata and links only. |
 | Microsoft Outlook | Delegated `User.Read`, `Mail.Read`, `Calendars.Read` | Read-only profile, mail, and calendar access via Microsoft Graph. |
@@ -225,6 +245,16 @@ Only intentionally public branding/service settings use `NEXT_PUBLIC_`. Never us
 
 ## 🔐 Sync, backups, and health
 
+### 📲 Installable app and offline workspace
+
+The production app provides `/manifest.webmanifest`, PNG icons, and a service worker for supported browser installation. Use the same production URL and signed-in account as your browser workspace. Installation availability and window appearance depend on the browser and operating system; iOS installation uses Safari’s Add to Home Screen flow. A separate origin such as localhost has separate device storage.
+
+Visit online first and check **Sync Center → App shell ready offline**. The worker caches the dashboard shell and its required static assets; root and dashboard navigations can fall back to that shell offline. Required chunks retry; a missing required chunk blocks the new worker so the prior worker remains available. Optional asset failures are tolerated. API/authentication responses are excluded from caching. A waiting worker offers **Update & reload**.
+
+Tasks, notes, habits, and generated ambient sounds can use the locally saved workspace while offline. Locked notes still require their passphrase. Core edits queue under the last verified account and retry after authenticated reconnect; database sync does not require a successful Google Calendar/Gmail request. Google/Outlook APIs, speech services, and external links may remain unavailable offline. Tracker conflict/revision handling remains separate. Local storage can be cleared or evicted by the browser, so keep backups.
+
+**Sync Center** in the header shows pending core sections, last successful save, storage estimates, offline-shell readiness, Retry sync, and a shortcut to backup preferences. A cached shell is not proof that every record has synced; verify the pending queue and account save status.
+
 ### Saved workspace and conflicts
 
 Core workspace records refresh every 30 seconds and on browser focus. Pending edits are merged before refresh; older reads cannot replace newer edits. Empty saved arrays remain empty rather than being reseeded with demos.
@@ -267,10 +297,13 @@ npm run dev                         # local development
 npm run lint                        # TypeScript check
 node scripts/test-trackers.cjs       # tracker regression checks
 node scripts/test-workspace-features.cjs # search, history, and reminder checks
+node scripts/test-review-fixes.cjs     # timing, action identity, and habit counter regressions
 npm run build                       # production build
 ```
 
 If the environment blocks Turbopack's local process, use `npx next build --webpack` for production-build verification.
+
+To check PWA assets and simulated cache fallback, start the production build on port 3100 (`npm run start -- --port 3100`) and run `node scripts/test-pwa.cjs`. This checks manifest/icon output, precached assets, root/dashboard offline fallback, and API cache exclusion; it does not simulate installation on every operating system. Service workers are registered only in production mode.
 
 These integration checks require configured private storage and perform writes:
 

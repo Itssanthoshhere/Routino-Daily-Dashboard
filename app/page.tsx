@@ -355,7 +355,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-[19px] font-bold text-ink">Deep Work Focus Suite & Ambient Audio</h3>
               <p className="mt-2 text-[13.5px] text-muted leading-relaxed">
-                Integrated Pomodoro focus blocks (25m, 45m, 60m, 90m) coupled with pure Web Audio API ambient synthesis. Generate gentle rain, ocean swells, and brown noise with zero external audio files, network latency, or buffering.
+                Use preset or custom focus timers with browser-generated rain, waves, and noise. Find 25, 45, 60, or 90-minute gaps in your loaded calendars and schedule a task as a Google Calendar focus session.
               </p>
               <ul className="mt-4 space-y-2 text-[12.5px] text-[#3f4a41]">
                 <li className="flex items-center gap-2">
@@ -387,12 +387,12 @@ export default function LandingPage() {
               </div>
               <h3 className="text-[19px] font-bold text-ink">Unified Day Planner & Smart Time Audit</h3>
               <p className="mt-2 text-[13.5px] text-muted leading-relaxed">
-                Connect your Google Calendar and Microsoft Outlook schedules into a single pane. The automated colorization engine categorizes coding, meetings, and personal tasks, generating daily time audit analytics.
+                Bring Google Calendar and Microsoft Outlook schedules into one view, find focus time, and review overlaps. Reschedule or delete Google focus sessions with guarded Undo, or create a meeting note with action items you can turn into tasks.
               </p>
               <ul className="mt-4 space-y-2 text-[12.5px] text-[#3f4a41]">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 size={14} className="text-forest" />
-                  <span>Bi-directional Google & Microsoft 365 Outlook integration</span>
+                  <span>Google focus-event creation and updates; read-only Outlook calendars</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 size={14} className="text-forest" />
@@ -419,12 +419,12 @@ export default function LandingPage() {
               </div>
               <h3 className="text-[19px] font-bold text-ink">Zero-Knowledge Encrypted Keep Vault</h3>
               <p className="mt-2 text-[13.5px] text-muted leading-relaxed">
-                Keep notes, private reflections, and credentials secure with master PIN-based zero-knowledge encryption. Derives keys client-side via PBKDF2 (100,000 rounds) and seals content with military-grade AES-256-GCM.
+                Write editable notes and checklists, or enable browser-side encryption for private entries. Encrypted notes use PBKDF2 key derivation and AES-256-GCM before they are saved.
               </p>
               <ul className="mt-4 space-y-2 text-[12.5px] text-[#3f4a41]">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 size={14} className="text-forest" />
-                  <span>Client-side encryption: unencrypted content never touches servers</span>
+                  <span>Encryption is optional per note; locked note content stays out of search</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 size={14} className="text-forest" />
@@ -451,29 +451,41 @@ export default function LandingPage() {
               </div>
               <h3 className="text-[19px] font-bold text-ink">Multi-Stream Trackers Hub</h3>
               <p className="mt-2 text-[13.5px] text-muted leading-relaxed">
-                Executive pulse across utility sub-meters, account tokens, personal budget burn-down, and active career applications. Includes real-time 30-day electricity forecasting and 1-click candidate briefs.
+                Track subscriptions, Airtel recharges, utilities, budgets, and career applications. Separate actual payments from monthly projections, keep currencies separate, and avoid counting bundled benefits twice.
               </p>
               <ul className="mt-4 space-y-2 text-[12.5px] text-[#3f4a41]">
                 <li className="flex items-center gap-2">
                   <CheckCircle2 size={14} className="text-forest" />
-                  <span>Antigravity Tokens: 6 Chrome profiles with 1-click Copy Next Ready</span>
+                  <span>Subscription categories, price changes, and an upcoming-payment timeline</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 size={14} className="text-forest" />
-                  <span>EB Electricity Meter: daily burn velocity (~1.9 u/day) & 50/50 split</span>
+                  <span>Trial and cancellation dates, with 1-, 3-, or 7-day advance review alerts</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 size={14} className="text-forest" />
-                  <span>Career Hub: 31+ applications with Smart Link Extractor & 1-Click Copy</span>
+                  <span>Recorded usage and status history alongside preserved payment records</span>
                 </li>
               </ul>
             </div>
             <div className="mt-6 pt-4 border-t border-line/70">
               <a href="#trackers" className="text-[12px] font-bold text-forest hover:underline">
-                Explore all 7 specialized trackers ↓
+                Explore the Trackers Hub ↓
               </a>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="max-w-7xl mx-auto px-4 pb-16 sm:px-6 lg:px-8" aria-labelledby="workspace-updates-title">
+        <h2 id="workspace-updates-title" className="mb-6 text-2xl font-bold text-ink">More ways to keep your day together</h2>
+        <div className="grid gap-6 md:grid-cols-2">
+          {[
+            { title: "Install Routino & work offline", text: "Install from a supported browser for a dedicated app window. After the production shell is cached, open locally saved workspace records offline. Google services need a connection; queued core edits retry after authenticated reconnect." },
+            { title: "Voice Quick Capture", text: "Press Q, choose Task, Note, or Scratchpad, and use the microphone button to dictate. Review and edit the transcript before saving. Browser support varies, and speech recognition may use your browser’s online speech service." },
+            { title: "Tech radar & Read Later", text: "Developer quick links appear in a reading list with editing, deletion, and read-state tracking. Paste article text to estimate reading time. Read-state changes save with your account workspace." },
+            { title: "Sync Center & daily counters", text: "Check pending core workspace sections, last save, device storage, offline-shell readiness, and backup preferences from Sync Center. Habits can show daily streaks alongside elapsed-day counters that refresh at midnight." },
+          ].map(feature => <article key={feature.title} className="rounded-3xl border border-line bg-white p-7 shadow-card"><h3 className="text-lg font-bold text-ink">{feature.title}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{feature.text}</p></article>)}
         </div>
       </section>
 
@@ -622,7 +634,7 @@ export default function LandingPage() {
               </div>
 
               <div className="mt-4 pt-3 border-t border-[#f0f2eb] flex items-center justify-between text-[11px] text-muted">
-                <span>Integrated directly into Trackers Hub Tab 2</span>
+                <span>Available in Trackers → PG Electricity (EB)</span>
                 <Link href="/dashboard" className="font-bold text-forest hover:underline">
                   Open in Workspace →
                 </Link>
@@ -653,7 +665,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-[17px] font-bold text-ink">Connect or Run Offline</h3>
             <p className="mt-2 text-[13px] text-muted leading-relaxed">
-              Connect Google Calendar and Microsoft Outlook in one click via Auth.js, or launch in 100% offline Preview Mode with pre-populated seed data.
+              Explore fictional preview records without connecting an account. Sign in for cloud sync and calendar integrations. Offline launch requires an earlier online visit and a successfully cached production app shell.
             </p>
           </div>
 
@@ -677,7 +689,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-[17px] font-bold text-ink">Track Lifetime Operations</h3>
             <p className="mt-2 text-[13px] text-muted leading-relaxed">
-              Monitor 6-profile Antigravity token cooldowns, electricity consumption burn rates, multi-year expenses, and career interview pipelines.
+              Review configured token cooldowns, electricity consumption, recorded expenses, subscription renewals, and career pipelines.
             </p>
           </div>
         </div>
@@ -689,10 +701,10 @@ export default function LandingPage() {
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="text-[11px] font-bold uppercase tracking-widest text-forest">Command Center</span>
             <h2 className="mt-2 text-[28px] sm:text-[36px] font-extrabold text-ink tracking-tight">
-              7 Specialized Engines in the Trackers Hub
+              Your Specialized Trackers Hub
             </h2>
             <p className="mt-3 text-[15px] text-muted">
-              Unified operational visibility synchronized seamlessly with Google Sheets or self-contained locally.
+            Account-saved subscriptions and recharges alongside optional Google Sheets trackers and clearly labelled preview records.
             </p>
           </div>
 
@@ -704,7 +716,7 @@ export default function LandingPage() {
                 <h4 className="text-[15px] font-bold text-ink">Antigravity Token Management</h4>
               </div>
               <p className="text-[12.5px] text-muted leading-relaxed">
-                Tracks 36 account tokens across 6 Chrome profiles with real-time countdowns, profile filters, and a 1-click &ldquo;Copy Next Ready&rdquo; button with clipboard feedback.
+                Review configured account-token profiles with readiness countdowns, filters, and a &ldquo;Copy Next Ready&rdquo; button with clipboard feedback.
               </p>
               <div className="mt-3 text-[11px] font-bold text-forest">Shortcut: 6 → Tokens Tab</div>
             </div>
@@ -716,7 +728,7 @@ export default function LandingPage() {
                 <h4 className="text-[15px] font-bold text-ink">PG Electricity (EB) Meter</h4>
               </div>
               <p className="text-[12.5px] text-muted leading-relaxed">
-                Sub-meter loggers, daily burn velocity (~1.92 u/day), automated 50/50 roommate cost splitting, and month-end settlement forecasts with quick logger modal.
+                Log sub-meter readings, calculate daily consumption from recorded data, and review shared-cost estimates and month-end settlement forecasts.
               </p>
               <div className="mt-3 text-[11px] font-bold text-forest">Shortcut: 6 → EB Tab</div>
             </div>
@@ -780,10 +792,10 @@ export default function LandingPage() {
               Zero-Knowledge Security Architecture
             </span>
             <h2 className="mt-4 text-[28px] sm:text-[36px] font-extrabold tracking-tight">
-              Your notes and data never leave your control unencrypted.
+              Choose browser-side encryption for private notes.
             </h2>
             <p className="mt-3 text-[14.5px] text-[#cbd5e1] leading-relaxed">
-              Routino is built on strict local-first security principles. When using the Keep Notes vault, keys are derived entirely within your client browser using Web Crypto API. We never see your PIN, password, or unencrypted text.
+              Encrypted note keys are derived within your browser using Web Crypto. Unencrypted notes and other workspace records use ordinary authenticated database storage. Voice capture is handled by your browser and may use its speech service.
             </p>
 
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-[12.5px]">
@@ -839,15 +851,15 @@ export default function LandingPage() {
           {[
             {
               q: "Can I use Routino without signing into Google or Microsoft?",
-              a: "Yes! Routino functions 100% out of the box in standalone Preview Mode with full access to focus timers, ambient audio synthesis, habits, encrypted notes, and seeded multi-stream trackers.",
+              a: "Yes. Preview mode provides fictional examples and local focus, note, and habit tools. Cross-device sync requires a signed-in account and configured storage. Offline launch requires the production shell to have been cached during an earlier online visit.",
             },
             {
               q: "How does the Live Google Sheets synchronization work?",
-              a: "Routino connects to your Google Sheet via secure read-only GViz endpoints or environment-configured spreadsheet IDs. It features smart zero-refresh sync: whenever you refocus your browser tab or switch views, it checks for fresh rows automatically.",
+              a: "The optional tracker adapter reads an environment-configured, link-readable Google Sheet through GViz. It is not a private OAuth Sheets connection: anyone with the sheet URL may be able to read it. Use the account database for private subscription and recharge records.",
             },
             {
               q: "Can anyone read my encrypted notes?",
-              a: "No. Your master PIN is never sent to any server. It is hashed client-side with PBKDF2 (100,000 iterations) to generate an AES-256 encryption key. Without your master PIN, your notes cannot be decrypted by anyone.",
+              a: "Notes you explicitly encrypt are protected in your browser using a key derived from your passphrase; the passphrase is not sent to the server. Ordinary notes are saved without this extra encryption. Choose a strong passphrase and keep it safe: encrypted content needs it to unlock.",
             },
             {
               q: "Are the ambient sounds streaming from an external music server?",
@@ -937,7 +949,7 @@ export default function LandingPage() {
 
           <div className="flex items-center gap-2 text-[11px] text-[#047857]">
             <span className="h-2 w-2 rounded-full bg-[#10b981] animate-pulse" />
-            <span>All Systems Operational</span>
+            <span>Built for your daily flow</span>
           </div>
         </div>
       </footer>
