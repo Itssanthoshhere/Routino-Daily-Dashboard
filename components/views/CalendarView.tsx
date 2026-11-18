@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import {
   CalendarDays,
   Clock,
@@ -28,6 +28,7 @@ import { connectGoogle } from "@/app/actions";
 import { getMeetingUrl, findScheduleConflicts, isBananaYellowColor } from "@/lib/meeting";
 
 type CalendarViewProps = {
+  account: string | null;
   events: DashboardEvent[];
   onOpenAddEvent: () => void;
   onSelectEvent: (event: DashboardEvent) => void;
@@ -40,6 +41,7 @@ type CalendarViewProps = {
 const hues = ["#7b8df4", "#e7a15a", "#5fa77d", "#d16b5b"];
 
 export function CalendarView({
+  account,
   events,
   onOpenAddEvent,
   onSelectEvent,
@@ -82,6 +84,33 @@ export function CalendarView({
   }, [weekOffset, todayDate]);
 
   const selectedDate = days[selectedDayIndex]?.dateObj || todayDate;
+  const preferenceKey = account ? `routino_calendar_view:${account.toLowerCase()}` : null;
+  const [restoredKey, setRestoredKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setWeekOffset(0);
+    setSelectedDayIndex(0);
+    setViewMode("day");
+    setSelectedTag("ALL");
+    if (!preferenceKey) { setRestoredKey(null); return; }
+    try {
+      const saved = JSON.parse(localStorage.getItem(preferenceKey) || "null");
+      const position = saved && calendarJumpPosition(saved.date, todayDate);
+      if (position) {
+        setWeekOffset(position.weekOffset);
+        setSelectedDayIndex(position.dayIndex);
+        setViewMode(saved.viewMode === "week" ? "week" : "day");
+        if (["ALL", "ENTERTAINMENT", "GAMING", "MEAL", "ROUTINE", "TYPING", "PROJECT", "TRAVEL", "BANANA", "WORK", "MEETING", "PERSONAL", "OUTLOOK"].includes(saved.tag)) setSelectedTag(saved.tag);
+      }
+    } catch { /* Unavailable or invalid preferences leave the default view intact. */ }
+    setRestoredKey(preferenceKey);
+  }, [preferenceKey, todayDate]);
+
+  useEffect(() => {
+    if (!preferenceKey || restoredKey !== preferenceKey) return;
+    const date = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
+    try { localStorage.setItem(preferenceKey, JSON.stringify({ date, viewMode, tag: selectedTag })); } catch { /* Navigation still works when browser storage is unavailable. */ }
+  }, [preferenceKey, restoredKey, selectedDate, viewMode, selectedTag]);
 
   // Filter events for selected day
   const dayEvents = useMemo(() => {

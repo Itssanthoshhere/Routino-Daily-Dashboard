@@ -77,7 +77,7 @@ The responsive interface includes desktop/mobile navigation, accessible dialogs,
 
 **Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability.
 
-**Jump to date** beside the calendar arrows opens the selected day and its seven-day strip. **Today** returns to the current day. Navigation uses loaded events and does not modify saved records.
+**Jump to date** beside the calendar arrows opens the selected day and its seven-day strip. **Today** returns to the current day. Navigation uses loaded events and does not modify saved records. Calendar remembers the selected date, day/week view, and category per signed-in account in this browser, including after reload. These display preferences are local to the device; search text is not remembered.
 
 **Calendar search** is one field above the calendar. Search titles, dates (for example `18 Nov 2026` or `2026-11-18`), or categories such as Entertainment across all loaded Google, Outlook, and saved events, beyond the selected week. Terms combine, so `Entertainment 2026-11-18` narrows both category and date. Results open existing event Details; clearing search restores your calendar view. Search is local and read-only; full calendar history outside the loaded range is not searched.
 
