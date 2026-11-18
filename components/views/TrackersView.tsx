@@ -49,6 +49,7 @@ import { subscriptionsFromJournals } from "@/lib/subscriptionJournal";
 import { AirtelRenewal } from "@/components/AirtelRenewal";
 import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
 import { SubscriptionManager } from "@/components/SubscriptionManager";
+import { AssetServiceHistory } from "@/components/AssetServiceHistory";
 import { AssetWarranty } from "@/components/AssetWarranty";
 import type { AssetRecords } from "@/types/assets";
 import { RecordDocuments } from "@/components/SubscriptionDocuments";
@@ -2772,6 +2773,8 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
                       {onAssetDocumentsChange && <RecordDocuments recordName={`${p.product} ${p.model}`} documents={assetDocuments[assetDocumentKey(p)] || []} disabled={!!subscriptionsDisabled} onChange={documents => onAssetDocumentsChange({ ...assetDocuments, [assetDocumentKey(p)]: documents })} />}
 
                       {onAssetRecordsChange && <AssetWarranty record={assetRecords[assetDocumentKey(p)] || {}} disabled={!!subscriptionsDisabled} onChange={record => onAssetRecordsChange({ ...assetRecords, [assetDocumentKey(p)]: record })} onReminder={onAssetWarrantyReminder ? date => onAssetWarrantyReminder(assetDocumentKey(p), p.product, date) : undefined} />}
+
+                      {onAssetRecordsChange && <AssetServiceHistory record={assetRecords[assetDocumentKey(p)] || {}} disabled={!!subscriptionsDisabled} onChange={record => onAssetRecordsChange({ ...assetRecords, [assetDocumentKey(p)]: record })} />}
 
                       {/* Warranty & Lifecycle Badge */}
                       <div className="mt-3">
