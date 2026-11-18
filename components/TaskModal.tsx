@@ -6,6 +6,9 @@ import { Task, SubTask } from "@/types/dashboard";
 import type { TaskRecurrence } from "@/lib/taskRecurrence";
 import { taskDueDay, rescheduleTaskDate } from "@/lib/taskDates";
 import { builtInTaskTemplates, templateSubtasks, type TaskTemplate } from "@/lib/taskTemplates";
+import { normalizeTaskTags, taskTags } from "@/lib/taskOrganization";
+import { RecordDocuments } from "@/components/SubscriptionDocuments";
+import type { SavedDocument } from "@/types/documents";
 import { inferTaskCategory } from "@/lib/meeting";
 
 type TaskModalProps = {
@@ -20,6 +23,14 @@ type TaskModalProps = {
 };
 
 export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = false, availableTasks = [], templates = [], onTemplatesChange }: TaskModalProps) {
+  const [organizationError, setOrganizationError] = useState("");
+  const [documentSession, setDocumentSession] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [inbox, setInbox] = useState(false);
+  const [tags, setTags] = useState("");
+  const [projectName, setProjectName] = useState("");
+  const [milestone, setMilestone] = useState("");
+  const [documents, setDocuments] = useState<SavedDocument[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [templateMessage, setTemplateMessage] = useState("");
   const [editScope, setEditScope] = useState<"occurrence" | "future">("future");
@@ -38,6 +49,11 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
 
   useEffect(() => {
     if (isOpen) {
+      setOrganizationError("");
+      setUploading(false); setDocumentSession(session=>session+1);
+      setInbox(initialTask?.inbox || false);
+      setTags(initialTask ? taskTags({meta:initialTask.meta || "",tags:initialTask.tags}).join(", ") : "");
+      setProjectName(initialTask?.projectName || ""); setMilestone(initialTask?.milestone || ""); setDocuments(initialTask?.documents || []);
       setEditScope("future"); setSelectedTemplate(""); setTemplateMessage("");
       setRepeat(initialTask?.recurrence?.frequency || "none");
       setRepeatInterval(String(initialTask?.recurrence?.interval || 1));
@@ -93,7 +109,10 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || uploading) return;
+    const tagTokens=tags.split(/[,\s]+/).filter(Boolean);
+    const normalizedTokens=tagTokens.map(tag=>normalizeTaskTags([tag])[0]);
+    if(normalizedTokens.some(tag=>!tag)||new Set(normalizedTokens).size>20){setOrganizationError("Use up to 20 tags with letters, numbers, hyphens, or underscores. Separate them with commas or spaces.");return;}
     const interval = Number(repeatInterval);
     if (repeat !== "none" && repeat !== "weekdays" && (!Number.isInteger(interval) || interval < 1 || interval > 365)) return;
 
@@ -101,7 +120,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
     const catLabel = finalCategory === "project" ? "Project" : finalCategory === "travel" ? "Travel" : finalCategory.charAt(0).toUpperCase() + finalCategory.slice(1);
 
     const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
-    let defaultMeta = `Today · ${catLabel}`;
+    let defaultMeta = `${inbox ? "Inbox" : "Today"} · ${catLabel}`;
     if (dueDate) {
       if (dueDate === todayStr) defaultMeta = `Due Today · ${catLabel}`;
       else defaultMeta = `Due ${dueDate} · ${catLabel}`;
@@ -109,6 +128,11 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
 
     onAddTask({
       title: title.trim(),
+      inbox: inbox && !dueDate,
+      tags: normalizeTaskTags(tags),
+      projectName: projectName.trim() || undefined,
+      milestone: projectName.trim() ? milestone.trim() || undefined : undefined,
+      documents,
       meta: meta.trim() || defaultMeta,
       priority,
       category: finalCategory,
@@ -152,7 +176,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        <form id="task-editor-form" onSubmit={handleSubmit} className="mt-5 space-y-4">
           {!editing && <div className="rounded-xl border border-line bg-white p-3 text-xs"><label>Start from a template<select aria-label="Task template" className="mt-1 w-full rounded-lg border border-line p-2" value={selectedTemplate} onChange={event => { const id = event.target.value; setSelectedTemplate(id); const template = [...builtInTaskTemplates,...templates].find(item=>item.id===id); if (!template) return; setTitle(template.title); setCategory(template.category); setPriority(template.priority); setSubtasks(templateSubtasks(template)); setHasUserPickedCategory(true); setTemplateMessage("Template applied. Review your deadline and repeat settings before adding."); }}><option value="">Choose a template</option>{[...builtInTaskTemplates,...templates].map(template=><option key={template.id} value={template.id}>{template.name}</option>)}</select></label><p className="mt-1 text-muted">Templates fill title, category, priority, and a fresh checklist. Dates and completed history are not copied.</p>{onTemplatesChange && <div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={!title.trim() || templates.length>=100} className="btn-theme rounded border border-line p-2" onClick={()=>{onTemplatesChange([...templates,{id:crypto.randomUUID(),name:title.trim(),title:title.trim(),category,priority,steps:subtasks.map(step=>step.title)}]);setTemplateMessage("Template saved to your workspace.");}}>Save current task as template</button>{templates.some(template=>template.id===selectedTemplate) && <button type="button" className="btn-theme rounded border border-line p-2" onClick={()=>{onTemplatesChange(templates.filter(template=>template.id!==selectedTemplate));setSelectedTemplate("");setTemplateMessage("Template removed. Existing tasks are unchanged.");}}>Remove saved template</button>}</div>}{templateMessage && <p role="status" className="mt-2 text-muted">{templateMessage}</p>}</div>}
           <div>
             <label className="block text-[11px] font-semibold text-ink">Task Title</label>
@@ -167,6 +191,14 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
             />
           </div>
 
+          <div className="space-y-3 rounded-xl border border-line bg-white p-3 text-xs">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={inbox} onChange={event => { setInbox(event.target.checked); if(event.target.checked){setDueDate("");setRepeat("none");} }} />Keep in Task inbox (no deadline)</label>
+            <label className="block">Tags<input aria-label="Task tags" maxLength={900} className="mt-1 w-full rounded-lg border border-line p-2" placeholder="finance, college, family" value={tags} onChange={event=>{setTags(event.target.value);setOrganizationError("");}} /></label><p className="text-muted">Up to 20 tags; separate with commas or spaces.</p>
+            <label className="block">Project group<input aria-label="Project group" list="task-project-options" maxLength={100} className="mt-1 w-full rounded-lg border border-line p-2" placeholder="Optional project name" value={projectName} onChange={event=>setProjectName(event.target.value)} /></label>
+            <datalist id="task-project-options">{Array.from(new Set(availableTasks.map(task=>task.projectName).filter(Boolean))).map(name=><option key={name} value={name} />)}</datalist>
+            <label className="block">Milestone<input aria-label="Project milestone" maxLength={100} disabled={!projectName.trim()} className="mt-1 w-full rounded-lg border border-line p-2 disabled:opacity-40" placeholder="Optional milestone name" value={milestone} onChange={event=>setMilestone(event.target.value)} /></label>
+            {organizationError && <p role="alert" className="text-red-700">{organizationError}</p>}
+          </div>
           <div>
             <label className="block text-[11px] font-semibold text-ink">Context / Timing</label>
             <input
@@ -237,6 +269,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
                 value={repeat}
                 onChange={event => {
                   setRepeat(event.target.value as typeof repeat);
+                  if (event.target.value !== "none") setInbox(false);
                   if (!dueDate && event.target.value !== "none") setDueDate(new Intl.DateTimeFormat("en-CA").format(new Date()));
                 }}
               >
@@ -278,7 +311,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
               {dueDate && (
                 <button
                   type="button"
-                  onClick={() => setDueDate("")}
+                  onClick={() => { setInbox(false); setDueDate(""); }}
                   className="btn-theme-quiet text-[10px] text-muted hover:text-[#b91c1c] transition cursor-pointer"
                 >
                   Clear date
@@ -290,7 +323,8 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
                 type="date"
                 required={repeat !== "none"}
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onInput={event=>{setDueDate(event.currentTarget.value);if(event.currentTarget.value)setInbox(false);}}
+                onChange={(e) => { setDueDate(e.target.value); if(e.target.value) setInbox(false); }}
                 className="flex-1 rounded-xl border border-line bg-white px-3 py-2 text-[12px] text-ink outline-none focus:border-forest"
               />
               <div className="flex items-center gap-1">
@@ -298,7 +332,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
                   type="button"
                   onClick={() => {
                     const today = new Intl.DateTimeFormat("en-CA").format(new Date());
-                    setDueDate(today);
+                    setDueDate(today); setInbox(false);
                   }}
                   className={`rounded-lg px-2 py-1.5 text-[10.5px] font-semibold transition cursor-pointer ${
                     dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
@@ -312,7 +346,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
                   type="button"
                   onClick={() => {
                     const tomorrow = new Intl.DateTimeFormat("en-CA").format(new Date(Date.now() + 86400000));
-                    setDueDate(tomorrow);
+                    setDueDate(tomorrow); setInbox(false);
                   }}
                   className={`rounded-lg px-2 py-1.5 text-[10.5px] font-semibold transition cursor-pointer ${
                     dueDate === new Intl.DateTimeFormat("en-CA").format(new Date(Date.now() + 86400000))
@@ -381,6 +415,8 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
             </div>
           </div>
 
+        </form>
+        <RecordDocuments key={documentSession} recordName={title || "Task"} label="Attachments & reference links" uploadLabel="Upload attachment" saveHint="References save with this occurrence when you save the task. Later repeating occurrences start without attachments. Canceling leaves the saved task unchanged." documents={documents} onChange={setDocuments} onBusyChange={setUploading} disabled={false} />
           <div className="flex items-center justify-end gap-2 border-t border-line pt-4 mt-6">
             <button
               type="button"
@@ -391,12 +427,14 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#8b1116]"
+              form="task-editor-form"
+              disabled={uploading}
+              className="rounded-xl bg-forest px-5 py-2.5 text-[12px] font-semibold text-white shadow transition hover:bg-[#8b1116] disabled:opacity-40"
             >
               {editing ? "Save changes" : "Add Priority"}
             </button>
           </div>
-        </form>
+
       </div>
     </div>
   );

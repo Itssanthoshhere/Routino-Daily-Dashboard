@@ -10,6 +10,11 @@ export type SubTask = {
 };
 
 export type Task = {
+  inbox?: boolean;
+  tags?: string[];
+  projectName?: string;
+  milestone?: string;
+  documents?: import("@/types/documents").SavedDocument[];
   meetingActionKey?: string;
   activity?: import("@/lib/taskActivity").TaskActivity[];
   id: string;

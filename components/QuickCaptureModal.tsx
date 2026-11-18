@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Zap, CheckSquare, StickyNote, PenTool, Sparkles, Check, Plane, Mic } from "lucide-react";
 import type { Task, KeepNote } from "@/types/dashboard";
+import { normalizeTaskTags } from "@/lib/taskOrganization";
 import { inferTaskCategory } from "@/lib/meeting";
 
 import { parseTaskQuickAdd, quickTaskContext, type TaskDetection } from "@/lib/taskQuickParse";
@@ -33,6 +34,7 @@ export function QuickCaptureModal({
   onAppendScratchpad,
 }: QuickCaptureModalProps) {
   const [allowedDuplicate, setAllowedDuplicate] = useState<string | null>(null);
+  const [captureInbox, setCaptureInbox] = useState(true);
   const [type, setType] = useState<CaptureType>("task");
   const [ignoredDetections, setIgnoredDetections] = useState<TaskDetection[]>([]);
   const [text, setText] = useState("");
@@ -97,7 +99,9 @@ export function QuickCaptureModal({
       onAddTask({
         id: "task-quick-" + Date.now(),
         title: parsed.title,
-        meta: quickTaskContext(parsed, catLabel),
+        meta: quickTaskContext(parsed, catLabel, captureInbox ? "Inbox" : "Today"),
+        inbox: captureInbox && !parsed.dueDate,
+        tags: normalizeTaskTags(parsed.tags),
         dueDate: parsed.dueDate,
         checked: false,
         priority: effectivePriority,
@@ -201,6 +205,8 @@ export function QuickCaptureModal({
           {type === "task" && <TaskParsePreview text={text} parsed={parsed} dismissed={!!ignoredDetections.length} onDismiss={kind => setIgnoredDetections(previous => [...previous, kind])} onRestore={() => setIgnoredDetections([])} />}
 
           {type === "task" && <TaskDuplicateWarning onOpenTask={id => { recognitionRef.current?.abort(); onClose(); onOpenTask(id); }} tasks={duplicates} allowed={duplicateAllowed} onAllow={allowed => setAllowedDuplicate(allowed ? warningKey : null)} />}
+
+          {type === "task" && <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={captureInbox} onChange={event=>setCaptureInbox(event.target.checked)} />Keep undated captures in Task inbox</label>}
 
           {/* Contextual Options */}
           <div className="flex items-center justify-between pt-1">

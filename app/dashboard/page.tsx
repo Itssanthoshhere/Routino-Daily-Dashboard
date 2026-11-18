@@ -1,6 +1,7 @@
 "use client";
 
 import { scopedStorage, migrateAccountCache } from "@/lib/accountStorage";
+import { bulkUpdateTasks, type TaskBulkAction } from "@/lib/taskOrganization";
 import { taskDueDay } from "@/lib/taskDates";
 import { coreCollections, collectionDiff, mergeCollection, type CollectionChanges } from "@/lib/collectionChanges";
 import type { TaskTemplate } from "@/lib/taskTemplates";
@@ -1499,7 +1500,7 @@ export default function Home() {
       syncToDatabase({ tasks: next });
       return next;
     });
-    toast(`"${newTask.title}" added to priorities`);
+    toast(newTask.inbox ? `"${newTask.title}" captured in Task inbox` : `"${newTask.title}" added to priorities`);
   };
 
   const handleOpenExistingTask = useCallback((taskId: string) => {
@@ -2222,6 +2223,8 @@ export default function Home() {
           ) : activeNav === "Tasks" ? (
             <TasksView
               tasks={tasks}
+              onBulkAction={(ids, action) => { setTasks(previous=>{const changed=bulkUpdateTasks(previous,ids,action,new Intl.DateTimeFormat("en-CA").format(new Date()));if(changed===previous)return previous;const next=withTaskActivity(previous,changed);try{browserStore.setItem("routino_tasks",JSON.stringify(next));}catch{toast("Browser storage unavailable. Bulk changes were not applied.");return previous;}void syncToDatabase({tasks:next},previous);offerTaskUndo("Selected tasks updated",previous,next);return next;});}}
+              onUpdateTask={(id,updates)=>{setTasks(previous=>{if(!previous.some(task=>task.id===id))return previous;const next=withTaskActivity(previous,previous.map(task=>task.id===id?{...task,...updates}:task));try{browserStore.setItem("routino_tasks",JSON.stringify(next));}catch{toast("Browser storage unavailable. Task changes were not applied.");return previous;}void syncToDatabase({tasks:next},previous);offerTaskUndo("Task updated",previous,next);return next;});}}
               onToggleTask={toggleTask}
               onDeleteTask={deleteTask}
               onEditTask={editTask}
@@ -2242,7 +2245,7 @@ export default function Home() {
                 setTasks(next); try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {} void syncToDatabase({ tasks: next }); toast("Task moved; repeat schedule preserved");
               }}
               onUpdateTaskRecurrence={(id, recurrence) => {
-                const next = withTaskActivity(tasks, tasks.map(task => task.id === id ? { ...task, recurrence, recurrenceTemplate: undefined, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task));
+                const next = withTaskActivity(tasks, tasks.map(task => task.id === id ? { ...task, recurrence, inbox: recurrence ? false : task.inbox, recurrenceTemplate: undefined, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task));
                 setTasks(next);
                 try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
                 void syncToDatabase({ tasks: next });

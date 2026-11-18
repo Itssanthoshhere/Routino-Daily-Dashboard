@@ -1,3 +1,4 @@
+import { isDocumentList } from "@/lib/assetDocuments";
 import { coreCollections } from "@/lib/collectionChanges";
 import { validTaskTemplates } from "@/lib/taskTemplates";
 import { isSubscriptionDate } from "@/lib/subscriptionValidation";
@@ -17,6 +18,11 @@ const optionalBool = (v: unknown) => optional(v, x => typeof x === "boolean");
 export function validTask(v: unknown, template = false): boolean {
   if (!record(v)) return false;
   return (template || (nonempty(v.id) && typeof v.checked === "boolean" && timestamp(v.createdAt))) && nonempty(v.title) && text(v.meta) && typeof v.priority === "boolean"
+    && optionalBool(v.inbox) && !(v.inbox === true && (v.dueDate || v.recurrence))
+    && optional(v.tags, x => Array.isArray(x) && x.length <= 20 && new Set(x).size === x.length && x.every(tag => text(tag) && new RegExp("^[\\p{L}\\p{M}\\p{N}_-]{1,40}$", "u").test(tag)))
+    && optional(v.projectName, x => text(x) && !!x.trim() && x.length <= 100)
+    && optional(v.milestone, x => text(x) && !!x.trim() && x.length <= 100) && !(v.milestone && !v.projectName)
+    && optional(v.documents, isDocumentList)
     && optional(v.category, x => ["work", "personal", "meeting", "urgent", "project", "travel"].includes(String(x)))
     && optional(v.dueDate, date) && optionalBool(v.skipped) && isTaskActivity(v.activity)
     && optional(v.dependsOn, strings) && optional(v.link, x => x === "" || safeUrl(x))

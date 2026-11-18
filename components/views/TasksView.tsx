@@ -1,4 +1,8 @@
 "use client";
+import { inTaskInbox, normalizeTaskTags, taskTags, taskProjectGroups, type TaskBulkAction } from "@/lib/taskOrganization";
+import { TaskBulkToolbar } from "@/components/TaskBulkToolbar";
+import { TaskProjectsPanel } from "@/components/TaskProjectsPanel";
+import { RecordDocuments } from "@/components/SubscriptionDocuments";
 import { taskDueDay } from "@/lib/taskDates";
 import { useAccountStorage } from "@/components/AccountStorage";
 
@@ -35,6 +39,8 @@ import { renderLinkedText } from "@/lib/text-links";
 
 type TasksViewProps = {
   tasks: Task[];
+  onBulkAction: (ids: string[], action: TaskBulkAction) => void;
+  onUpdateTask: (id: string, updates: Partial<Task>) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onRepeatAction?: (id: string, action: "skip" | "pause" | "resume") => void;
@@ -51,6 +57,8 @@ type TasksViewProps = {
 
 export function TasksView({
   tasks,
+  onBulkAction,
+  onUpdateTask,
   onToggleTask,
   onDeleteTask,
   onEditTask,
@@ -65,8 +73,13 @@ export function TasksView({
   onOpenTask,
 }: TasksViewProps) {
   const browserStore = useAccountStorage();
+  const [tagFilter, setTagFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [captureInbox, setCaptureInbox] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "today" | "upcoming" | "priority" | "project" | "travel" | "completed">("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "today" | "upcoming" | "priority" | "project" | "travel" | "completed" | "inbox">("all");
   const [ignoredDetections, setIgnoredDetections] = useState<TaskDetection[]>([]);
   const [allowedDuplicate, setAllowedDuplicate] = useState<string | null>(null);
   const [quickTitle, setQuickTitle] = useState("");
@@ -83,7 +96,7 @@ export function TasksView({
   useEffect(() => {
     if (highlightedTaskId) {
       setSelectedFilter("all");
-      setSearchQuery("");
+      setSearchQuery(""); setTagFilter(""); setProjectFilter("");
       setExpandedTasks((prev) => ({ ...prev, [highlightedTaskId]: true }));
       const timer = setTimeout(() => {
         const el = document.getElementById("task-row-" + highlightedTaskId);
@@ -101,7 +114,7 @@ export function TasksView({
   const historyCount = tasks.filter(t => t.checked).length;
   const skippedCount = tasks.filter(t => t.skipped).length;
   const doneCount = tasks.filter(t => t.checked && !t.skipped).length;
-  const todayTasksCount = tasks.filter((t) => !t.checked && (taskDueDay(t.dueDate)! === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")))).length;
+  const todayTasksCount = tasks.filter((t) => !t.checked && !t.inbox && (taskDueDay(t.dueDate)! === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")))).length;
   const upcomingTasksCount = tasks.filter((t) => !t.checked && Boolean(t.dueDate && taskDueDay(t.dueDate)! > todayStr)).length;
   const projectTasksCount = tasks.filter((t) => t.category === "project").length;
   const travelTasksCount = tasks.filter((t) => t.category === "travel").length;
@@ -142,10 +155,12 @@ export function TasksView({
 
     onAddTask({
       title: parsedQuickTask.title,
-      meta: quickTaskContext(parsedQuickTask, catLabel),
+      meta: quickTaskContext(parsedQuickTask, catLabel, captureInbox ? "Inbox" : "Today"),
+      inbox: captureInbox && !parsedQuickTask.dueDate,
+      tags: normalizeTaskTags(parsedQuickTask.tags),
       priority: parsedQuickTask.priority ?? finalCat === "urgent",
       category: finalCat,
-      dueDate: parsedQuickTask.dueDate || (ignoredDetections.includes("date") ? undefined : todayStr),
+      dueDate: parsedQuickTask.dueDate || (captureInbox || ignoredDetections.includes("date") ? undefined : todayStr),
     });
 
     // Ensure the newly added task is visible in the filtered list
@@ -166,14 +181,17 @@ export function TasksView({
   };
 
   const filteredTasks = tasks.filter((t) => {
-    const matchQuery = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    if (tagFilter && !taskTags(t).includes(tagFilter)) return false;
+    if (projectFilter && t.projectName?.trim().normalize("NFKC").toLowerCase() !== projectFilter) return false;
+    const matchQuery = [t.title,t.meta,t.projectName || "",t.milestone || "",...taskTags(t)].join(" ").toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.meta.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchQuery) return false;
 
+    if (selectedFilter === "inbox") return inTaskInbox(t);
     if (selectedFilter === "active") return !t.checked;
     if (selectedFilter === "completed") return t.checked;
     if (selectedFilter === "priority") return t.priority;
-    if (selectedFilter === "today") return !t.checked && (taskDueDay(t.dueDate)! === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")));
+    if (selectedFilter === "today") return !t.checked && !t.inbox && (taskDueDay(t.dueDate)! === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")));
     if (selectedFilter === "upcoming") return !t.checked && Boolean(t.dueDate && taskDueDay(t.dueDate)! > todayStr);
     if (selectedFilter === "project") return t.category === "project";
     if (selectedFilter === "travel") return t.category === "travel";
@@ -281,10 +299,14 @@ export function TasksView({
           </button>
         </div>
       </form>
+      <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={captureInbox} onChange={event=>setCaptureInbox(event.target.checked)} />Keep undated quick-adds in Task inbox</label>
       {quickTitle.trim() && <TaskParsePreview text={quickTitle} parsed={parsedQuickTask} dismissed={!!ignoredDetections.length} onDismiss={kind => setIgnoredDetections(previous => [...previous, kind])} onRestore={() => setIgnoredDetections([])} />}
 
       <TaskDuplicateWarning onOpenTask={onOpenTask} tasks={duplicates} allowed={duplicateAllowed} onAllow={allowed => setAllowedDuplicate(allowed ? warningKey : null)} />
 
+      <TaskProjectsPanel tasks={tasks} onSelect={project=>{setProjectFilter(project);setSelectedFilter("all");setSearchQuery("");setTagFilter("");}} onAdd={onOpenTaskModal} />
+      <div className="flex flex-wrap items-center gap-3 text-xs"><button className={`btn-theme rounded-lg border border-line px-3 py-2 ${selectedFilter==="inbox"?"bg-forest text-white":""}`} onClick={()=>setSelectedFilter("inbox")}>Task inbox ({tasks.filter(inTaskInbox).length})</button><label>Tag<select aria-label="Filter task tag" className="ml-2 rounded-lg border border-line bg-white p-2" value={tagFilter} onChange={event=>setTagFilter(event.target.value)}><option value="">All tags</option>{Array.from(new Set(tasks.flatMap(task=>taskTags(task)))).sort().map(tag=><option key={tag} value={tag}>#{tag}</option>)}</select></label><label>Project<select aria-label="Filter project group" value={projectFilter} onChange={event=>setProjectFilter(event.target.value)} className="ml-2 rounded-lg border border-line bg-white p-2"><option value="">All projects</option>{taskProjectGroups(tasks).map(group=><option key={group.key} value={group.key}>{group.name}</option>)}</select></label><button className="btn-theme rounded-lg border border-line p-2" onClick={()=>{setSelectionMode(!selectionMode);setSelectedIds([]);}}>{selectionMode?"Finish selecting":"Select tasks"}</button></div>
+      {selectionMode && <TaskBulkToolbar count={filteredTasks.filter(task=>selectedIds.includes(task.id)&&!task.checked&&!task.skipped).length} onSelectVisible={()=>setSelectedIds(filteredTasks.filter(task=>!task.checked&&!task.skipped).map(task=>task.id))} onClear={()=>setSelectedIds([])} onAction={action=>{onBulkAction(filteredTasks.filter(task=>selectedIds.includes(task.id)&&!task.checked&&!task.skipped).map(task=>task.id),action);setSelectedIds([]);}} />}
       {/* Search and Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative flex-1 max-w-md">
@@ -428,6 +450,7 @@ export function TasksView({
                   <div className="group hover:bg-[#fbfcf9] transition">
                   <div className="flex items-center justify-between gap-3 p-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
+                      {selectionMode && <input type="checkbox" aria-label={`Select task: ${task.title}`} disabled={task.checked || task.skipped} checked={selectedIds.includes(task.id)} onChange={event=>setSelectedIds(previous=>event.target.checked?[...previous,task.id]:previous.filter(id=>id!==task.id))} />}
                       <button
                         onClick={() => onToggleTask(task.id)}
                         className={`grid h-5 w-5 place-items-center rounded-full border transition-all ${
@@ -449,6 +472,9 @@ export function TasksView({
                         </p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-muted">
                           <span>{task.meta}</span>
+                          {inTaskInbox(task) && <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-700">Task inbox · undated</span>}
+                          {taskTags(task).map(tag=><button key={tag} className="rounded-full bg-forest/5 px-2 py-0.5 text-forest hover:bg-forest/10" onClick={()=>setTagFilter(tag)}>#{tag}</button>)}
+                          {task.projectName && <span className="rounded bg-purple-50 px-2 py-0.5 text-purple-700">{task.projectName}{task.milestone?` · ${task.milestone}`:""}</span>}
                           {task.skipped && <span className="rounded bg-amber-50 px-2 py-0.5 text-amber-800">Skipped · not completed</span>}
                           {task.recurrence && <span className="rounded bg-[#f0f2eb] px-2 py-0.5 font-semibold">{recurrenceLabel(task.recurrence)}</span>}
                           {!task.checked && onUpdateTaskRecurrence && <select aria-label={`Repeat ${task.title}`} className="max-w-32 rounded border border-line bg-white px-1 py-0.5 text-[10px]" value={task.recurrence?.frequency || "none"} onChange={event => onUpdateTaskRecurrence(task.id, event.target.value === "none" ? undefined : { frequency: event.target.value as TaskRecurrence["frequency"], interval: 1, paused: task.recurrence?.paused, anchorDate: task.dueDate?.slice(0, 10) })}><option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>}
@@ -538,6 +564,7 @@ export function TasksView({
                     </div>
                   </div>
 
+                  {!!task.documents?.length && <div className="px-4 pb-3"><RecordDocuments recordName={task.title} label="Attachments & reference links" uploadLabel="Upload attachment" documents={task.documents} onChange={documents=>onUpdateTask(task.id,{documents})} disabled={false} saveHint="Attachment references use task sync. Removing a reference retains the private file for recovery." /></div>}
                   {/* Expandable subtasks checklist */}
                   <TaskActivityHistory task={task} />
                   {hasSubtasks && isExpanded && (

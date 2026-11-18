@@ -8,6 +8,6 @@ export function offsetDate(today: string, days: number): string {
 export function snoozeTask(tasks: Task[], id: string, date: string, today: string): Task[] {
   const task = tasks.find(item => item.id === id);
   if (!task || task.checked || !isSubscriptionDate(date) || date <= today) return tasks;
-  const meta = task.meta.replace(/\b(?:Due )?Today\b|Due \d{4}-\d{2}-\d{2}/gi, `Due ${date}`);
-  return editTaskOccurrences(tasks, id, { ...task, dueDate: rescheduleTaskDate(task.dueDate, date), meta: meta === task.meta ? `Due ${date} · ${meta}` : meta }, "occurrence");
+  const meta = task.meta.replace(/\b(?:Due )?Today\b|Due \d{4}-\d{2}-\d{2}|\bInbox\b/gi, `Due ${date}`);
+  return editTaskOccurrences(tasks, id, { ...task, inbox: false, dueDate: rescheduleTaskDate(task.dueDate, date), meta: meta === task.meta ? `Due ${date} · ${meta}` : meta }, "occurrence");
 }

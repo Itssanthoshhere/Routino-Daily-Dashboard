@@ -52,7 +52,7 @@ export function completeRepeatingTask(tasks: Task[], id: string, today: string, 
   const series = task.recurrenceSeriesId || task.id;
   const nextId = `${series}:repeat:${dueDate}`;
   if (next.some(item => item.id === nextId)) return next;
-  return [...next, { ...template, recurrenceTemplate: undefined, activity: undefined, skipped: undefined, id: nextId, recurrenceSeriesId: series, dueDate, createdAt: now, checked: false, recurrence: { ...template.recurrence!, anchorDate: template.recurrence?.anchorDate || template.dueDate?.slice(0, 10) }, subtasks: template.subtasks?.map(subtask => ({ ...subtask, completed: false })), meta: template.meta ? template.meta.replace(/\b(?:Due )?Today\b|Due \d{4}-\d{2}-\d{2}/g, `Due ${dueDate.slice(0, 10)}`) : `Due ${dueDate.slice(0, 10)} · Repeating` }];
+  return [...next, { ...template, recurrenceTemplate: undefined, activity: undefined, documents: undefined, skipped: undefined, id: nextId, recurrenceSeriesId: series, dueDate, createdAt: now, checked: false, recurrence: { ...template.recurrence!, anchorDate: template.recurrence?.anchorDate || template.dueDate?.slice(0, 10) }, subtasks: template.subtasks?.map(subtask => ({ ...subtask, completed: false })), meta: template.meta ? template.meta.replace(/\b(?:Due )?Today\b|Due \d{4}-\d{2}-\d{2}/g, `Due ${dueDate.slice(0, 10)}`) : `Due ${dueDate.slice(0, 10)} · Repeating` }];
 }
 
 export function recurrenceLabel(rule: TaskRecurrence): string {
@@ -72,7 +72,7 @@ export function editTaskOccurrences(tasks: Task[], id: string, updates: Omit<Tas
     }
     if (scope !== "future" || task.checked || (task.recurrenceSeriesId || task.id) !== series || (task.dueDate || "") < (current.dueDate || "")) return task;
     // Keep individually scheduled dates and checklist progress on existing future occurrences.
-    return { ...task, title: updates.title, meta: updates.meta, priority: updates.priority, category: updates.category, link: updates.link, recurrence: updates.recurrence, recurrenceTemplate: undefined };
+    return { ...task, title: updates.title, meta: updates.meta, priority: updates.priority, category: updates.category, link: updates.link, tags: updates.tags ?? task.tags, projectName: updates.projectName, milestone: updates.milestone, recurrence: updates.recurrence, recurrenceTemplate: undefined };
   });
 }
 
