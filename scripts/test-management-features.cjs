@@ -42,7 +42,7 @@ async function verifyRoutes() {
   const code = ts.transpileModule(fs.readFileSync('app/api/subscription-documents/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
   new Function('require', 'module', 'exports', code)(name => {
     if (name === '@/lib/auth') return { auth: async () => email ? { user: { email } } : null };
-    if (name === '@vercel/blob') return { put: async (path, body, options) => { assert.equal(options.access, 'private'); uploadedPath = path; }, get: async () => { reads++; return { statusCode: 200, stream: new Blob(['private test']).stream() }; } };
+    if (name === '@vercel/blob') return { put: async (path, body, options) => { assert.equal(options.access, 'private'); uploadedPath = path; }, get: async () => { reads++; return { statusCode: 200, blob: { contentType: 'application/pdf' }, stream: new Blob(['private test']).stream() }; } };
     return name.startsWith('@/') ? load(`${name.slice(2)}.ts`) : require(name);
   }, module, module.exports);
   const route = module.exports;
@@ -63,6 +63,10 @@ async function verifyRoutes() {
     const download = await route.GET(new Request(`https://example.invalid/api/subscription-documents?path=${uploadedPath}&name=bill.txt`));
     assert.equal(download.status, 200); assert.match(download.headers.get('content-disposition'), /^attachment;/); assert.equal(download.headers.get('cache-control'), 'private, no-store');
     assert.equal(await download.text(), 'private test');
+    const preview = await route.GET(new Request(`https://example.invalid/api/subscription-documents?path=${uploadedPath}&preview=1`));
+    assert.equal(preview.headers.get('content-type'), 'application/pdf');
+    assert.match(preview.headers.get('content-disposition'), /^inline;/);
+    assert.match(preview.headers.get('content-security-policy'), /sandbox/);
     console.log('Passed: document route authentication, private upload options, cross-account denial, attachment download, and private no-store headers.');
   } finally { if (oldToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN; else process.env.BLOB_READ_WRITE_TOKEN = oldToken; }
 }
