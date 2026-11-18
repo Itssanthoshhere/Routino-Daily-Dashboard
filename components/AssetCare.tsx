@@ -7,7 +7,9 @@ import type { AssetRecord, WarrantyClaim, AssetMaintenance } from "@/types/asset
 const input = "mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-xs";
 const action = "btn-theme rounded-lg border border-line px-3 py-2 text-xs disabled:opacity-50";
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-export function AssetCare({ record, onChange, disabled, receipts, assetName }: {
+export function AssetCare({ record, onChange, disabled, receipts, assetName, section, embedded = false }: {
+    section?: "claims" | "maintenance";
+    embedded?: boolean;
     record: AssetRecord;
     onChange: (record: AssetRecord) => void;
     disabled: boolean;
@@ -35,10 +37,10 @@ export function AssetCare({ record, onChange, disabled, receipts, assetName }: {
         setMessage('Enter a title, valid due date, and repeat interval of 1–3,650 days, or leave repeat blank.');
         return;
     } onChange({ ...record, maintenance: schedules.some(m => m.id === trimmed.id) ? schedules.map(m => m.id === trimmed.id ? trimmed : m) : [...schedules, trimmed] }); setMaintenance(null); setMessage('Maintenance schedule saved.'); };
-    return <div className="mt-3 space-y-3">
-    <details className="rounded-xl border border-line p-3 text-xs">
-    <summary className="cursor-pointer font-semibold">Warranty claims & checklist · {claims.length}</summary>
-    <p className="mt-2 text-muted">{receipts} asset receipt{receipts === 1 ? '' : 's'} available above. Keep provider contacts, claim references, evidence, and progress together. Status changes are your records; no claim is sent automatically.</p>
+    return <div className={embedded ? "space-y-3" : "mt-3 space-y-3"}>
+    {section !== "maintenance" && <details open={embedded || undefined} className={embedded ? "text-xs" : "rounded-xl border border-line p-3 text-xs"}>
+    <summary hidden={embedded} className="cursor-pointer font-semibold">Warranty claims & checklist · {claims.length}</summary>
+    <p className="mt-2 text-muted">{receipts} asset receipt{receipts === 1 ? '' : 's'} available {embedded ? 'in the Documents tab' : 'above'}. Keep provider contacts, claim references, evidence, and progress together. Status changes are your records; no claim is sent automatically.</p>
     <ul className="mt-2 divide-y divide-line">{claims.map(c => <li key={c.id} className="space-y-2 py-3">
         <p className="font-semibold">{c.title} · <span className="capitalize">{c.status.replace('-', ' ')}</span>
         </p>{c.contact && <p className="whitespace-pre-wrap break-words text-muted">Service contact: {c.contact}</p>}{c.reference && <p className="text-muted">Claim reference: {c.reference}</p>}{c.notes && <p className="whitespace-pre-wrap break-words text-muted">{c.notes}</p>}<p className="text-muted">{c.checklist.filter(s => s.done).length}/{c.checklist.length} steps complete</p>{c.checklist.map(step => <label key={step.id} className="flex items-center gap-2">
@@ -74,9 +76,9 @@ export function AssetCare({ record, onChange, disabled, receipts, assetName }: {
         <button type="button" disabled={disabled} className={action} onClick={() => setClaim(null)}>Cancel</button>
         </div>
         <p className="text-muted">Save the claim, then attach evidence to its saved record.</p>
-        </div>}</details>
- <details className="rounded-xl border border-line p-3 text-xs">
-    <summary className="cursor-pointer font-semibold">Maintenance schedules · {schedules.length}</summary>
+        </div>}</details>}
+ {section !== "claims" && <details open={embedded || undefined} className={embedded ? "text-xs" : "rounded-xl border border-line p-3 text-xs"}>
+    <summary hidden={embedded} className="cursor-pointer font-semibold">Maintenance schedules · {schedules.length}</summary>
     <p className="mt-2 text-muted">Plan servicing, cleaning, or replacements. Recurring schedules advance from the date you mark done. Dates appear here; no automatic calendar bookings or notifications are created.</p>
     <ul className="mt-2 divide-y divide-line">{[...schedules].sort((a, b) => a.nextDue.localeCompare(b.nextDue)).map(m => {
             const finished = !m.repeatDays && !!m.completed;
@@ -108,7 +110,7 @@ export function AssetCare({ record, onChange, disabled, receipts, assetName }: {
         <button type="button" disabled={disabled} className={action} onClick={saveMaintenance}>Save schedule</button>
         <button type="button" className={action} onClick={() => setMaintenance(null)}>Cancel</button>
         </div>
-        </div>}</details>
+        </div>}</details>}
     <p role="status" className="text-xs text-muted">{message}</p>
  {removing && <dialog ref={confirm} aria-label="Remove asset care record" onCancel={() => setRemoving(null)} className="m-auto w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-line bg-white p-5 backdrop:bg-black/40">
         <h4 className="font-semibold">Remove this {removing.kind === 'claims' ? 'claim' : 'schedule'}?</h4>

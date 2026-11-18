@@ -200,3 +200,16 @@ input[type="checkbox"], input[type="radio"] {
 .command-search-input:focus-visible {
   outline: none;
 }
+
+/* Asset manager: content-sized on desktop, full-screen on small devices. */
+.asset-manager-dialog { width: min(820px, calc(100vw - 48px)); height: fit-content; max-height: 88dvh; border-radius: 20px; }
+.asset-manager-layout { max-height: 88dvh; }
+.asset-manager-body { max-height: calc(88dvh - 160px); }
+@media (max-width: 639px) {
+  .asset-manager-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; border: 0; }
+  .asset-manager-layout { height: 100dvh; max-height: 100dvh; }
+  .asset-manager-body { flex: 1; max-height: none; }
+}
+
+.asset-manager-tabs { scrollbar-width: none; }
+.asset-manager-tabs::-webkit-scrollbar { display: none; }
