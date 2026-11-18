@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+const moduleFixture={exports:{}};new Function('module','exports',ts.transpileModule(fs.readFileSync('lib/calendarNavigation.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(moduleFixture,moduleFixture.exports);
+const {calendarJumpPosition:jump}=moduleFixture.exports;
+const today=new Date(2026,10,18);
+assert.deepEqual(jump('2026-11-18',today),{weekOffset:0,dayIndex:0});
+assert.deepEqual(jump('2026-11-17',today),{weekOffset:-1,dayIndex:6});
+assert.deepEqual(jump('2026-11-04',today),{weekOffset:-2,dayIndex:0});
+assert.deepEqual(jump('2026-11-24',today),{weekOffset:0,dayIndex:6});
+assert.deepEqual(jump('2026-11-25',today),{weekOffset:1,dayIndex:0});
+assert.equal(jump('2026-02-30',today),null);assert.equal(jump('',today),null);
+for(const [base,target] of [[new Date(2026,2,7),'2026-03-09'],[new Date(2026,9,31),'2026-11-02'],[new Date(2024,1,28),'2024-02-29'],[new Date(2026,11,31),'2027-01-01']])assert.deepEqual(jump(target,base),{weekOffset:0,dayIndex:target==='2026-03-09'||target==='2026-11-02'?2:1});
+console.log('Passed: previous/future strips, negative offsets, leap days, year boundaries, invalid dates, and DST-safe navigation.');

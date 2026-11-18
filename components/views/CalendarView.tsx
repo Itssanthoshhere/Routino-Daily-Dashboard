@@ -21,6 +21,7 @@ import { Task } from "@/types/dashboard";
 import { FocusSlot } from "@/lib/focusSlots";
 import { FocusSlotFinder } from "@/components/FocusSlotFinder";
 import { CalendarEventSearch } from "@/components/CalendarEventSearch";
+import { calendarJumpPosition } from "@/lib/calendarNavigation";
 import { CalendarColorLegend } from "@/components/CalendarColorLegend";
 import { CalendarColorManager } from "@/components/CalendarColorManager";
 import { connectGoogle } from "@/app/actions";
@@ -189,6 +190,7 @@ export function CalendarView({
   );
 
   const handleResetToToday = () => {
+    setViewMode("day");
     setWeekOffset(0);
     setSelectedDayIndex(0);
   };
@@ -426,7 +428,24 @@ export function CalendarView({
           )}
         </div>
 
-        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+        <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
+          <label className="inline-flex items-center gap-2 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-muted">
+            Jump to date
+            <input
+              type="date"
+              aria-label="Jump to date"
+              title="Open this day using loaded calendar events"
+              value={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,"0")}-${String(selectedDate.getDate()).padStart(2,"0")}`}
+              className="min-w-0 max-w-[125px] bg-transparent text-ink outline-none focus-visible:ring-2 focus-visible:ring-forest/30"
+              onInput={event => {
+                const position = calendarJumpPosition(event.currentTarget.value, todayDate);
+                if (!position) return;
+                setWeekOffset(position.weekOffset);
+                setSelectedDayIndex(position.dayIndex);
+                setViewMode("day");
+              }}
+            />
+          </label>
           <button
             type="button"
             onClick={() => setWeekOffset((prev) => prev - 1)}
@@ -436,7 +455,7 @@ export function CalendarView({
             <ChevronLeft size={13} />
             <span>Previous Days</span>
           </button>
-          {weekOffset !== 0 && (
+          {(weekOffset !== 0 || selectedDayIndex !== 0 || viewMode !== "day") && (
             <button
               type="button"
               onClick={handleResetToToday}
@@ -756,7 +775,7 @@ export function CalendarView({
                   <p className="text-[13px] font-semibold text-ink">No events scheduled for this day</p>
                   <p className="mt-1 text-[11px] text-muted">
                     {isConnected
-                      ? "Your Google Calendar is clear for this date, or events may be on another day of this week."
+                      ? "No loaded events for this date. Open Google Calendar to check dates beyond the synced range."
                       : "Connect your Google account above to sync your real calendar schedule."}
                   </p>
                   {weekFilteredEvents.length > 0 && (

@@ -77,6 +77,8 @@ The responsive interface includes desktop/mobile navigation, accessible dialogs,
 
 **Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability.
 
+**Jump to date** beside the calendar arrows opens the selected day and its seven-day strip. **Today** returns to the current day. Navigation uses loaded events and does not modify saved records.
+
 **Calendar search** is one field above the calendar. Search titles, dates (for example `18 Nov 2026` or `2026-11-18`), or categories such as Entertainment across all loaded Google, Outlook, and saved events, beyond the selected week. Terms combine, so `Entertainment 2026-11-18` narrows both category and date. Results open existing event Details; clearing search restores your calendar view. Search is local and read-only; full calendar history outside the loaded range is not searched.
 
 **Colour events** at the top of Calendar or in Preferences provides editable, ordered keyword rules, enabled toggles, named Google colors, whole-word/contains matching, and account-synced event/calendar exclusions. Defaults use Sage meals, Blueberry routine/social, Flamingo movies/series, Tomato games, Graphite typing/notes, and Banana work. Preview is read-only; calendar colors change only after **Apply selected & save rules**. Older auto-write requests cannot bypass the preview flow. The button opens the date-and-preview step directly. A compact **Colour guide** displays enabled saved rules below the calendar toolbar. In **Rules & exclusions**, **Test an event title** shows the first matching draft rule and colour without saving settings or changing an event.
@@ -324,6 +326,7 @@ npm run lint                        # TypeScript check
 node scripts/test-trackers.cjs       # tracker regression checks
 node scripts/test-workspace-features.cjs # search, history, and reminder checks
 node scripts/test-review-fixes.cjs     # timing, action identity, and habit counter regressions
+node scripts/test-calendar-navigation.cjs # date jumps, leap days, year boundaries, and DST
 node scripts/test-calendar-colors.cjs # default category mappings and legacy auto-write prevention
 node scripts/test-calendar-color-manager.cjs # previews, exclusions, stale versions, selective Apply, and Undo
 node scripts/test-calendar-search.cjs # loaded-history search, categories, dates, and timezone boundaries
