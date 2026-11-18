@@ -24,6 +24,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Task } from "@/types/dashboard";
+import { parseTaskQuickAdd, quickTaskContext, type TaskDetection } from "@/lib/taskQuickParse";
+import { TaskParsePreview } from "@/components/TaskParsePreview";
 import { inferTaskCategory } from "@/lib/meeting";
 import { renderLinkedText } from "@/lib/text-links";
 
@@ -56,6 +58,7 @@ export function TasksView({
 }: TasksViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "today" | "upcoming" | "priority" | "project" | "travel" | "completed">("all");
+  const [ignoredDetections, setIgnoredDetections] = useState<TaskDetection[]>([]);
   const [quickTitle, setQuickTitle] = useState("");
   const [quickCategory, setQuickCategory] = useState<"work" | "personal" | "meeting" | "urgent" | "project" | "travel">("work");
   const [hasUserChangedCategory, setHasUserChangedCategory] = useState(false);
@@ -95,13 +98,14 @@ export function TasksView({
 
   const handleTitleChange = (val: string) => {
     setQuickTitle(val);
+    setIgnoredDetections([]);
     if (!hasUserChangedCategory && val.trim().length > 0) {
       const detected = inferTaskCategory(val);
-      if (detected !== "work") {
-        setQuickCategory(detected);
-      }
+      setQuickCategory(detected);
     }
   };
+
+  const parsedQuickTask = parseTaskQuickAdd(quickTitle, new Date(), ignoredDetections);
 
   const handleQuickAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +115,8 @@ export function TasksView({
       return;
     }
 
-    const finalCat = quickCategory;
+    if (!parsedQuickTask.title) return;
+    const finalCat = hasUserChangedCategory ? quickCategory : parsedQuickTask.category || (ignoredDetections.includes("category") ? "work" : quickCategory);
     const catLabel =
       finalCat === "project"
         ? "Project"
@@ -120,11 +125,11 @@ export function TasksView({
         : finalCat.charAt(0).toUpperCase() + finalCat.slice(1);
 
     onAddTask({
-      title: quickTitle.trim(),
-      meta: `Today · ${catLabel}`,
-      priority: finalCat === "urgent",
+      title: parsedQuickTask.title,
+      meta: quickTaskContext(parsedQuickTask, catLabel),
+      priority: parsedQuickTask.priority ?? finalCat === "urgent",
       category: finalCat,
-      dueDate: todayStr,
+      dueDate: parsedQuickTask.dueDate || (ignoredDetections.includes("date") ? undefined : todayStr),
     });
 
     // Ensure the newly added task is visible in the filtered list
@@ -138,6 +143,7 @@ export function TasksView({
     }
 
     setQuickTitle("");
+    setIgnoredDetections([]);
     setQuickCategory("work");
     setHasUserChangedCategory(false);
   };
@@ -229,12 +235,12 @@ export function TasksView({
           type="text"
           value={quickTitle}
           onChange={(e) => handleTitleChange(e.target.value)}
-          placeholder="Add a task quickly (e.g. 'Build a project' or 'Plan a trip')..."
+          placeholder="Try: Submit report tomorrow at 3pm !high #work"
           className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-ink outline-none placeholder:text-muted"
         />
         <div className="flex items-center gap-2">
           <select
-            value={quickCategory}
+            value={hasUserChangedCategory ? quickCategory : parsedQuickTask.category || (ignoredDetections.includes("category") ? "work" : quickCategory)}
             onChange={(e) => {
               setQuickCategory(e.target.value as "work" | "personal" | "meeting" | "urgent" | "project" | "travel");
               setHasUserChangedCategory(true);
@@ -257,6 +263,7 @@ export function TasksView({
           </button>
         </div>
       </form>
+      {quickTitle.trim() && <TaskParsePreview text={quickTitle} parsed={parsedQuickTask} dismissed={!!ignoredDetections.length} onDismiss={kind => setIgnoredDetections(previous => [...previous, kind])} onRestore={() => setIgnoredDetections([])} />}
 
       {/* Search and Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

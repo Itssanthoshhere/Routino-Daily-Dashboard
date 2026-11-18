@@ -5,6 +5,9 @@ import { X, Zap, CheckSquare, StickyNote, PenTool, Sparkles, Check, Plane, Mic }
 import type { Task, KeepNote } from "@/types/dashboard";
 import { inferTaskCategory } from "@/lib/meeting";
 
+import { parseTaskQuickAdd, quickTaskContext, type TaskDetection } from "@/lib/taskQuickParse";
+import { TaskParsePreview } from "@/components/TaskParsePreview";
+
 type CaptureType = "task" | "note" | "scratchpad";
 type Recognition = { start: () => void; stop: () => void; abort: () => void; lang: string; continuous: boolean; interimResults: boolean; onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: (() => void) | null; onend: (() => void) | null };
 
@@ -24,8 +27,9 @@ export function QuickCaptureModal({
   onAppendScratchpad,
 }: QuickCaptureModalProps) {
   const [type, setType] = useState<CaptureType>("task");
+  const [ignoredDetections, setIgnoredDetections] = useState<TaskDetection[]>([]);
   const [text, setText] = useState("");
-  const [isPriority, setIsPriority] = useState(false);
+  const [isPriority, setIsPriority] = useState<boolean | null>(null);
   const [manualCategory, setManualCategory] = useState<Task["category"] | null>(null);
   const [noteColor, setNoteColor] = useState<KeepNote["color"]>("default");
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -57,7 +61,8 @@ export function QuickCaptureModal({
   useEffect(() => {
     if (isOpen) {
       setText("");
-      setIsPriority(false);
+      setIgnoredDetections([]);
+      setIsPriority(null);
       setManualCategory(null);
       setSavedSuccess(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -66,21 +71,24 @@ export function QuickCaptureModal({
 
   if (!isOpen) return null;
 
-  const currentCategory: NonNullable<Task["category"]> = manualCategory || (text.trim() ? inferTaskCategory(text.trim()) : (isPriority ? "urgent" : "work"));
+  const parsed = parseTaskQuickAdd(text, new Date(), ignoredDetections);
+  const effectivePriority = isPriority ?? parsed.priority ?? false;
+  const currentCategory: NonNullable<Task["category"]> = manualCategory || parsed.category || (text.trim() ? (ignoredDetections.includes("category") ? "work" : inferTaskCategory(text.trim())) : (isPriority ? "urgent" : "work"));
 
   const handleCapture = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || (type === "task" && !parsed.title)) return;
     recognitionRef.current?.abort();
 
     if (type === "task") {
       const catLabel = currentCategory === "project" ? "Project" : currentCategory === "travel" ? "Travel" : currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1);
       onAddTask({
         id: "task-quick-" + Date.now(),
-        title: text.trim(),
-        meta: isPriority ? `High Priority · ${catLabel}` : `Today · ${catLabel}`,
+        title: parsed.title,
+        meta: quickTaskContext(parsed, catLabel),
+        dueDate: parsed.dueDate,
         checked: false,
-        priority: isPriority,
+        priority: effectivePriority,
         category: currentCategory,
         createdAt: Date.now(),
       });
@@ -165,7 +173,7 @@ export function QuickCaptureModal({
             ref={inputRef}
             type="text"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => { setText(e.target.value); setIgnoredDetections([]); }}
             placeholder={
               type === "task"
                 ? "What needs to get done? (Press Enter to save)..."
@@ -177,21 +185,23 @@ export function QuickCaptureModal({
             autoFocus
           />
 
+          {type === "task" && <TaskParsePreview text={text} parsed={parsed} dismissed={!!ignoredDetections.length} onDismiss={kind => setIgnoredDetections(previous => [...previous, kind])} onRestore={() => setIgnoredDetections([])} />}
+
           {/* Contextual Options */}
           <div className="flex items-center justify-between pt-1">
             {type === "task" ? (
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-medium text-ink">
                   <input
                     type="checkbox"
-                    checked={isPriority}
+                    checked={effectivePriority}
                     onChange={(e) => setIsPriority(e.target.checked)}
                     className="rounded border-line text-forest focus:ring-forest cursor-pointer"
                   />
                   <span>High Priority</span>
                 </label>
-                <div className="flex items-center gap-1">
-                  {(["work", "project", "travel", "urgent"] as const).map((cat) => (
+                <div className="flex flex-wrap items-center gap-1">
+                  {(["work", "personal", "project", "travel", "urgent"] as const).map((cat) => (
                     <button
                       key={cat}
                       type="button"
@@ -233,7 +243,7 @@ export function QuickCaptureModal({
 
             <button
               type="submit"
-              disabled={!text.trim()}
+              disabled={!text.trim() || (type === "task" && !parsed.title)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-[#8b1116] transition disabled:opacity-40 cursor-pointer"
             >
               {savedSuccess ? (
