@@ -17,6 +17,7 @@ type QuickCaptureModalProps = {
   tasks: Task[];
   isOpen: boolean;
   onClose: () => void;
+  onOpenTask: (id: string) => void;
   onAddTask: (task: Task) => void;
   onAddNote: (note: Omit<KeepNote, "id" | "createdAt" | "updatedAt">) => void;
   onAppendScratchpad: (text: string) => void;
@@ -26,6 +27,7 @@ export function QuickCaptureModal({
   tasks,
   isOpen,
   onClose,
+  onOpenTask,
   onAddTask,
   onAddNote,
   onAppendScratchpad,
@@ -198,7 +200,7 @@ export function QuickCaptureModal({
 
           {type === "task" && <TaskParsePreview text={text} parsed={parsed} dismissed={!!ignoredDetections.length} onDismiss={kind => setIgnoredDetections(previous => [...previous, kind])} onRestore={() => setIgnoredDetections([])} />}
 
-          {type === "task" && <TaskDuplicateWarning tasks={duplicates} allowed={duplicateAllowed} onAllow={allowed => setAllowedDuplicate(allowed ? warningKey : null)} />}
+          {type === "task" && <TaskDuplicateWarning onOpenTask={id => { recognitionRef.current?.abort(); onClose(); onOpenTask(id); }} tasks={duplicates} allowed={duplicateAllowed} onAllow={allowed => setAllowedDuplicate(allowed ? warningKey : null)} />}
 
           {/* Contextual Options */}
           <div className="flex items-center justify-between pt-1">

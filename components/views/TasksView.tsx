@@ -45,6 +45,8 @@ type TasksViewProps = {
   onOpenTaskModal: () => void;
   onToggleSubTask?: (taskId: string, subtaskId: string) => void;
   highlightedTaskId?: string | null;
+  taskOpenToken?: number;
+  onOpenTask: (id: string) => void;
 };
 
 export function TasksView({
@@ -59,6 +61,8 @@ export function TasksView({
   onOpenTaskModal,
   onToggleSubTask,
   highlightedTaskId,
+  taskOpenToken = 0,
+  onOpenTask,
 }: TasksViewProps) {
   const browserStore = useAccountStorage();
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,10 +88,11 @@ export function TasksView({
       const timer = setTimeout(() => {
         const el = document.getElementById("task-row-" + highlightedTaskId);
         el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.focus({ preventScroll: true });
       }, 120);
       return () => clearTimeout(timer);
     }
-  }, [highlightedTaskId]);
+  }, [highlightedTaskId, taskOpenToken]);
 
   const toggleExpand = (id: string) => {
     setExpandedTasks((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -278,7 +283,7 @@ export function TasksView({
       </form>
       {quickTitle.trim() && <TaskParsePreview text={quickTitle} parsed={parsedQuickTask} dismissed={!!ignoredDetections.length} onDismiss={kind => setIgnoredDetections(previous => [...previous, kind])} onRestore={() => setIgnoredDetections([])} />}
 
-      <TaskDuplicateWarning tasks={duplicates} allowed={duplicateAllowed} onAllow={allowed => setAllowedDuplicate(allowed ? warningKey : null)} />
+      <TaskDuplicateWarning onOpenTask={onOpenTask} tasks={duplicates} allowed={duplicateAllowed} onAllow={allowed => setAllowedDuplicate(allowed ? warningKey : null)} />
 
       {/* Search and Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -408,6 +413,7 @@ export function TasksView({
                 <div
                   key={task.id}
                   id={"task-row-" + task.id}
+                  tabIndex={-1}
                   className={`transition duration-300 ${
                     task.id === highlightedTaskId
                       ? "ring-2 ring-forest/70 bg-[#f4f7ef] rounded-xl my-1 shadow-sm"

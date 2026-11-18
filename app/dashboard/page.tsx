@@ -408,6 +408,7 @@ export default function Home() {
   const [outlookNextLink, setOutlookNextLink] = useState<string | null>(null);
   const [outlookExhausted, setOutlookExhausted] = useState(false);
   const [isLoadingMoreMail, setIsLoadingMoreMail] = useState(false);
+  const [taskOpenToken, setTaskOpenToken] = useState(0);
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
 
   /* ── Modal / popover state ── */
@@ -1502,6 +1503,8 @@ export default function Home() {
   };
 
   const handleOpenExistingTask = useCallback((taskId: string) => {
+    if (!tasks.some(task => task.id === taskId)) { toast("This task is no longer available. Refresh your workspace."); return; }
+    setTaskOpenToken(token => token + 1);
     setActiveNav("Tasks");
     setHighlightedTaskId(taskId);
     try {
@@ -2248,6 +2251,8 @@ export default function Home() {
               onOpenTaskModal={() => setShowTaskModal(true)}
               onToggleSubTask={toggleSubTask}
               highlightedTaskId={highlightedTaskId}
+              taskOpenToken={taskOpenToken}
+              onOpenTask={handleOpenExistingTask}
             />
           ) : activeNav === "Recycle Bin" ? (
             <div className="mx-auto w-full max-w-4xl space-y-5"><div><h1 className="text-2xl font-bold text-ink">Recycle Bin</h1><p className="mt-2 text-sm text-muted">Recover deleted records from your workspace without replacing newer data.</p></div><RecycleBin email={liveData?.user?.email} expanded /></div>
@@ -3244,6 +3249,7 @@ export default function Home() {
 
       {/* ─── Modals & overlays ─── */}
       <QuickCaptureModal
+        onOpenTask={handleOpenExistingTask}
         tasks={tasks}
         isOpen={showQuickCapture}
         onClose={() => setShowQuickCapture(false)}
