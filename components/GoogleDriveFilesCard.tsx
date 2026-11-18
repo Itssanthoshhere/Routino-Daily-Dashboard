@@ -99,8 +99,8 @@ export function GoogleDriveFilesCard({ googleConnected }: { googleConnected: boo
           </div>
         </div>
 
-        {/* Instant Google Creation Actions */}
-        <div className="flex items-center gap-1.5">
+        {/* Instant document creation actions */}
+        <div className="flex flex-wrap items-center gap-1.5">
           <a
             href="https://docs.new"
             target="_blank"
@@ -130,6 +130,16 @@ export function GoogleDriveFilesCard({ googleConnected }: { googleConnected: boo
           >
             <Plus size={11} />
             <span>Slide</span>
+          </a>
+          <a
+            href="https://powerpoint.new"
+            target="_blank"
+            rel="noreferrer"
+            title="Create new Microsoft PowerPoint presentation"
+            className="inline-flex items-center gap-1 rounded-lg border border-[#fed7aa] bg-[#fff7ed] px-2 py-1 text-[10px] font-medium text-[#c2410c] hover:bg-[#ffedd5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c2410c] focus-visible:ring-offset-2 transition shadow-2xs"
+          >
+            <Plus size={11} />
+            <span>PowerPoint</span>
           </a>
           {loading && <LoaderCircle size={14} className="ml-1 animate-spin text-muted" aria-label="Loading Drive files" />}
         </div>
