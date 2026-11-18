@@ -86,7 +86,8 @@ async function verifyRoutes() {
     const preview = await route.GET(new Request(`https://example.invalid/api/subscription-documents?path=${uploadedPath}&preview=1`));
     assert.equal(preview.headers.get('content-type'), 'application/pdf');
     assert.match(preview.headers.get('content-disposition'), /^inline;/);
-    assert.match(preview.headers.get('content-security-policy'), /sandbox/);
+    assert.match(preview.headers.get('content-security-policy'), /default-src 'none'/);
+    assert.match(preview.headers.get('content-security-policy'), /frame-ancestors 'self'/);
     assert.equal(preview.headers.get('x-frame-options'), 'SAMEORIGIN');
     console.log('Passed: document route authentication, private upload options, cross-account denial, attachment download, and private no-store headers.');
   } finally { if (oldToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN; else process.env.BLOB_READ_WRITE_TOKEN = oldToken; }
