@@ -12,6 +12,7 @@ import type { Subscription } from "@/types/subscriptions";
 import type { AssetDocuments } from "@/types/documents";
 
 export type UserWorkspaceData = {
+  assetRecords?: import("@/types/assets").AssetRecords;
   assetDocuments?: AssetDocuments;
   recycleBin?: RecycleEntry[];
   subscriptions?: Subscription[];
@@ -423,7 +424,7 @@ export async function saveUserWorkspace(
   }
 }
 
-export type TrackerPatch = Pick<UserWorkspaceData, "subscriptions" | "airtel" | "subscriptionJournalImported" | "assetDocuments">;
+export type TrackerPatch = Pick<UserWorkspaceData, "subscriptions" | "airtel" | "subscriptionJournalImported" | "assetDocuments" | "assetRecords">;
 
 /** Compare-and-swap tracker fields without replacing unrelated workspace data. */
 export async function saveTrackerWorkspace(email: string, patch: TrackerPatch, revision: number): Promise<{ success: boolean; conflict?: boolean; data?: UserWorkspaceData }> {

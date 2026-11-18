@@ -7,6 +7,12 @@ function load(file) {
   return module.exports;
 }
 const { completionStreak } = load('lib/habitHistory.ts');
+const { isAssetRecords, warrantyReminderDate } = load('lib/assetRecords.ts');
+assert.equal(isAssetRecords({}), true);
+assert.equal(isAssetRecords({ asset: { warrantyEnd: '2027-02-30' } }), false);
+assert.equal(isAssetRecords({ asset: { warrantyEnd: '2028-02-29' } }), true);
+assert.equal(warrantyReminderDate('2027-01-15', '2026-11-18'), '2026-12-16');
+assert.equal(warrantyReminderDate('2026-11-20', '2026-11-18'), '2026-11-18');
 const { assetDocumentKey, isAssetDocuments } = load('lib/assetDocuments.ts');
 const asset = { sNo: 1, product: 'Laptop', model: 'Example', orderDate: '2026-01-01', seller: 'Store' };
 assert.equal(assetDocumentKey(asset), assetDocumentKey({ ...asset, sNo: 99 }), 'Sheet row reordering must not orphan bills');

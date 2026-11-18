@@ -2080,6 +2080,9 @@ export default function Home() {
             />
           ) : activeNav === "Trackers" ? (
             <TrackersView
+              assetRecords={trackerWorkspace.assetRecords}
+              onAssetRecordsChange={assetRecords => { trackerWorkspace.update({ assetRecords }); }}
+              onAssetWarrantyReminder={(key, name, date) => { const source = `Warranty: ${key} · ${date}`; if (tasks.some(task => task.meta === source)) { toast("Warranty reminder already exists"); return; } addTask({ title: `Review warranty: ${name}`, meta: source, dueDate: date, category: "personal", priority: true }); }}
               assetDocuments={trackerWorkspace.assetDocuments}
               onAssetDocumentsChange={assetDocuments => { trackerWorkspace.update({ assetDocuments }); }}
               onRenewalTask={(subscription, date) => addTask({ title: `Review renewal: ${subscription.name}`, meta: `Review billing before ${date}`, dueDate: date, category: "personal", priority: true })}
