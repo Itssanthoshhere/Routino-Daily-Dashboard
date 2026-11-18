@@ -77,6 +77,8 @@ The responsive interface includes desktop/mobile navigation, accessible dialogs,
 
 **Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability.
 
+**Calendar auto-colours** use Sage for meals, Blueberry for routine/social time, Flamingo for movies and series, Tomato for games, Graphite for typing/notes, and Banana for work. Entertainment recognises movie/series terms, season/episode markers, and configured show keywords. Word boundaries avoid accidental matches such as “super” inside “Superbase”; technical time-series titles are excluded. The connected Calendar view scans writable Google calendars from 14 days ago through 60 days ahead, follows pagination, skips all-day/already-correct events, and patches only `colorId`. Throttled writes retry up to five attempts with backoff. New or renamed loaded events trigger another pass; successful scans are cached per account/session, failures remain retryable, and updated colours refresh in the app. This rolling window differs from a fixed-date Apps Script backfill; Outlook and saved custom events are not written by this action.
+
 Select an unfinished task to create a focus event in your primary Google Calendar. The app waits for Google’s response, shows errors, and keeps a linked workspace copy. Focus events can be rescheduled or deleted from their details. **Undo** checks the account and newer edits; restoring a deleted future Google event creates a new event/link. Outlook remains read-only. No automatic purchase, booking, or invitation workflow is implied.
 
 **Create Meeting Note** prepares a saved Routino note with the title, available start/end and attendees, calendar link, and sections for notes, decisions, and action items. This is a template, not an automatic transcript or AI meeting summary. Existing event-linked notes reopen rather than duplicating. Unfinished checklist items in unencrypted meeting notes can become tasks; persistent action keys prevent duplicate conversion after task metadata edits. These are Routino notes, not writes to Google Keep.
@@ -316,6 +318,7 @@ npm run lint                        # TypeScript check
 node scripts/test-trackers.cjs       # tracker regression checks
 node scripts/test-workspace-features.cjs # search, history, and reminder checks
 node scripts/test-review-fixes.cjs     # timing, action identity, and habit counter regressions
+node scripts/test-calendar-colors.cjs # category mappings, pagination, retries, and color-only writes
 node scripts/test-management-features.cjs # habit history and private document validation
 npm run build                       # production build
 ```

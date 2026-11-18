@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   CalendarDays,
   Clock,
@@ -32,6 +32,8 @@ type CalendarViewProps = {
   onOpenAddEvent: () => void;
   onSelectEvent: (event: DashboardEvent) => void;
   isConnected: boolean;
+  accountEmail?: string | null;
+  onColorized?: () => void;
   tasks: Task[];
   onScheduleTask: (task: Task, slot: FocusSlot) => void | Promise<void>;
 };
@@ -43,6 +45,8 @@ export function CalendarView({
   onOpenAddEvent,
   onSelectEvent,
   isConnected,
+  accountEmail,
+  onColorized,
   tasks,
   onScheduleTask,
 }: CalendarViewProps) {
@@ -56,45 +60,37 @@ export function CalendarView({
   const [showReauthPrompt, setShowReauthPrompt] = useState(false);
   const [showFocusFinder, setShowFocusFinder] = useState(false);
 
-  // Background auto-colorize once per browser session
-  useEffect(() => {
-    if (!isConnected) return;
-    const key = "routino_auto_colorized_session";
-    if (!sessionStorage.getItem(key)) {
-      sessionStorage.setItem(key, "true");
-      void fetch("/api/calendar/auto-colorize", { method: "POST" })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data?.needsReauth) {
-            setShowReauthPrompt(true);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [isConnected]);
-
-  const handleAutoColorize = async () => {
-    setIsColorizing(true);
-    setColorizeMessage(null);
-    setColorizeError(null);
-    setShowReauthPrompt(false);
+  const refreshAfterColoring = useRef(onColorized);
+  useEffect(() => { refreshAfterColoring.current = onColorized; }, [onColorized]);
+  const coloringInFlight = useRef(false);
+  const attempted = useRef("");
+  const fingerprint = useMemo(() => JSON.stringify(events.filter(event => event.source !== "outlook" && event.source !== "custom").map(event => [event.calendarId, event.id, event.summary, event.start?.dateTime]).sort((a,b) => String(a).localeCompare(String(b)))), [events]);
+  const cacheKey = `routino_calendar_colors_v2:${accountEmail?.trim().toLowerCase() || "connected"}`;
+  const handleAutoColorize = useCallback(async () => {
+    if (coloringInFlight.current) return;
+    coloringInFlight.current = true;
+    attempted.current = `${cacheKey}:${fingerprint}`;
+    setIsColorizing(true); setColorizeMessage(null); setColorizeError(null); setShowReauthPrompt(false);
     try {
-      const res = await fetch("/api/calendar/auto-colorize", { method: "POST" });
-      const data = await res.json();
-      if (data.needsReauth) {
-        setShowReauthPrompt(true);
-      } else if (data.success) {
+      const response = await fetch("/api/calendar/auto-colorize", { method: "POST" });
+      const data = await response.json();
+      if (data.updatedCount > 0) refreshAfterColoring.current?.();
+      if (data.needsReauth) setShowReauthPrompt(true);
+      if (response.ok && data.success && !data.needsReauth) {
+        try { sessionStorage.setItem(cacheKey, fingerprint); } catch { /* Coloring still succeeds without browser storage. */ }
         setColorizeMessage(data.message);
-        setTimeout(() => setColorizeMessage(null), 6000);
-      } else {
-        setColorizeError(data.error || "Could not auto-colorize calendar events.");
-      }
-    } catch {
-      setColorizeError("Failed to connect to the auto-colorize service.");
-    } finally {
-      setIsColorizing(false);
-    }
-  };
+      } else setColorizeError(data.error || "Could not finish coloring calendar events. Please retry.");
+    } catch { setColorizeError("Failed to connect to the auto-colorize service. Please retry."); }
+    finally { coloringInFlight.current = false; setIsColorizing(false); }
+  }, [cacheKey, fingerprint]);
+
+  // Run again for new/renamed events; color-only refreshes do not trigger another pass.
+  useEffect(() => {
+    if (!isConnected || isColorizing || attempted.current === `${cacheKey}:${fingerprint}`) return;
+    try { if (sessionStorage.getItem(cacheKey) === fingerprint) return; } catch { /* Browser storage is optional. */ }
+    const timer = window.setTimeout(() => { void handleAutoColorize(); }, 300);
+    return () => window.clearTimeout(timer);
+  }, [isConnected, isColorizing, cacheKey, fingerprint, handleAutoColorize]);
 
   // Today base date (midnight)
   const todayDate = useMemo(() => {
@@ -304,6 +300,8 @@ export function CalendarView({
                       ? "bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe]"
                       : tagToDisplay === "MEETING"
                       ? "bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe]"
+                      : tagToDisplay === "ENTERTAINMENT"
+                      ? "bg-[#fce8e6] text-[#b33b32] border border-[#f6ccc7]"
                       : tagToDisplay === "PERSONAL"
                       ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
                       : tagToDisplay === "OUTLOOK"
@@ -418,7 +416,7 @@ export function CalendarView({
               onClick={handleAutoColorize}
               disabled={isColorizing}
               className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[12px] font-semibold text-ink shadow-2xs hover:bg-[#f1f3ed] transition disabled:opacity-50 cursor-pointer"
-              title="Automatically color meals pale green, routine blueberry, typing graphite, and work yellow on Google Calendar"
+              title="Automatically color meals sage, routine blueberry, movies and series flamingo, games red, typing graphite, and work yellow on Google Calendar"
             >
               <Sparkles size={14} className={isColorizing ? "animate-spin text-forest" : "text-amber-500"} />
               <span>{isColorizing ? "Colorizing..." : "Auto-Colorize"}</span>
@@ -668,7 +666,7 @@ export function CalendarView({
           <span className="text-[11px] font-semibold text-muted flex items-center gap-1 mr-1">
             <Filter size={12} /> Filter:
           </span>
-          {["ALL", "PROJECT", "TRAVEL", "BANANA", "WORK", "MEETING", "PERSONAL", "OUTLOOK"].map((tag) => (
+          {["ALL", "ENTERTAINMENT", "GAMING", "MEAL", "ROUTINE", "TYPING", "PROJECT", "TRAVEL", "BANANA", "WORK", "MEETING", "PERSONAL", "OUTLOOK"].map((tag) => (
             <button
               key={tag}
               onClick={() => setSelectedTag(tag)}

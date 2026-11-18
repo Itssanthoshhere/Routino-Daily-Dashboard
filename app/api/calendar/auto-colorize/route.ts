@@ -1,197 +1,72 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { googleFetch } from "@/lib/google";
+import { calendarColorRule } from "@/lib/calendarColors";
 
 export const dynamic = "force-dynamic";
-
-const COLOR_RULES = [
-  {
-    name: "Meals",
-    colorId: "2", // Sage / Pale Green
-    keywords: [
-      "breakfast",
-      "lunch",
-      "dinner",
-      "maggi",
-      "yippee",
-      "biryani",
-      "soup",
-      "snacks",
-      "snack",
-      "cooking",
-      "food",
-    ],
-  },
-  {
-    name: "Routine & Social",
-    colorId: "9", // Blueberry / Blue
-    keywords: [
-      "sleep",
-      "instaa",
-      "insta",
-      "bath",
-      "freshup",
-      "fresh up",
-      "youtube",
-      "chit",
-      "chit chat",
-    ],
-  },
-  {
-    name: "Games / Gaming",
-    colorId: "4", // Flamingo / Rose
-    keywords: [
-      "coc",
-      "clash of clans",
-      "bgmi",
-      "pubg",
-      "games",
-      "game",
-      "gaming",
-      "candy crush",
-      "chess",
-      "valorant",
-      "fifa",
-      "gta",
-      "minecraft",
-      "free fire",
-      "cod",
-    ],
-  },
-  {
-    name: "Typing & Notes",
-    colorId: "8", // Graphite / Gray
-    keywords: ["typing", "journal", "notes"],
-  },
-  {
-    name: "Work & Tasks",
-    colorId: "5", // Banana / Yellow
-    keywords: [
-      "mf360",
-      "building",
-      "work",
-      "project",
-      "sprint",
-      "planning",
-      "tasks",
-      "routino",
-      "cset",
-      "cs400",
-      "fund disclosure",
-      "deep work",
-      "engineering",
-      "design review",
-    ],
-  },
-];
+type GoogleEvent = { id: string; summary?: string; colorId?: string; start?: { dateTime?: string } };
+const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function POST() {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
-  }
-
+  if (!(await auth())?.user) return NextResponse.json({ success: false, error: "Not authenticated" }, { status: 401 });
   try {
-    const now = new Date();
-    // Rolling window: 14 days ago to 60 days ahead
-    const pastWindow = new Date(now);
-    pastWindow.setDate(pastWindow.getDate() - 14);
-    pastWindow.setHours(0, 0, 0, 0);
-
-    const futureWindow = new Date(now);
-    futureWindow.setDate(futureWindow.getDate() + 60);
-    futureWindow.setHours(23, 59, 59, 999);
-
-    const timeMin = encodeURIComponent(pastWindow.toISOString());
-    const timeMax = encodeURIComponent(futureWindow.toISOString());
-
-    // 1. Fetch calendar list
-    const calendarListRes = await googleFetch(
-      "https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=writer"
-    );
-
-    let calendarsToScan: Array<{ id: string }> = [{ id: "primary" }];
-    if (calendarListRes.ok) {
-      const calData = await calendarListRes.json();
-      if (Array.isArray(calData.items)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const writable = calData.items.filter((c: any) => c.accessRole === "writer" || c.accessRole === "owner");
-        if (writable.length > 0) {
-          calendarsToScan = writable.map((c: { id: string }) => ({ id: c.id }));
-        }
+    const past = new Date(); past.setDate(past.getDate() - 14); past.setHours(0, 0, 0, 0);
+    const future = new Date(); future.setDate(future.getDate() + 60); future.setHours(23, 59, 59, 999);
+    let updatedCount = 0, skippedCount = 0, failedCount = 0, needsReauth = false;
+    const calendars = new Set<string>();
+    let calendarPage: string | undefined;
+    do {
+      const response = await googleFetch(`https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=writer${calendarPage ? `&pageToken=${encodeURIComponent(calendarPage)}` : ""}`);
+      if (!response.ok) {
+        failedCount++;
+        needsReauth = response.status === 401 || response.status === 403;
+        if (!calendars.size) calendars.add("primary");
+        break;
       }
-    }
-
-    let updatedCount = 0;
-    let skippedCount = 0;
-    let needsReauth = false;
-
-    for (const cal of calendarsToScan.slice(0, 3)) {
-      const eventsRes = await googleFetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&maxResults=500`
-      );
-
-      if (!eventsRes.ok) {
-        if (eventsRes.status === 403) needsReauth = true;
-        continue;
-      }
-
-      const eventsData = await eventsRes.json();
-      const events = Array.isArray(eventsData.items) ? eventsData.items : [];
-
-      for (const event of events) {
-        // Skip all-day events (holidays, birthdays)
-        if (!event.start?.dateTime) continue;
-
-        const title = (event.summary || "").toLowerCase();
-
-        for (const rule of COLOR_RULES) {
-          const matches = rule.keywords.some((k) => title.includes(k.toLowerCase()));
-
-          if (matches) {
-            // If already colored with this colorId, skip!
-            if (event.colorId === rule.colorId) {
-              skippedCount++;
-              break;
-            }
-
+      const result = await response.json();
+      for (const calendar of result.items || []) if (["owner", "writer"].includes(calendar.accessRole) && calendar.id) calendars.add(calendar.id);
+      calendarPage = result.nextPageToken;
+    } while (calendarPage);
+    const seen = new Set<string>();
+    for (const calendar of Array.from(calendars)) {
+      let pageToken: string | undefined;
+      do {
+        const query = new URLSearchParams({ timeMin: past.toISOString(), timeMax: future.toISOString(), singleEvents: "true", maxResults: "500" });
+        if (pageToken) query.set("pageToken", pageToken);
+        const base = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar)}/events`;
+        const response = await googleFetch(`${base}?${query}`);
+        if (!response.ok) { failedCount++; if ([401,403].includes(response.status)) needsReauth = true; break; }
+        const result = await response.json();
+        for (const event of (result.items || []) as GoogleEvent[]) {
+          const identity = `${calendar}:${event.id}`;
+          if (!event.id || !event.start?.dateTime || seen.has(identity)) continue;
+          seen.add(identity);
+          const rule = calendarColorRule(event.summary || "");
+          if (!rule) continue;
+          if (event.colorId === rule.colorId) { skippedCount++; continue; }
+          let saved = false;
+          for (let attempt = 0; attempt < 5; attempt++) {
             try {
-              const patchRes = await googleFetch(
-                `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events/${encodeURIComponent(event.id)}`,
-                {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ colorId: rule.colorId }),
-                }
-              );
-
-              if (patchRes.ok) {
-                updatedCount++;
-                // Small throttle to avoid hitting Google API write rate limits
-                await new Promise((r) => setTimeout(r, 120));
-              } else if (patchRes.status === 403) {
-                needsReauth = true;
-              }
-            } catch {
-              // ignore single event error
-            }
-            break;
+              const patch = await googleFetch(`${base}/${encodeURIComponent(event.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ colorId: rule.colorId }) });
+              if (patch.ok) { saved = true; break; }
+              if ([401,403].includes(patch.status)) {
+                const error = await patch.json().catch(() => ({}));
+                const limited = error.error?.errors?.some((item: { reason?: string }) => ["rateLimitExceeded", "userRateLimitExceeded"].includes(item.reason || ""));
+                if (!limited) { needsReauth = true; break; }
+              } else if (patch.status !== 429 && patch.status < 500) break;
+            } catch { /* Retry transient network failures. */ }
+            if (attempt < 4) await pause(2000 * (attempt + 1));
           }
+          if (saved) updatedCount++; else failedCount++;
+          await pause(300);
         }
-      }
+        pageToken = result.nextPageToken;
+      } while (pageToken);
     }
-
-    return NextResponse.json({
-      success: true,
-      updatedCount,
-      skippedCount,
-      needsReauth,
-      message: updatedCount > 0
-        ? `Successfully auto-colored ${updatedCount} event${updatedCount > 1 ? "s" : ""} in Google Calendar!`
-        : `All events are already up-to-date with their correct colors!`,
+    const complete = failedCount === 0 && !needsReauth;
+    return NextResponse.json({ success: complete, updatedCount, skippedCount, failedCount, needsReauth,
+      message: complete ? (updatedCount ? `Auto-colored ${updatedCount} event${updatedCount === 1 ? "" : "s"}.` : "Matching events in the scanned window already have the correct colors.") : `Updated ${updatedCount} events; some calendars or events could not be updated. Retry or reconnect Google Calendar.`,
+      error: complete ? undefined : `Updated ${updatedCount} events; ${failedCount} reads or updates failed. Retry or reconnect Google Calendar.`,
     });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Error colorizing events";
-    return NextResponse.json({ success: false, error: msg }, { status: 500 });
-  }
+  } catch { return NextResponse.json({ success: false, error: "Could not complete calendar coloring. Retry when connected." }, { status: 503 }); }
 }

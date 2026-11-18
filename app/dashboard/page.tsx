@@ -2066,6 +2066,8 @@ export default function Home() {
           {/* ─── CONDITIONAL VIEWS BASED ON ACTIVE NAV ─── */}
           {activeNav === "Calendar" ? (
             <CalendarView
+              accountEmail={verifiedWorkspaceAccount}
+              onColorized={() => { void fetchDashboard(false); }}
               events={allEvents}
               onOpenAddEvent={() => { setViewingEvent(null); setShowEventModal(true); }}
               onSelectEvent={(ev) => { setViewingEvent(ev); setShowEventModal(true); }}

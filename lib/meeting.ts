@@ -1,4 +1,5 @@
 import type { DashboardEvent, Task } from "@/types/dashboard";
+import { isEntertainmentEvent } from "@/lib/calendarColors";
 
 /**
  * Checks if a URL is a genuine video conferencing link (Google Meet, Zoom, Teams, Webex, Skype)
@@ -142,6 +143,10 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
           ? "#7c3aed"
           : t === "MEETING"
           ? "#2563eb"
+          : t === "GAMING"
+          ? "#ef4444"
+          : t === "ENTERTAINMENT"
+          ? "#e67c73"
           : t === "PERSONAL"
           ? "#d97706"
           : "#16a34a"),
@@ -181,6 +186,10 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
     return { tag: "TRAVEL", color: "#0284c7" };
   }
 
+  if (isEntertainmentEvent(summary)) {
+    return { tag: "ENTERTAINMENT", color: "#e67c73" };
+  }
+
   // 2. BANANA / YELLOW (explicit Google Calendar Banana color or user's banana project sessions)
   if (
     isBanana ||
@@ -210,11 +219,11 @@ export function inferEventCategory(event: DashboardEvent): { tag: string; color:
 
   // 5. GAMING / GAMES (Rose / Crimson: coc, bgmi, pubg, games, gaming, candy crush, chess, valorant, fifa, gta)
   if (
-    /\b(coc|clash of clans|bgmi|pubg|games|game|gaming|candy crush|chess|valorant|fifa|gta|minecraft|free fire|cod)\b/i.test(
+    /\b(subway|coc|clash of clans|bgmi|pubg|games|game|gaming|candy crush|chess|valorant|fifa|gta|minecraft|free fire|cod)\b/i.test(
       summary
     )
   ) {
-    return { tag: "GAMING", color: "#e11d48" };
+    return { tag: "GAMING", color: "#ef4444" };
   }
 
   // 6. TYPING (Graphite / Gray: typing, journal, notes)
