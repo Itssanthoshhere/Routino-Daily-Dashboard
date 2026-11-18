@@ -285,7 +285,7 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   const combined = `${product} ${model}`.toLowerCase();
   if (combined.includes("applecare")) {
     return {
-      label: "AppleCare+ Protected",
+      label: "AppleCare+ listed · Verify expiry",
       badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
     };
   }
@@ -297,7 +297,7 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   }
   if (daysSince <= 365) {
     return {
-      label: "< 1 Yr · Active Warranty",
+      label: "< 1 Yr · Check warranty terms",
       badgeClass: "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]",
     };
   }
@@ -962,14 +962,12 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
       });
   }, [data.purchases, purchaseSearch, purchaseBrandFilter, purchaseSort]);
 
-  // Active warranty count (< 365 days or AppleCare)
-  const activeWarrantyCount = useMemo(() => {
-    return (data.purchases || []).filter((p) => {
-      const combined = `${p.product} ${p.model}`.toLowerCase();
-      if (combined.includes("applecare")) return true;
-      return p.daysSinceDelivery > 0 && p.daysSinceDelivery <= 365;
-    }).length;
-  }, [data.purchases]);
+  // Count only confirmed warranties; purchase age is not a coverage guarantee.
+  const activeWarrantyCount = (() => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    return (data.purchases || []).filter(p => { const end = assetRecords[assetDocumentKey(p)]?.warrantyEnd; return !!end && end >= today; }).length;
+  })();
 
   // Investment allocation metrics & sponsor status breakdown
   const investmentSplit = useMemo(() => {
@@ -2664,12 +2662,12 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
             </div>
 
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
-              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Under Warranty</span>
+              <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Confirmed Warranties</span>
               <p className="mt-1 text-[22px] font-bold text-[#059669] tracking-tight flex items-center gap-1.5">
                 <ShieldCheck size={18} className="text-[#059669]" />
                 {activeWarrantyCount}
               </p>
-              <p className="mt-1 text-[10.5px] text-muted">&lt; 1 Year or AppleCare+ Plan</p>
+              <p className="mt-1 text-[10.5px] text-muted">Based on saved expiry dates</p>
             </div>
           </div>
 
@@ -2754,7 +2752,10 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredPurchases.map((p) => {
-                const lifecycle = getDeviceLifecycleBadge(p.daysSinceDelivery, p.product, p.model);
+                const expiry = assetRecords[assetDocumentKey(p)]?.warrantyEnd;
+                const current = new Date();
+                const expired = expiry && expiry < `${current.getFullYear()}-${String(current.getMonth()+1).padStart(2,"0")}-${String(current.getDate()).padStart(2,"0")}`;
+                const lifecycle = expiry ? { label: expired ? `Warranty expired · ${expiry}` : `Warranty until ${expiry}`, badgeClass: expired ? "bg-amber-50 text-amber-800 border border-amber-200" : "bg-emerald-50 text-emerald-800 border border-emerald-200" } : getDeviceLifecycleBadge(p.daysSinceDelivery, p.product, p.model);
                 return (
                   <div key={p.sNo} className="rounded-2xl border border-line bg-white p-5 shadow-card flex flex-col justify-between hover:border-forest/40 transition">
                     <div>

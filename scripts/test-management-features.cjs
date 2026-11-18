@@ -87,6 +87,7 @@ async function verifyRoutes() {
     assert.equal(preview.headers.get('content-type'), 'application/pdf');
     assert.match(preview.headers.get('content-disposition'), /^inline;/);
     assert.match(preview.headers.get('content-security-policy'), /sandbox/);
+    assert.equal(preview.headers.get('x-frame-options'), 'SAMEORIGIN');
     console.log('Passed: document route authentication, private upload options, cross-account denial, attachment download, and private no-store headers.');
   } finally { if (oldToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN; else process.env.BLOB_READ_WRITE_TOKEN = oldToken; }
 }

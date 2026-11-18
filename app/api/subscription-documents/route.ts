@@ -29,6 +29,6 @@ export async function GET(request: Request) {
     if (!result || result.statusCode !== 200) return json({ error: "Document not found." }, 404);
     const preview = new URL(request.url).searchParams.get("preview") === "1" && ["application/pdf", "image/png", "image/jpeg"].includes(result.blob.contentType);
     const name = (new URL(request.url).searchParams.get("name") || "document").replace(/[\r\n]/g, "").slice(0, 180);
-    return new Response(result.stream, { headers: { "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'", "Content-Type": preview ? result.blob.contentType : "application/octet-stream", "Content-Disposition": `${preview ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(name)}`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+    return new Response(result.stream, { headers: { "X-Frame-Options": preview ? "SAMEORIGIN" : "DENY", "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'", "Content-Type": preview ? result.blob.contentType : "application/octet-stream", "Content-Disposition": `${preview ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(name)}`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
   } catch { return json({ error: "Document download unavailable." }, 503); }
 }

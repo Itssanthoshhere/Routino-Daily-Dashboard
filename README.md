@@ -155,6 +155,14 @@ Optional trial-end and cancellation deadlines guide **Add Google Calendar alert*
 
 The same attachment panel appears on each **Gadgets & Assets** card. Asset bill references save separately in the account tracker workspace without changing the source spreadsheet’s purchase records. Product, model, order date, and seller identify the asset, so moving a spreadsheet row does not detach its bills. Changing those identifying values requires relinking; identical records with the same identifying values share attachments.
 
+Private PDFs and images support in-app **Preview**. Attachment names can be edited; confirmed removal detaches the reference without deleting the private file. Older backups retain their references. External links and other file types open or download instead of rendering in the preview.
+
+Each asset has a **Warranty** panel for a confirmed expiry date and a review task 30 days before expiry (or today when that reminder date has passed). Check the invoice/provider terms; the app does not infer warranty duration. Existing reminder tasks remain when an expiry date changes. **Service history** records repairs and maintenance with dates, providers, INR costs, notes, and private receipts; entries can be edited or removed with confirmation. These optional records use the existing account tracker revision flow.
+
+Subscription **Price history** compares annual equivalents and percentage changes between recorded recurring rates, including billing-cycle changes. Different currencies, bundled access, and nonrecurring rates are not combined; a free previous rate has no percentage baseline. These comparisons project cost rather than record payments.
+
+The header’s **Sync Center → Data health** shows database reachability, latest account update, database/external backup age, and pending core/tracker saves. Health checks run when the panel opens or **Check now** is selected. Local pending counts refresh while open; status is informational and does not replace backup verification.
+
 ### Airtel Recharge
 
 The dedicated tracker separates main plans from data top-ups and keeps payment dates distinct from activation/validity dates. Saved plans can include allowances and benefits you actually use. Included subscriptions link to the recharge payment; one-time upgrades remain separate from recurring charges. Failed attempts and other-number transactions are excluded from spending totals.
@@ -325,6 +333,7 @@ These integration checks require configured private storage and perform writes:
 | `node scripts/verify-recycle-bin.cjs` | Transactional deletion capture, task/recharge/journal recovery, encrypted notes, stale restore rejection, and account isolation with disposable records. |
 | `node scripts/verify-external-backup.cjs` | Creates or verifies the owner's daily Blob copy, checks isolation, and confirms the source workspace is unchanged. Can load ignored `.env.backup.local`. |
 | `node scripts/verify-subscription-documents.cjs` | Uploads and independently reads a disposable private Blob document, then removes only that test upload. Existing user files are unchanged. |
+| `node scripts/verify-asset-records.cjs` | Saves warranty, repair, and receipt metadata under a disposable account; independently checks persistence, stale-write rejection, and unrelated-field preservation; removes only its test account and snapshots. |
 
 The migration utility `scripts/migrate-tracker-records.cjs` uses a pre-migration backup and compare-and-swap guard for private tracker imports. Keep private exports in ignored `.data/`; never commit them.
 
