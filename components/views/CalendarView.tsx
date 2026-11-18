@@ -20,6 +20,7 @@ import { DashboardEvent } from "@/types/dashboard";
 import { Task } from "@/types/dashboard";
 import { FocusSlot } from "@/lib/focusSlots";
 import { FocusSlotFinder } from "@/components/FocusSlotFinder";
+import { CalendarEventSearch } from "@/components/CalendarEventSearch";
 import { CalendarColorLegend } from "@/components/CalendarColorLegend";
 import { CalendarColorManager } from "@/components/CalendarColorManager";
 import { connectGoogle } from "@/app/actions";
@@ -46,6 +47,7 @@ export function CalendarView({
   tasks,
   onScheduleTask,
 }: CalendarViewProps) {
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string>("ALL");
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
@@ -384,6 +386,9 @@ export function CalendarView({
 
       <CalendarColorLegend connected={isConnected} />
 
+      <CalendarEventSearch events={events} query={searchQuery} onQueryChange={setSearchQuery} onSelectEvent={onSelectEvent} />
+
+      {!searchQuery.trim() && <>
       {/* 7-Day Navigation & Range Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-line bg-white/70 p-3 sm:px-4 sm:py-2.5 shadow-2xs backdrop-blur-xs">
         <div className="flex flex-wrap items-center gap-2">
@@ -795,6 +800,7 @@ export function CalendarView({
           )
         )}
       </div>
+      </>}
     </div>
     </>
   );

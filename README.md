@@ -77,6 +77,8 @@ The responsive interface includes desktop/mobile navigation, accessible dialogs,
 
 **Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability.
 
+**Calendar search** is one field above the calendar. Search titles, dates (for example `18 Nov 2026` or `2026-11-18`), or categories such as Entertainment across all loaded Google, Outlook, and saved events, beyond the selected week. Terms combine, so `Entertainment 2026-11-18` narrows both category and date. Results open existing event Details; clearing search restores your calendar view. Search is local and read-only; full calendar history outside the loaded range is not searched.
+
 **Colour events** at the top of Calendar or in Preferences provides editable, ordered keyword rules, enabled toggles, named Google colors, whole-word/contains matching, and account-synced event/calendar exclusions. Defaults use Sage meals, Blueberry routine/social, Flamingo movies/series, Tomato games, Graphite typing/notes, and Banana work. Preview is read-only; calendar colors change only after **Apply selected & save rules**. Older auto-write requests cannot bypass the preview flow. The button opens the date-and-preview step directly. A compact **Colour guide** displays enabled saved rules below the calendar toolbar. In **Rules & exclusions**, **Test an event title** shows the first matching draft rule and colour without saving settings or changing an event.
 
 Choose a local **From / Through** range up to two years. Writable Google calendars and event pages are scanned; all-day, excluded, unmatched, and already-correct events are skipped. Previews show old/new colors and selectable events in batches of 25. **Keep this event’s color** adds a draft exclusion; save rules/exclusions to persist it. For a timed Google event, **Details → Keep this colour** saves the same exclusion directly; **Allow rule changes** removes it. This toggle never recolours or edits the event. Rule names, keywords, ordering, or dates changing invalidates the preview. The server rescans before Apply and checks Google event versions so a stale preview cannot overwrite newer event edits. Only `colorId` is patched; Outlook and saved custom events are not written.
@@ -324,6 +326,7 @@ node scripts/test-workspace-features.cjs # search, history, and reminder checks
 node scripts/test-review-fixes.cjs     # timing, action identity, and habit counter regressions
 node scripts/test-calendar-colors.cjs # default category mappings and legacy auto-write prevention
 node scripts/test-calendar-color-manager.cjs # previews, exclusions, stale versions, selective Apply, and Undo
+node scripts/test-calendar-search.cjs # loaded-history search, categories, dates, and timezone boundaries
 node scripts/test-management-features.cjs # habit history and private document validation
 npm run build                       # production build
 ```
