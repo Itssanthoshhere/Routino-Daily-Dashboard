@@ -3169,6 +3169,7 @@ export default function Home() {
 
       {/* ─── Modals & overlays ─── */}
       <QuickCaptureModal
+        tasks={tasks}
         isOpen={showQuickCapture}
         onClose={() => setShowQuickCapture(false)}
         onAddTask={(task) => {

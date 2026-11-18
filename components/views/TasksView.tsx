@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { Task } from "@/types/dashboard";
 import { parseTaskQuickAdd, quickTaskContext, type TaskDetection } from "@/lib/taskQuickParse";
+import { findTaskDuplicates, duplicateWarningKey } from "@/lib/taskDuplicates";
+import { TaskDuplicateWarning } from "@/components/TaskDuplicateWarning";
 import { TaskParsePreview } from "@/components/TaskParsePreview";
 import { inferTaskCategory } from "@/lib/meeting";
 import { renderLinkedText } from "@/lib/text-links";
@@ -59,6 +61,7 @@ export function TasksView({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "today" | "upcoming" | "priority" | "project" | "travel" | "completed">("all");
   const [ignoredDetections, setIgnoredDetections] = useState<TaskDetection[]>([]);
+  const [allowedDuplicate, setAllowedDuplicate] = useState<string | null>(null);
   const [quickTitle, setQuickTitle] = useState("");
   const [quickCategory, setQuickCategory] = useState<"work" | "personal" | "meeting" | "urgent" | "project" | "travel">("work");
   const [hasUserChangedCategory, setHasUserChangedCategory] = useState(false);
@@ -98,6 +101,7 @@ export function TasksView({
 
   const handleTitleChange = (val: string) => {
     setQuickTitle(val);
+    setAllowedDuplicate(null);
     setIgnoredDetections([]);
     if (!hasUserChangedCategory && val.trim().length > 0) {
       const detected = inferTaskCategory(val);
@@ -107,6 +111,10 @@ export function TasksView({
 
   const parsedQuickTask = parseTaskQuickAdd(quickTitle, new Date(), ignoredDetections);
 
+  const duplicates = findTaskDuplicates(parsedQuickTask.title, tasks);
+  const warningKey = duplicateWarningKey(JSON.stringify([quickTitle, parsedQuickTask.title]), duplicates);
+  const duplicateAllowed = allowedDuplicate === warningKey;
+
   const handleQuickAdd = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickTitle.trim()) {
@@ -115,7 +123,7 @@ export function TasksView({
       return;
     }
 
-    if (!parsedQuickTask.title) return;
+    if (!parsedQuickTask.title || (duplicates.length && !duplicateAllowed)) return;
     const finalCat = hasUserChangedCategory ? quickCategory : parsedQuickTask.category || (ignoredDetections.includes("category") ? "work" : quickCategory);
     const catLabel =
       finalCat === "project"
@@ -143,6 +151,7 @@ export function TasksView({
     }
 
     setQuickTitle("");
+    setAllowedDuplicate(null);
     setIgnoredDetections([]);
     setQuickCategory("work");
     setHasUserChangedCategory(false);
@@ -256,7 +265,8 @@ export function TasksView({
           </select>
           <button
             type="submit"
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition cursor-pointer shadow-2xs active:scale-95"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[12px] font-semibold text-white hover:bg-[#8b1116] transition cursor-pointer shadow-2xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={!!duplicates.length && !duplicateAllowed}
             title={quickTitle.trim() ? "Add task" : "Click to open task creation modal"}
           >
             <Plus size={13} /> Add
@@ -264,6 +274,8 @@ export function TasksView({
         </div>
       </form>
       {quickTitle.trim() && <TaskParsePreview text={quickTitle} parsed={parsedQuickTask} dismissed={!!ignoredDetections.length} onDismiss={kind => setIgnoredDetections(previous => [...previous, kind])} onRestore={() => setIgnoredDetections([])} />}
+
+      <TaskDuplicateWarning tasks={duplicates} allowed={duplicateAllowed} onAllow={allowed => setAllowedDuplicate(allowed ? warningKey : null)} />
 
       {/* Search and Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

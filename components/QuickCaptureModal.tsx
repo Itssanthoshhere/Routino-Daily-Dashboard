@@ -6,12 +6,15 @@ import type { Task, KeepNote } from "@/types/dashboard";
 import { inferTaskCategory } from "@/lib/meeting";
 
 import { parseTaskQuickAdd, quickTaskContext, type TaskDetection } from "@/lib/taskQuickParse";
+import { findTaskDuplicates, duplicateWarningKey } from "@/lib/taskDuplicates";
+import { TaskDuplicateWarning } from "@/components/TaskDuplicateWarning";
 import { TaskParsePreview } from "@/components/TaskParsePreview";
 
 type CaptureType = "task" | "note" | "scratchpad";
 type Recognition = { start: () => void; stop: () => void; abort: () => void; lang: string; continuous: boolean; interimResults: boolean; onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onerror: (() => void) | null; onend: (() => void) | null };
 
 type QuickCaptureModalProps = {
+  tasks: Task[];
   isOpen: boolean;
   onClose: () => void;
   onAddTask: (task: Task) => void;
@@ -20,12 +23,14 @@ type QuickCaptureModalProps = {
 };
 
 export function QuickCaptureModal({
+  tasks,
   isOpen,
   onClose,
   onAddTask,
   onAddNote,
   onAppendScratchpad,
 }: QuickCaptureModalProps) {
+  const [allowedDuplicate, setAllowedDuplicate] = useState<string | null>(null);
   const [type, setType] = useState<CaptureType>("task");
   const [ignoredDetections, setIgnoredDetections] = useState<TaskDetection[]>([]);
   const [text, setText] = useState("");
@@ -65,6 +70,7 @@ export function QuickCaptureModal({
       setIsPriority(null);
       setManualCategory(null);
       setSavedSuccess(false);
+      setAllowedDuplicate(null);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
@@ -72,6 +78,9 @@ export function QuickCaptureModal({
   if (!isOpen) return null;
 
   const parsed = parseTaskQuickAdd(text, new Date(), ignoredDetections);
+  const duplicates = findTaskDuplicates(parsed.title, tasks);
+  const warningKey = duplicateWarningKey(JSON.stringify([text, parsed.title]), duplicates);
+  const duplicateAllowed = allowedDuplicate === warningKey;
   const effectivePriority = isPriority ?? parsed.priority ?? false;
   const currentCategory: NonNullable<Task["category"]> = manualCategory || parsed.category || (text.trim() ? (ignoredDetections.includes("category") ? "work" : inferTaskCategory(text.trim())) : (isPriority ? "urgent" : "work"));
 
@@ -81,6 +90,7 @@ export function QuickCaptureModal({
     recognitionRef.current?.abort();
 
     if (type === "task") {
+      if (duplicates.length && !duplicateAllowed) return;
       const catLabel = currentCategory === "project" ? "Project" : currentCategory === "travel" ? "Travel" : currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1);
       onAddTask({
         id: "task-quick-" + Date.now(),
@@ -105,6 +115,7 @@ export function QuickCaptureModal({
     setSavedSuccess(true);
     setTimeout(() => {
       setSavedSuccess(false);
+      setAllowedDuplicate(null);
       onClose();
     }, 600);
   };
@@ -173,7 +184,7 @@ export function QuickCaptureModal({
             ref={inputRef}
             type="text"
             value={text}
-            onChange={(e) => { setText(e.target.value); setIgnoredDetections([]); }}
+            onChange={(e) => { setText(e.target.value); setAllowedDuplicate(null); setIgnoredDetections([]); }}
             placeholder={
               type === "task"
                 ? "What needs to get done? (Press Enter to save)..."
@@ -186,6 +197,8 @@ export function QuickCaptureModal({
           />
 
           {type === "task" && <TaskParsePreview text={text} parsed={parsed} dismissed={!!ignoredDetections.length} onDismiss={kind => setIgnoredDetections(previous => [...previous, kind])} onRestore={() => setIgnoredDetections([])} />}
+
+          {type === "task" && <TaskDuplicateWarning tasks={duplicates} allowed={duplicateAllowed} onAllow={allowed => setAllowedDuplicate(allowed ? warningKey : null)} />}
 
           {/* Contextual Options */}
           <div className="flex items-center justify-between pt-1">
@@ -243,7 +256,7 @@ export function QuickCaptureModal({
 
             <button
               type="submit"
-              disabled={!text.trim() || (type === "task" && !parsed.title)}
+              disabled={!text.trim() || (type === "task" && (!parsed.title || (!!duplicates.length && !duplicateAllowed)))}
               className="inline-flex items-center gap-1.5 rounded-xl bg-forest px-4 py-1.5 text-[11px] font-bold text-white shadow-2xs hover:bg-[#8b1116] transition disabled:opacity-40 cursor-pointer"
             >
               {savedSuccess ? (
