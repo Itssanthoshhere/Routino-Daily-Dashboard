@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-const sections = ["tasks", "notes", "habits", "customEvents", "quickLinks", "focusRecords", "taskTemplates", "focusMinutes", "soundEnabled", "activeNav"];
+const sections = ["tasks", "notes", "habits", "customEvents", "quickLinks", "subscriptionBudgets", "focusRecords", "taskTemplates", "focusMinutes", "soundEnabled", "activeNav"];
 function Comparison({ data }: { data: Record<string, unknown> }) {
   return <div className="space-y-3">{Object.entries(data).map(([field,value]) => <div key={field} className="rounded-lg border border-line p-2"><h5 className="font-semibold">{field === "customEvents" ? "Saved events" : field === "quickLinks" ? "Quick links" : field === "taskTemplates" ? "Task templates" : field}</h5>{Array.isArray(value) ? <><p className="text-xs text-muted">{value.length} record{value.length === 1 ? "" : "s"}</p><ul className="list-inside list-disc text-xs">{value.slice(0,5).map((item,index)=><li key={item && typeof item.id === "string" ? item.id : index}>{item && [item.title,item.name,item.summary].find(value=>typeof value === "string") || "Untitled record"}</li>)}</ul></> : <p className="text-xs">{String(value ?? "Not saved")}</p>}<details className="mt-2 text-xs"><summary className="cursor-pointer text-forest">Show full details</summary><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all bg-black/5 p-2">{JSON.stringify(value,null,2)}</pre></details></div>)}</div>;
 }

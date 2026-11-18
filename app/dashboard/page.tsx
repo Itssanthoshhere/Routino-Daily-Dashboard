@@ -1,4 +1,6 @@
 "use client";
+import { SubscriptionBudgetProvider } from "@/components/SubscriptionBudgets";
+import type { SubscriptionBudget } from "@/lib/subscriptionPlanning";
 import { FocusWorkspaceProvider } from "@/components/FocusWorkspace";
 import type { FocusRecord } from "@/lib/focusWorkspace";
 
@@ -360,6 +362,7 @@ let globalToastSeq = 0;
 
 export default function Home() {
   /* ── Core state ── */
+  const [subscriptionBudgets, setSubscriptionBudgets] = useState<SubscriptionBudget[]>([]);
   const [focusRecords, setFocusRecords] = useState<FocusRecord[]>([]);
   const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
@@ -567,7 +570,7 @@ export default function Home() {
   const today = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
 
   useEffect(() => {
-    setFocusRecords([]); setTaskTemplates([]); setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks);
+    setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]); setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks);
     setShowQuickCapture(false); setShowTaskModal(false);
     setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false); coreRevision.current = 0; coreSnapshot.current = {}; conflictBlocked.current = false; setCoreConflict(false);
   }, [liveData?.user?.email]);
@@ -579,9 +582,10 @@ export default function Home() {
       if (currentAccount.current) {
         const revision = Number(localStorage.getItem(`routino_core_revision:${currentAccount.current}`) || "0");
         if (Number.isInteger(revision) && revision >= 0) coreRevision.current = revision;
-        const keys = { notes: "routino_notes", habits: "routino_habits", customEvents: "routino_events", quickLinks: "routino_links", focusRecords: "routino_focus_records", taskTemplates: "routino_task_templates" };
+        const keys = { notes: "routino_notes", habits: "routino_habits", customEvents: "routino_events", quickLinks: "routino_links", subscriptionBudgets: "routino_subscription_budgets", focusRecords: "routino_focus_records", taskTemplates: "routino_task_templates" };
         for (const field of coreCollections) { try { coreSnapshot.current[field] = JSON.parse(browserStore.getItem(keys[field]) || "[]"); } catch {} }
       }
+      setSubscriptionBudgets(JSON.parse(browserStore.getItem("routino_subscription_budgets") || "[]"));
       setFocusRecords(JSON.parse(browserStore.getItem("routino_focus_records") || "[]"));
       const storedTasks = browserStore.getItem("routino_tasks");
       if (storedTasks !== null) {
@@ -1162,6 +1166,7 @@ export default function Home() {
   /* ── Database persistence & synchronization ── */
   const syncToDatabase = useCallback(
     async (overrideData?: {
+      subscriptionBudgets?: SubscriptionBudget[];
       focusRecords?: FocusRecord[];
       taskTemplates?: TaskTemplate[];
       tasks?: Task[];
@@ -1251,7 +1256,7 @@ export default function Home() {
       .then(async (r) => {
         if (r.status === 401 && active) {
           setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false); currentAccount.current = null;
-          setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks); setFocusRecords([]); setTaskTemplates([]);
+          setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks); setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]);
           try { localStorage.removeItem("routino_verified_workspace_account"); } catch {}
         }
         if (!r.ok) return null;
@@ -1278,13 +1283,14 @@ export default function Home() {
         }
         if (res.exists && res.data) {
           coreSnapshot.current = res.data;
-          let d = { tasks: readCache("routino_tasks", []), notes: readCache("routino_notes", []), habits: readCache("routino_habits", []), customEvents: readCache("routino_events", []), quickLinks: readCache("routino_links", seedLinks), focusRecords: readCache("routino_focus_records", []), taskTemplates: readCache("routino_task_templates", []), ...res.data };
+          let d = { tasks: readCache("routino_tasks", []), notes: readCache("routino_notes", []), habits: readCache("routino_habits", []), customEvents: readCache("routino_events", []), quickLinks: readCache("routino_links", seedLinks), subscriptionBudgets: readCache("routino_subscription_budgets", []), focusRecords: readCache("routino_focus_records", []), taskTemplates: readCache("routino_task_templates", []), ...res.data };
           try {
             const pending = JSON.parse(localStorage.getItem(`routino_workspace_pending:${res.email.toLowerCase()}`) || "{}");
             if (Object.keys(pending).length && pending.expectedCoreRevision === undefined) { conflictBlocked.current = true; setCoreConflict(true); }
             d = { ...d, ...pending, ...(Array.isArray(pending.tasks) && Array.isArray(pending.replaceTaskIds) && Array.isArray(pending.deletedTaskIds) ? { tasks: mergeTaskRecords(d.tasks || [], pending.tasks, pending.replaceTaskIds, pending.deletedTaskIds) } : {}) };
             for (const field of coreCollections) if (pending.collectionChanges?.[field] && Array.isArray(pending[field])) d[field] = mergeCollection((res.data[field] || []) as {id:string}[], pending[field], pending.collectionChanges[field]);
           } catch { setWorkspaceSaveError(true); }
+          if (Array.isArray(d.subscriptionBudgets)) { setSubscriptionBudgets(d.subscriptionBudgets); try { browserStore.setItem("routino_subscription_budgets", JSON.stringify(d.subscriptionBudgets)); } catch {} }
           if (Array.isArray(d.focusRecords)) { setFocusRecords(d.focusRecords); try { browserStore.setItem("routino_focus_records", JSON.stringify(d.focusRecords)); } catch {} }
           if (Array.isArray(d.taskTemplates)) { setTaskTemplates(d.taskTemplates); try { browserStore.setItem("routino_task_templates", JSON.stringify(d.taskTemplates)); } catch {} }
           if (Array.isArray(d.tasks)) {
@@ -1886,6 +1892,7 @@ export default function Home() {
   };
 
   const handleImportData = (imported: {
+    subscriptionBudgets?: SubscriptionBudget[];
     focusRecords?: FocusRecord[];
     taskTemplates?: TaskTemplate[];
     tasks?: Task[];
@@ -1912,6 +1919,7 @@ export default function Home() {
         toast("Trackers are not ready to restore. No workspace changes were made."); return;
       }
     }
+    if (imported.subscriptionBudgets) { setSubscriptionBudgets(imported.subscriptionBudgets); browserStore.setItem("routino_subscription_budgets", JSON.stringify(imported.subscriptionBudgets)); }
     if (imported.focusRecords) { setFocusRecords(imported.focusRecords); browserStore.setItem("routino_focus_records", JSON.stringify(imported.focusRecords)); }
     if (imported.taskTemplates) { setTaskTemplates(imported.taskTemplates); browserStore.setItem("routino_task_templates", JSON.stringify(imported.taskTemplates)); }
     if (imported.tasks) {
@@ -1943,6 +1951,7 @@ export default function Home() {
       try { browserStore.setItem("routino_focus", String(imported.focusMinutes)); } catch {}
     }
     syncToDatabase({
+      subscriptionBudgets: imported.subscriptionBudgets,
       focusRecords: imported.focusRecords,
       taskTemplates: imported.taskTemplates,
       tasks: imported.tasks,
@@ -1959,7 +1968,7 @@ export default function Home() {
 
   /* ── Render ── */
   return (
-    <AccountStorageContext.Provider value={currentAccount.current}><FocusWorkspaceProvider records={focusRecords} onChange={records => { browserStore.setItem("routino_focus_records", JSON.stringify(records)); setFocusRecords(records); void syncToDatabase({ focusRecords: records }); }}><div className="min-h-screen" key={currentAccount.current || "guest"}>
+    <AccountStorageContext.Provider value={currentAccount.current}><SubscriptionBudgetProvider budgets={subscriptionBudgets} onChange={budgets => { browserStore.setItem("routino_subscription_budgets", JSON.stringify(budgets)); setSubscriptionBudgets(budgets); void syncToDatabase({ subscriptionBudgets: budgets }); }}><FocusWorkspaceProvider records={focusRecords} onChange={records => { browserStore.setItem("routino_focus_records", JSON.stringify(records)); setFocusRecords(records); void syncToDatabase({ focusRecords: records }); }}><div className="min-h-screen" key={currentAccount.current || "guest"}>
       {coreConflict && currentAccount.current && <WorkspaceConflict account={currentAccount.current} onResolve={async (revision, useCloud, snapshot) => {
         const account = currentAccount.current;
         const key = `routino_workspace_pending:${account}`;
@@ -3458,6 +3467,7 @@ export default function Home() {
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <GoogleSetupModal isOpen={showGoogleSetup} onClose={() => setShowGoogleSetup(false)} />
       <PreferencesModal
+        subscriptionBudgets={subscriptionBudgets}
         focusRecords={focusRecords}
         taskTemplates={taskTemplates}
         openDataToken={preferencesDataToken}
@@ -3530,6 +3540,6 @@ export default function Home() {
         }}
         onDeleteHabit={deleteHabit}
       />
-    </div></FocusWorkspaceProvider></AccountStorageContext.Provider>
+    </div></FocusWorkspaceProvider></SubscriptionBudgetProvider></AccountStorageContext.Provider>
   );
 }

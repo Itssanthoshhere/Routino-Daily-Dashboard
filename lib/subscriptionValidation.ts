@@ -11,8 +11,16 @@ export function isSubscriptionDate(value: unknown): value is string {
 }
 const optionalDate = (value: unknown) => value === undefined || value === "" || isSubscriptionDate(value);
 
+const cents = (value: number) => Math.round(value * 100);
+export function validSharedExpense(value: unknown): value is import("@/lib/subscriptionPlanning").SharedExpense {
+  const v = value as import("@/lib/subscriptionPlanning").SharedExpense | null;
+  return !!v && typeof v.id === "string" && !!v.id && isSubscriptionDate(v.date) && ["INR", "USD", "EUR", "GBP"].includes(v.currency) && Number.isFinite(v.total) && v.total > 0 && Math.abs(cents(v.total)/100-v.total)<1e-8 && typeof v.paidBy === "string" && !!v.paidBy.trim() && v.paidBy.length <= 100 && Array.isArray(v.shares) && v.shares.length > 0 && v.shares.length <= 50 && v.shares.every(s=>!!s && typeof s.person === "string" && !!s.person.trim() && s.person.length<=100 && Number.isFinite(s.amount) && s.amount>=0 && Math.abs(cents(s.amount)/100-s.amount)<1e-8 && typeof s.settled === "boolean") && new Set(v.shares.map(s=>s.person.trim().toLowerCase())).size === v.shares.length && v.shares.some(s=>s.person.trim().toLowerCase()===v.paidBy.trim().toLowerCase()) && v.shares.reduce((sum,s)=>sum+cents(s.amount),0)===cents(v.total);
+}
+
 export function isSubscription(value: unknown): value is Subscription {
   if (!record(value)) return false;
+  if (value.sharedExpenses !== undefined && (!Array.isArray(value.sharedExpenses) || value.sharedExpenses.length > 500 || !value.sharedExpenses.every(validSharedExpense) || new Set(value.sharedExpenses.map(x=>x.id)).size !== value.sharedExpenses.length)) return false;
+  if (!optionalDate(value.renewalDecisionDate)) return false;
   if (value.documents !== undefined && (!Array.isArray(value.documents) || value.documents.length > 50 || !value.documents.every(doc => record(doc) && text(doc.id) && text(doc.name) && doc.name.length <= 180 && text(doc.uploadedAt) && Number.isFinite(Date.parse(doc.uploadedAt)) && ((text(doc.pathname) && /^subscription-documents\/[0-9a-f]{64}\/[0-9a-f-]{36}$/.test(doc.pathname)) || (text(doc.url) && /^https?:\/\//.test(doc.url)))))) return false;
   if (value.reminderDaysBefore !== undefined && (typeof value.reminderDaysBefore !== "number" || ![1, 3, 7].includes(value.reminderDaysBefore))) return false;
   if (value.statusHistory !== undefined && (!Array.isArray(value.statusHistory) || !value.statusHistory.every(entry => record(entry) && isSubscriptionDate(entry.date) && ["active", "paused", "cancelled", "unconfirmed", "completed"].includes(String(entry.status))))) return false;

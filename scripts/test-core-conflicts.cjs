@@ -17,6 +17,9 @@ async function main(){
  result=await post({expectedCoreRevision:3,focusRecords:[focus]});assert.equal(result.status,200);assert.deepEqual(stored.focusRecords,[focus]);
  for(const field of Object.keys(beforeFocus).filter(k=>!['updatedAt','coreRevision'].includes(k)))assert.deepEqual(stored[field],beforeFocus[field],`Focus save preserved ${field}`);
  result=await post({expectedCoreRevision:4,soundEnabled:false});assert.equal(result.status,200);assert.deepEqual(stored.focusRecords,[focus],'Unrelated saves preserve focus history');
+ const beforeBudget=structuredClone(stored);
+ result=await post({expectedCoreRevision:5,subscriptionBudgets:[{id:'INR',monthlyLimit:1500}]});assert.equal(result.status,200);assert.deepEqual(stored.subscriptionBudgets,[{id:'INR',monthlyLimit:1500}]);
+ for(const field of Object.keys(beforeBudget).filter(k=>!['updatedAt','coreRevision'].includes(k)))assert.deepEqual(stored[field],beforeBudget[field],`Budget save preserved ${field}`);
  assert.equal(original.notes[0].content,'Keep me');
  console.log('Passed: stale-device rejection, write-time race rejection, legacy-client protection, complete validation, explicit empty-array intent, authenticated ownership, and unrelated-field preservation.');
 }

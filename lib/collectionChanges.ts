@@ -1,4 +1,4 @@
-export const coreCollections = ["notes", "habits", "customEvents", "quickLinks", "focusRecords", "taskTemplates"] as const;
+export const coreCollections = ["notes", "habits", "customEvents", "quickLinks", "subscriptionBudgets", "focusRecords", "taskTemplates"] as const;
 export type CollectionName = typeof coreCollections[number];
 export type RecordChange = { replaceIds: string[]; deletedIds: string[]; orderIds?: string[] };
 export type CollectionChanges = Partial<Record<CollectionName, RecordChange>>;

@@ -1,5 +1,6 @@
 "use client";
 
+import type { SubscriptionBudget } from "@/lib/subscriptionPlanning";
 import type { FocusRecord } from "@/lib/focusWorkspace";
 import type { TaskTemplate } from "@/lib/taskTemplates";
 import { DocumentStorageManager } from "@/components/DocumentStorageManager";
@@ -39,6 +40,7 @@ import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 type PreferencesModalProps = {
+  subscriptionBudgets?: SubscriptionBudget[];
   focusRecords?: FocusRecord[];
   taskTemplates?: TaskTemplate[];
   openDataToken?: number;
@@ -54,6 +56,7 @@ type PreferencesModalProps = {
   habits?: Habit[];
   notes?: KeepNote[];
   onImportData: (data: {
+    subscriptionBudgets?: SubscriptionBudget[];
     focusRecords?: FocusRecord[];
     taskTemplates?: TaskTemplate[];
     tasks?: Task[];
@@ -81,6 +84,7 @@ type PreferencesModalProps = {
 };
 
 export function PreferencesModal({
+  subscriptionBudgets,
   focusRecords,
   taskTemplates,
   openDataToken = 0,
@@ -124,6 +128,7 @@ export function PreferencesModal({
       exportedAt: new Date().toISOString(),
       appName: appConfig.name,
       data: {
+        subscriptionBudgets,
         focusRecords,
         taskTemplates,
         focusMinutes,
@@ -165,6 +170,7 @@ export function PreferencesModal({
             throw new Error("Invalid subscription data");
           }
           onImportData({
+            subscriptionBudgets: parsed.data.subscriptionBudgets,
             focusRecords: parsed.data.focusRecords,
             taskTemplates: parsed.data.taskTemplates,
             tasks: parsed.data.tasks,
