@@ -7,6 +7,14 @@ function load(file) {
   return module.exports;
 }
 const { completionStreak } = load('lib/habitHistory.ts');
+const { priceImpact } = load('lib/subscriptionPriceImpact.ts');
+const rate = { date: '2026-11-18', currency: 'INR', cycle: 'monthly', amount: 100 };
+assert.equal(priceImpact(rate, { ...rate, amount: 125 }).annualChange, 300);
+assert.equal(priceImpact(rate, { ...rate, amount: 75 }).percent, -25);
+assert.equal(priceImpact(rate, { ...rate, cycle: 'yearly', amount: 1200 }).annualChange, 0);
+assert.equal(priceImpact({ ...rate, amount: 0 }, rate).percent, null);
+assert.equal(priceImpact(rate, { ...rate, currency: 'USD' }), null);
+assert.equal(priceImpact(rate, { ...rate, cycle: 'bundled' }), null);
 const { isAssetRecords, warrantyReminderDate } = load('lib/assetRecords.ts');
 assert.equal(isAssetRecords({}), true);
 assert.equal(isAssetRecords({ asset: { warrantyEnd: '2027-02-30' } }), false);
