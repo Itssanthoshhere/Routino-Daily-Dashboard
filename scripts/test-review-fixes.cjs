@@ -8,6 +8,14 @@ function load(file) {
 }
 const { focusStartAllowed, renewalReminderStart } = load('lib/reminderTiming.ts');
 const { meetingActionKey, hasMeetingAction } = load('lib/meetingActions.ts');
+const { habitCounter } = load('lib/habitCounter.ts');
+const haircut = { name: 'Haircut', streak: 8, trackingMode: 'daily', counterStartDate: '2026-11-11', completedDates: ['2026-11-11', '2026-11-18'] };
+assert.match(habitCounter(haircut, new Date(2026, 10, 18)), /^8 days streak · 7 days since haircut/);
+assert.match(habitCounter(haircut, new Date(2026, 10, 19)), /^8 days streak · 8 days since haircut/);
+assert.equal(habitCounter({ ...haircut, counterStartDate: undefined }, new Date(2026, 10, 18)), '8 days streak');
+assert.equal(habitCounter({ ...haircut, counterStartDate: '2026-02-30' }), '8 days streak');
+assert.match(habitCounter({ ...haircut, trackingMode: 'days-since', counterStartDate: undefined }, new Date(2026, 10, 19)), /^1 day since last done/);
+assert.equal(haircut.completedDates.length, 2, 'Counter rendering must not fabricate completion dates');
 const now = new Date('2026-11-17T10:00:04Z');
 assert.equal(focusStartAllowed(new Date('2026-11-17T10:00:00Z'), now.getTime()), true);
 assert.equal(focusStartAllowed(new Date(now.getTime() - 300001), now.getTime()), false);
