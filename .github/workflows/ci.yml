@@ -1,0 +1,35 @@
+name: Checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm test
+        env:
+          TZ: America/Los_Angeles
+      - run: npm run build -- --webpack
+      - name: Verify production PWA assets
+        shell: bash
+        run: |
+          npm start -- --port 3100 > /tmp/routino-preview.log 2>&1 &
+          preview_pid=$!
+          trap 'kill "$preview_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --silent --fail http://localhost:3100/manifest.webmanifest > /dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:pwa

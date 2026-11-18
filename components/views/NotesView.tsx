@@ -1,4 +1,5 @@
 "use client";
+import { useAccountStorage } from "@/components/AccountStorage";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
@@ -352,6 +353,7 @@ export function NotesView({
   onDeleteNote,
   onReorderNotes,
 }: NotesViewProps) {
+  const browserStore = useAccountStorage();
   const [searchQuery, setSearchQuery] = useState("");
   const handledSearchRequest = useRef<typeof searchRequest>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -379,6 +381,11 @@ export function NotesView({
 
   // Vault Security State
   const [vaultVerifier, setVaultVerifier] = useState<{ hash: string; salt: string } | null>(null);
+  const lockGeneration = useRef(0);
+  const decryptSequence = useRef(0);
+  const lockingVault = useRef(false);
+  const [autoLockMinutes, setAutoLockMinutes] = useState(5);
+  const [vaultStatus, setVaultStatus] = useState("");
   const [sessionPin, setSessionPin] = useState<string | null>(null);
   const [decryptedCache, setDecryptedCache] = useState<Record<string, DecryptedPayload>>({});
 
@@ -635,7 +642,9 @@ export function NotesView({
   // Load vault configuration from localStorage
   useEffect(() => {
     try {
-      const storedVerifier = localStorage.getItem("routino_vault_verifier");
+      const minutes = Number(browserStore.getItem("routino_vault_autolock") ?? "5");
+      if ([0,1,5,15].includes(minutes)) setAutoLockMinutes(minutes);
+      const storedVerifier = browserStore.getItem("routino_vault_verifier");
       if (storedVerifier) {
         setVaultVerifier(JSON.parse(storedVerifier));
       }
@@ -646,6 +655,8 @@ export function NotesView({
 
   // Decrypt notes in-memory when session PIN is unlocked or notes update
   const decryptAllNotes = useCallback(async (pin: string, noteList: KeepNote[]) => {
+    const generation = lockGeneration.current;
+    const sequence = ++decryptSequence.current;
     const nextCache: Record<string, DecryptedPayload> = {};
     for (const note of noteList) {
       if (note.isEncrypted || isEncryptedPayload(note.content)) {
@@ -678,7 +689,7 @@ export function NotesView({
         }
       }
     }
-    setDecryptedCache(nextCache);
+    if (generation === lockGeneration.current && sequence === decryptSequence.current) setDecryptedCache(nextCache);
   }, []);
 
   useEffect(() => {
@@ -702,7 +713,7 @@ export function NotesView({
 
     try {
       const verifier = await createPassphraseVerification(pinInput);
-      localStorage.setItem("routino_vault_verifier", JSON.stringify(verifier));
+      browserStore.setItem("routino_vault_verifier", JSON.stringify(verifier));
       setVaultVerifier(verifier);
       setSessionPin(pinInput);
       setShowSetupPinModal(false);
@@ -738,15 +749,59 @@ export function NotesView({
   };
 
   // Lock Vault
-  const handleLockVault = () => {
+  const handleLockVault = async () => {
+    if (!sessionPin || lockingVault.current) return;
+    lockingVault.current = true;
+    lockGeneration.current += 1;
+    try {
+      if (editingNote && editIsEncrypted) { if (await saveCurrentNoteChanges(true) !== true) throw new Error("Could not save the open note."); }
+      if (isComposing && composeEncrypted) {
+        const draft = await encryptPayload(JSON.stringify({ title: composeTitle, content: composeContent, checklist: composeChecklist, images: composeImages, color: composeColor, priority: composePriority }), sessionPin);
+        browserStore.setItem("routino_vault_draft", draft);
+        setComposeTitle(""); setComposeContent(""); setComposeChecklist([]); setComposeImages([]); setIsComposing(false);
+      }
+    } catch { lockingVault.current = false; setVaultStatus("Auto-lock could not preserve the open draft. Save it, then lock the vault."); return; }
+    lockGeneration.current += 1;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    setEditDecryptedContent(""); setEditDecryptedChecklist([]); setEditImages([]);
+    setPinInput(""); setPinConfirmInput(""); setOldPinInput("");
+    setVaultStatus("Vault locked. Saved notes are unchanged; encrypted composer drafts resume after unlocking.");
     setSessionPin(null);
     setDecryptedCache({});
     setComposeEncrypted(false);
+    lockingVault.current = false;
   };
+
+  useEffect(() => {
+    if (!sessionPin) return;
+    const generation = lockGeneration.current;
+    const draft = browserStore.getItem("routino_vault_draft");
+    if (draft) void decryptPayload(draft, sessionPin).then(value => {
+      if (generation !== lockGeneration.current) return;
+      const saved = JSON.parse(value);
+      setComposeTitle(saved.title || ""); setComposeContent(saved.content || "");
+      setComposeChecklist(saved.checklist || []); setComposeImages(saved.images || []);
+      setComposeColor(saved.color || "default"); setComposePriority(saved.priority || "none");
+      setComposeEncrypted(true); setIsComposing(true); setVaultStatus("Encrypted draft restored.");
+    }).catch(() => setVaultStatus("An encrypted draft is preserved but could not be opened with this PIN."));
+  }, [sessionPin]);
+
+  const latestLock = useRef(handleLockVault);
+  latestLock.current = handleLockVault;
+  useEffect(() => {
+    if (!sessionPin || !autoLockMinutes) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => { clearTimeout(timer); timer = setTimeout(() => void latestLock.current(), autoLockMinutes * 60000); };
+    const hidden = () => { if (document.visibilityState === "hidden") void latestLock.current(); };
+    schedule();
+    window.addEventListener("pointerdown", schedule); window.addEventListener("keydown", schedule); document.addEventListener("visibilitychange", hidden);
+    return () => { clearTimeout(timer); window.removeEventListener("pointerdown", schedule); window.removeEventListener("keydown", schedule); document.removeEventListener("visibilitychange", hidden); };
+  }, [sessionPin, autoLockMinutes]);
 
   // Change Master PIN
   const handleChangePin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (browserStore.getItem("routino_vault_draft")) { setPinError("Save your recovered encrypted draft before changing the PIN. The existing PIN and notes are unchanged."); return; }
     setPinError(null);
     if (!vaultVerifier) return;
 
@@ -783,7 +838,7 @@ export function NotesView({
       }
 
       const verifier = await createPassphraseVerification(pinInput);
-      localStorage.setItem("routino_vault_verifier", JSON.stringify(verifier));
+      browserStore.setItem("routino_vault_verifier", JSON.stringify(verifier));
       setVaultVerifier(verifier);
       setSessionPin(pinInput);
       setShowChangePinModal(false);
@@ -860,6 +915,7 @@ export function NotesView({
       checklist: finalChecklist,
     });
 
+    if (composeEncrypted) browserStore.removeItem("routino_vault_draft");
     setComposeTitle("");
     setComposeContent("");
     setComposeColor("default");
@@ -1059,6 +1115,7 @@ export function NotesView({
 
   // Core save function (optionally closes modal)
   const saveCurrentNoteChanges = async (closeModal = false) => {
+    const generation = lockGeneration.current;
     const { note, content, checklist, images, priority, isEncrypted } =
       latestEditStateRef.current;
     if (!note) return;
@@ -1089,6 +1146,7 @@ export function NotesView({
         finalImageUrl = undefined;
         finalImages = undefined;
 
+        if (generation !== lockGeneration.current) return false;
         setDecryptedCache((prev) => ({
           ...prev,
           [note.id]: {
@@ -1122,6 +1180,7 @@ export function NotesView({
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       setEditingNote(null);
     }
+    return true;
   };
 
   // Continuous auto-save while typing (debounced at 600ms)
@@ -1483,6 +1542,8 @@ export function NotesView({
             </button>
           )}
 
+          {vaultVerifier && <label className="text-[11px] text-muted">Auto-lock <select aria-label="Vault auto-lock" value={autoLockMinutes} onChange={event => { const minutes = Number(event.target.value); try { browserStore.setItem("routino_vault_autolock", String(minutes)); setAutoLockMinutes(minutes); } catch { setVaultStatus("Could not save the auto-lock preference. Existing settings are unchanged."); } }} className="rounded-lg border border-line bg-white p-1"><option value={0}>Off</option><option value={1}>1 minute + background</option><option value={5}>5 minutes + background</option><option value={15}>15 minutes + background</option></select></label>}
+          {vaultStatus && <p role="status" className="text-[11px] text-muted">{vaultStatus}</p>}
           {/* Search Input */}
           <div className="relative w-full sm:w-56">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />

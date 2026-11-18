@@ -39,7 +39,7 @@ export function useTrackerWorkspace(email?: string | null) {
       while (current.pending && generation === state.current.generation) {
         const snapshot = current.data;
         setStatus("syncing");
-        const response = await fetch("/api/tracker-workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ revision: current.revision, patch: snapshot }) });
+        const response = await fetch("/api/tracker-workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expectedAccount: email.trim().toLowerCase(), revision: current.revision, patch: snapshot }) });
         const result = await response.json();
         if (generation !== state.current.generation) return false;
         if (!response.ok || !result.success) {
@@ -75,6 +75,7 @@ export function useTrackerWorkspace(email?: string | null) {
       const result = await response.json();
       if (generation !== state.current.generation) return;
       if (!response.ok) throw new Error(result.error || "Could not load saved records.");
+      if (result.email !== email.trim().toLowerCase()) throw new Error("The signed-in account changed. Refresh to load the correct workspace.");
       const server: Data = { subscriptions: result.data?.subscriptions ?? [], airtel: result.data?.airtel ?? emptyAirtelData(), subscriptionJournalImported: result.data?.subscriptionJournalImported ?? false, assetRecords: result.data?.assetRecords ?? {}, assetDocuments: result.data?.assetDocuments ?? {} };
       if (!valid(server)) throw new Error("Saved tracker records need repair. Existing data has not been overwritten.");
       if (current.pending && !replaceLocal) return;

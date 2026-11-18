@@ -1,3 +1,4 @@
+import { calendarPages } from "@/lib/calendarPages";
 import { DashboardEvent, DashboardMail } from "@/types/dashboard";
 
 export const OUTLOOK_CALLBACK_PATH = "/api/outlook/callback";
@@ -143,8 +144,7 @@ export async function fetchOutlookEvents(accessToken: string): Promise<Dashboard
     throw new Error(`Outlook calendar events fetch failed (HTTP ${res.status}): ${errorBody}`);
   }
 
-  const json = await res.json();
-  const items = json.value || [];
+  const items = await calendarPages(url, next => fetch(next, { headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.timezone="UTC"' }, cache: "no-store" }), "outlook", res);
 
   return items.map((item: any): DashboardEvent => ({
     id: `outlook-${item.id}`,
@@ -152,10 +152,10 @@ export async function fetchOutlookEvents(accessToken: string): Promise<Dashboard
     description: item.bodyPreview || "",
     htmlLink: item.webLink || "https://outlook.live.com/calendar",
     start: {
-      dateTime: item.start?.dateTime ? `${item.start.dateTime}Z` : undefined,
+      dateTime: item.start?.dateTime ? /(?:Z|[+-]\d{2}:\d{2})$/.test(item.start.dateTime) ? item.start.dateTime : `${item.start.dateTime}Z` : undefined,
     },
     end: {
-      dateTime: item.end?.dateTime ? `${item.end.dateTime}Z` : undefined,
+      dateTime: item.end?.dateTime ? /(?:Z|[+-]\d{2}:\d{2})$/.test(item.end.dateTime) ? item.end.dateTime : `${item.end.dateTime}Z` : undefined,
     },
     meetLink: item.onlineMeeting?.joinUrl,
     location: item.location?.displayName,

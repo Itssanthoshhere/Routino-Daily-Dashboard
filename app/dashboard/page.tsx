@@ -1,5 +1,13 @@
 "use client";
 
+import { scopedStorage, migrateAccountCache } from "@/lib/accountStorage";
+import { taskDueDay } from "@/lib/taskDates";
+import { coreCollections, collectionDiff, mergeCollection, type CollectionChanges } from "@/lib/collectionChanges";
+import type { TaskTemplate } from "@/lib/taskTemplates";
+import { workspaceValidationError } from "@/lib/workspaceValidation";
+import { WorkspaceConflict } from "@/components/WorkspaceConflict";
+import { AccountStorageContext } from "@/components/AccountStorage";
+
 import { RecycleBin } from "@/components/RecycleBin";
 import { inboxCountLabel } from "@/lib/inboxCount";
 import { useBackupWarnings } from "@/hooks/useBackupWarnings";
@@ -349,6 +357,7 @@ let globalToastSeq = 0;
 
 export default function Home() {
   /* ── Core state ── */
+  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
   const [searchNote, setSearchNote] = useState<{ id: string } | null>(null);
   const [notes, setNotes] = useState<KeepNote[]>(seedNotes);
@@ -358,8 +367,16 @@ export default function Home() {
   const [verifiedWorkspaceAccount, setVerifiedWorkspaceAccount] = useState<string | null>(null);
   const trackerWorkspace = useTrackerWorkspace(liveData?.connected ? liveData.user?.email : null);
   const subscriptions = trackerWorkspace.subscriptions;
+  const coreSnapshot = useRef<Record<string, unknown>>({});
+  const coreRevision = useRef(0);
+  const conflictBlocked = useRef(false);
+  const [coreConflict, setCoreConflict] = useState(false);
   const currentAccount = useRef<string | null>(null);
-  currentAccount.current = verifiedWorkspaceAccount || (liveData?.connected ? liveData.user?.email?.toLowerCase() || null : null);
+  currentAccount.current = verifiedWorkspaceAccount;
+  if (!currentAccount.current && typeof window !== "undefined" && !navigator.onLine) {
+    try { currentAccount.current = localStorage.getItem("routino_verified_workspace_account"); } catch {}
+  }
+  const browserStore = useMemo(() => scopedStorage({ getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value), removeItem: key => localStorage.removeItem(key) }, () => currentAccount.current), []);
   const [customEvents, setCustomEvents] = useState<DashboardEvent[]>([]);
   const customEventsRef = useRef(customEvents);
   customEventsRef.current = customEvents;
@@ -544,10 +561,23 @@ export default function Home() {
   const done = tasks.filter(t => t.checked && !t.skipped).length;
   const today = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
 
+  useEffect(() => {
+    setTaskTemplates([]); setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks);
+    setShowQuickCapture(false); setShowTaskModal(false);
+    setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false); coreRevision.current = 0; coreSnapshot.current = {}; conflictBlocked.current = false; setCoreConflict(false);
+  }, [liveData?.user?.email]);
+
   /* ── LocalStorage Hydration ── */
   useEffect(() => {
     try {
-      const storedTasks = localStorage.getItem("routino_tasks");
+      migrateAccountCache(localStorage, currentAccount.current || "__guest__");
+      if (currentAccount.current) {
+        const revision = Number(localStorage.getItem(`routino_core_revision:${currentAccount.current}`) || "0");
+        if (Number.isInteger(revision) && revision >= 0) coreRevision.current = revision;
+        const keys = { notes: "routino_notes", habits: "routino_habits", customEvents: "routino_events", quickLinks: "routino_links", taskTemplates: "routino_task_templates" };
+        for (const field of coreCollections) { try { coreSnapshot.current[field] = JSON.parse(browserStore.getItem(keys[field]) || "[]"); } catch {} }
+      }
+      const storedTasks = browserStore.getItem("routino_tasks");
       if (storedTasks !== null) {
         const parsed = JSON.parse(storedTasks);
         if (Array.isArray(parsed)) {
@@ -555,7 +585,7 @@ export default function Home() {
         }
       }
 
-      const storedLinks = localStorage.getItem("routino_links");
+      const storedLinks = browserStore.getItem("routino_links");
       if (storedLinks !== null) {
         const parsed = JSON.parse(storedLinks);
         if (Array.isArray(parsed)) {
@@ -563,17 +593,17 @@ export default function Home() {
         }
       }
 
-      const storedEvents = localStorage.getItem("routino_events");
+      const storedEvents = browserStore.getItem("routino_events");
       if (storedEvents !== null) {
         setCustomEvents(JSON.parse(storedEvents));
       }
 
-      const storedFocus = localStorage.getItem("routino_focus");
+      const storedFocus = browserStore.getItem("routino_focus");
       if (storedFocus !== null) {
         setFocusMinutes(parseInt(storedFocus, 10));
       }
 
-      const storedSound = localStorage.getItem("routino_sound_enabled");
+      const storedSound = browserStore.getItem("routino_sound_enabled");
       if (storedSound !== null) {
         setSoundEnabled(storedSound === "true");
       }
@@ -596,14 +626,14 @@ export default function Home() {
           }
         }
       } else {
-        const storedNav = localStorage.getItem("routino_active_nav");
+        const storedNav = browserStore.getItem("routino_active_nav");
         if (storedNav) {
           setActiveNav(storedNav);
         }
       }
 
-      const storedStarred = localStorage.getItem("routino_starred_mail");
-      const storedRead = localStorage.getItem("routino_read_mail");
+      const storedStarred = browserStore.getItem("routino_starred_mail");
+      const storedRead = browserStore.getItem("routino_read_mail");
       if (storedStarred || storedRead) {
         const starredSet = new Set(JSON.parse(storedStarred || "[]"));
         const readSet = new Set(JSON.parse(storedRead || "[]"));
@@ -614,12 +644,12 @@ export default function Home() {
         })));
       }
 
-      const storedHabits = localStorage.getItem("routino_habits");
+      const storedHabits = browserStore.getItem("routino_habits");
       if (storedHabits !== null) {
         setHabits(JSON.parse(storedHabits));
       }
 
-      const storedNotes = localStorage.getItem("routino_notes");
+      const storedNotes = browserStore.getItem("routino_notes");
       if (storedNotes !== null) {
         setNotes(JSON.parse(storedNotes));
       }
@@ -831,8 +861,8 @@ export default function Home() {
       return;
     }
 
-    const storedStarred = new Set(JSON.parse(localStorage.getItem("routino_starred_mail") || "[]"));
-    const storedRead = new Set(JSON.parse(localStorage.getItem("routino_read_mail") || "[]"));
+    const storedStarred = new Set(JSON.parse(browserStore.getItem("routino_starred_mail") || "[]"));
+    const storedRead = new Set(JSON.parse(browserStore.getItem("routino_read_mail") || "[]"));
 
     const combined: DashboardMail[] = [];
 
@@ -1126,6 +1156,7 @@ export default function Home() {
   /* ── Database persistence & synchronization ── */
   const syncToDatabase = useCallback(
     async (overrideData?: {
+      taskTemplates?: TaskTemplate[];
       tasks?: Task[];
       customEvents?: DashboardEvent[];
       quickLinks?: QuickLink[];
@@ -1138,7 +1169,7 @@ export default function Home() {
       notes?: KeepNote[];
       activeNav?: string;
     }, baselineTasks?: Task[]) => {
-      const offline = typeof navigator !== "undefined" && !navigator.onLine;
+      const offline = typeof window !== "undefined" && !navigator.onLine;
       let offlineAccount: string | null = null;
       try { if (offline) offlineAccount = localStorage.getItem("routino_verified_workspace_account"); } catch {}
       if ((!verifiedWorkspaceAccount || !workspaceSyncReady) && !offlineAccount) return false;
@@ -1146,26 +1177,36 @@ export default function Home() {
       const account = verifiedWorkspaceAccount || offlineAccount;
       if (!account) return false;
       const accountKey = `routino_workspace_pending:${account}`;
-      const incoming = { ...overrideData, ...(overrideData?.tasks ? {
+      const collectionChanges: CollectionChanges = {};
+      for (const field of coreCollections) {
+        if (Array.isArray(overrideData?.[field])) collectionChanges[field] = collectionDiff((coreSnapshot.current[field] || []) as {id:string}[], overrideData[field]!);
+      }
+      const incoming = { ...overrideData, ...(Object.keys(collectionChanges).length ? { collectionChanges } : {}), ...(overrideData?.tasks ? {
         replaceTaskIds: overrideData.tasks.filter(task => JSON.stringify(task) !== JSON.stringify((baselineTasks || tasks).find(existing => existing.id === task.id))).map(task => task.id),
         deletedTaskIds: (baselineTasks || tasks).filter(task => !overrideData.tasks!.some(next => next.id === task.id)).map(task => task.id),
       } : {}) };
       try {
         const pending = JSON.parse(localStorage.getItem(accountKey) || "{}");
-        localStorage.setItem(accountKey, JSON.stringify(queueWorkspacePatch(pending, incoming)));
+        localStorage.setItem(accountKey, JSON.stringify({ ...queueWorkspacePatch(pending, incoming), expectedCoreRevision: pending.expectedCoreRevision ?? coreRevision.current }));
       } catch { setWorkspaceSaveError(true); return false; }
       if (offline) { setWorkspaceSaveError(true); return false; }
       const operation = async () => {
-        if (currentAccount.current !== account) return false;
+        if (currentAccount.current !== account || conflictBlocked.current) return false;
         setIsSyncing(true);
         try {
           const snapshot = localStorage.getItem(accountKey) || "{}";
-          const res = await fetch("/api/user-data", { method: "POST", headers: { "Content-Type": "application/json" }, body: snapshot });
+          const res = await fetch("/api/user-data", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...JSON.parse(snapshot), expectedAccount: account, expectedCoreRevision: JSON.parse(snapshot).expectedCoreRevision ?? coreRevision.current }) });
           const json = await res.json();
+          if (currentAccount.current !== account) return false;
           coreSyncVersion.current += 1;
-          if (!res.ok || !json.success) { setWorkspaceSaveError(true); return false; }
+          if (!res.ok || !json.success) { if (res.status === 409) { conflictBlocked.current = true; setCoreConflict(true); } setWorkspaceSaveError(true); return false; }
+          coreRevision.current = json.revision;
+          localStorage.setItem(`routino_core_revision:${account}`, String(json.revision));
+          const savedPatch = JSON.parse(snapshot);
+          for (const field of coreCollections) if (savedPatch.collectionChanges?.[field]) coreSnapshot.current[field] = mergeCollection((coreSnapshot.current[field] || []) as {id:string}[], savedPatch[field], savedPatch.collectionChanges[field]);
           // A newer local patch stays pending for the queued request; never clear it accidentally.
           if (localStorage.getItem(accountKey) === snapshot) localStorage.removeItem(accountKey);
+          else { const latest = JSON.parse(localStorage.getItem(accountKey) || "{}"); localStorage.setItem(accountKey, JSON.stringify({ ...latest, expectedCoreRevision: json.revision })); }
           setLastSyncedAt(json.savedAt);
           if (json.dbStatus?.sourceLabel) setDbSource(json.dbStatus.sourceLabel);
           setWorkspaceSaveError(false);
@@ -1202,7 +1243,8 @@ export default function Home() {
       return fetch("/api/user-data", { cache: "no-store" })
       .then(async (r) => {
         if (r.status === 401 && active) {
-          setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false);
+          setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false); currentAccount.current = null;
+          setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks); setTaskTemplates([]);
           try { localStorage.removeItem("routino_verified_workspace_account"); } catch {}
         }
         if (!r.ok) return null;
@@ -1210,43 +1252,60 @@ export default function Home() {
       })
       .then((res) => {
         if (!active || !res || !res.authenticated || readVersion !== coreSyncVersion.current || sequence !== readSequence) return;
+        try { migrateAccountCache(localStorage, res.email.toLowerCase()); } catch { setWorkspaceSaveError(true); }
+        currentAccount.current = res.email.toLowerCase();
+        if (!conflictBlocked.current) coreRevision.current = res.data?.coreRevision || 0;
+        try { localStorage.setItem(`routino_core_revision:${res.email.toLowerCase()}`, String(res.data?.coreRevision || 0)); } catch {}
         setWorkspaceSyncReady(true);
         setVerifiedWorkspaceAccount(res.email?.toLowerCase() || null);
         try { if (res.email) localStorage.setItem("routino_verified_workspace_account", res.email.toLowerCase()); } catch {}
         if (res.dbStatus?.sourceLabel) {
           setDbSource(res.dbStatus.sourceLabel);
         }
+        const readCache = (key: string, fallback: unknown) => { try { const raw = browserStore.getItem(key); return raw === null ? fallback : JSON.parse(raw); } catch { return fallback; } };
+        if (!res.exists) {
+          setTaskTemplates(readCache("routino_task_templates", []));
+          setTasks(readCache("routino_tasks", [])); setNotes(readCache("routino_notes", []));
+          setHabits(readCache("routino_habits", [])); setCustomEvents(readCache("routino_events", []));
+          setQuickLinks(readCache("routino_links", seedLinks));
+        }
         if (res.exists && res.data) {
-          let d = res.data;
+          coreSnapshot.current = res.data;
+          let d = { tasks: readCache("routino_tasks", []), notes: readCache("routino_notes", []), habits: readCache("routino_habits", []), customEvents: readCache("routino_events", []), quickLinks: readCache("routino_links", seedLinks), taskTemplates: readCache("routino_task_templates", []), ...res.data };
           try {
             const pending = JSON.parse(localStorage.getItem(`routino_workspace_pending:${res.email.toLowerCase()}`) || "{}");
+            if (Object.keys(pending).length && pending.expectedCoreRevision === undefined) { conflictBlocked.current = true; setCoreConflict(true); }
             d = { ...d, ...pending, ...(Array.isArray(pending.tasks) && Array.isArray(pending.replaceTaskIds) && Array.isArray(pending.deletedTaskIds) ? { tasks: mergeTaskRecords(d.tasks || [], pending.tasks, pending.replaceTaskIds, pending.deletedTaskIds) } : {}) };
+            for (const field of coreCollections) if (pending.collectionChanges?.[field] && Array.isArray(pending[field])) d[field] = mergeCollection((res.data[field] || []) as {id:string}[], pending[field], pending.collectionChanges[field]);
           } catch { setWorkspaceSaveError(true); }
+          if (Array.isArray(d.taskTemplates)) { setTaskTemplates(d.taskTemplates); try { browserStore.setItem("routino_task_templates", JSON.stringify(d.taskTemplates)); } catch {} }
           if (Array.isArray(d.tasks)) {
             setTasks(d.tasks);
+            try { browserStore.setItem("routino_tasks", JSON.stringify(d.tasks)); } catch {}
           }
           if (Array.isArray(d.customEvents)) {
             setCustomEvents(d.customEvents);
-            try { localStorage.setItem("routino_events", JSON.stringify(d.customEvents)); } catch {}
+            try { browserStore.setItem("routino_events", JSON.stringify(d.customEvents)); } catch {}
           }
           if (Array.isArray(d.quickLinks)) {
             setQuickLinks(d.quickLinks);
-            try { localStorage.setItem("routino_links", JSON.stringify(d.quickLinks)); } catch {}
+            try { browserStore.setItem("routino_links", JSON.stringify(d.quickLinks)); } catch {}
           }
           if (typeof d.focusMinutes === "number") {
             setFocusMinutes(d.focusMinutes);
-            try { localStorage.setItem("routino_focus", String(d.focusMinutes)); } catch {}
+            try { browserStore.setItem("routino_focus", String(d.focusMinutes)); } catch {}
           }
           if (typeof d.soundEnabled === "boolean") {
             setSoundEnabled(d.soundEnabled);
-            try { localStorage.setItem("routino_sound_enabled", String(d.soundEnabled)); } catch {}
+            try { browserStore.setItem("routino_sound_enabled", String(d.soundEnabled)); } catch {}
           }
           if (Array.isArray(d.habits)) {
             setHabits(d.habits);
-            try { localStorage.setItem("routino_habits", JSON.stringify(d.habits)); } catch {}
+            try { browserStore.setItem("routino_habits", JSON.stringify(d.habits)); } catch {}
           }
           if (Array.isArray(d.notes)) {
             setNotes(d.notes);
+            try { browserStore.setItem("routino_notes", JSON.stringify(d.notes)); } catch {}
           }
           if (d.updatedAt) {
             setLastSyncedAt(d.updatedAt);
@@ -1278,7 +1337,7 @@ export default function Home() {
         const result = undoRecords(current, before, after);
         const restored = result && withTaskActivity(current, result, Date.now(), "Undid previous action");
         if (!restored) { toast("Task changed since that action. Undo was skipped to preserve newer edits.", "info"); return current; }
-        try { localStorage.setItem("routino_tasks", JSON.stringify(restored)); } catch {}
+        try { browserStore.setItem("routino_tasks", JSON.stringify(restored)); } catch {}
         void syncToDatabase({ tasks: restored }, current);
         return restored;
       });
@@ -1290,7 +1349,7 @@ export default function Home() {
       const task = prev.find(item => item.id === id);
       const next = withTaskActivity(prev, completeRepeatingTask(prev, id, new Intl.DateTimeFormat("en-CA").format(new Date()), Date.now()));
       if (task && !task.checked) { playTick(); offerTaskUndo(`"${task.title}" completed${next.length > prev.length ? " · next occurrence created" : ""}`, prev, next); }
-      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
     });
@@ -1306,7 +1365,7 @@ export default function Home() {
     if (!editingTaskId) return;
     setTasks(previous => {
       const next = withTaskActivity(previous, editTaskOccurrences(previous, editingTaskId, updates, scope));
-      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       void syncToDatabase({ tasks: next });
       return next;
     });
@@ -1318,7 +1377,7 @@ export default function Home() {
     setTasks(prev => {
       const next = prev.filter(t => t.id !== id);
       if (task) offerTaskUndo(`"${task.title}" removed`, prev, next);
-      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
     });
@@ -1330,7 +1389,7 @@ export default function Home() {
     if (count === 0) return;
     setTasks(prev => {
       const next = prev.filter(t => !t.checked);
-      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
     });
@@ -1351,7 +1410,7 @@ export default function Home() {
         });
         return { ...t, subtasks: nextSubtasks };
       }));
-      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
     });
@@ -1382,7 +1441,7 @@ export default function Home() {
         }
         return { ...h, completedDates: nextDates, streak: nextStreak };
       });
-      try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, replaceHabitIds: [id] });
       return next;
     });
@@ -1398,7 +1457,7 @@ export default function Home() {
     };
     setHabits(prev => {
       const next = [...prev, newHabit];
-      try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, replaceHabitIds: [newHabit.id] });
       return next;
     });
@@ -1408,7 +1467,7 @@ export default function Home() {
   const updateHabit = (id: string, updates: Partial<Habit>) => {
     setHabits(prev => {
       const next = prev.map(h => (h.id === id ? { ...h, ...updates } : h));
-      try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, replaceHabitIds: [id] });
       return next;
     });
@@ -1418,7 +1477,7 @@ export default function Home() {
   const deleteHabit = (id: string) => {
     setHabits(prev => {
       const next = prev.filter(h => h.id !== id);
-      try { localStorage.setItem("routino_habits", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, deletedHabitIds: [id] });
       return next;
     });
@@ -1432,10 +1491,10 @@ export default function Home() {
       const catLabel = finalCategory === "project" ? "Project" : finalCategory === "travel" ? "Travel" : finalCategory.charAt(0).toUpperCase() + finalCategory.slice(1);
       finalMeta = `Today · ${catLabel}`;
     }
-    const newTask: Task = { ...data, category: finalCategory, meta: finalMeta, id: "t-" + Date.now(), checked: false, createdAt: Date.now() };
+    const newTask: Task = { ...data, category: finalCategory, meta: finalMeta, id: "t-" + crypto.randomUUID(), checked: false, createdAt: Date.now() };
     setTasks(prev => {
       const next = withTaskActivity(prev, [newTask, ...prev]);
-      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
     });
@@ -1446,7 +1505,7 @@ export default function Home() {
     setActiveNav("Tasks");
     setHighlightedTaskId(taskId);
     try {
-      localStorage.setItem("routino_active_nav", "Tasks");
+      browserStore.setItem("routino_active_nav", "Tasks");
     } catch {}
     const t = tasks.find((item) => item.id === taskId);
     if (t) {
@@ -1593,7 +1652,7 @@ export default function Home() {
   const addEvent = (event: DashboardEvent) => {
     setCustomEvents(prev => {
       const next = [...prev, event];
-      try { localStorage.setItem("routino_events", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_events", JSON.stringify(next)); } catch {}
       syncToDatabase({ customEvents: next });
       return next;
     });
@@ -1603,7 +1662,7 @@ export default function Home() {
   const scheduleTaskIntoCalendar = async (task: Task, slot: { start: Date; end: Date }) => {
     const descParts = [task.meta].filter(Boolean);
     if (task.link) descParts.push(`Link: ${task.link}`);
-    const response = await fetch("/api/calendar/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: task.title, description: descParts.join(" · "), start: slot.start.toISOString(), end: slot.end.toISOString() }) });
+    const response = await fetch("/api/calendar/focus", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requireFree: true, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, title: task.title, description: descParts.join(" · "), start: slot.start.toISOString(), end: slot.end.toISOString() }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Could not create Google Calendar event");
     addEvent({
@@ -1624,7 +1683,7 @@ export default function Home() {
   const addQuickLink = (link: QuickLink) => {
     setQuickLinks(prev => {
       const next = [...prev, link];
-      try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
       syncToDatabase({ quickLinks: next });
       return next;
     });
@@ -1633,7 +1692,7 @@ export default function Home() {
 
   const updateQuickLinks = (next: QuickLink[]) => {
     setQuickLinks(next);
-    try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+    try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
     void syncToDatabase({ quickLinks: next });
   };
 
@@ -1652,7 +1711,7 @@ export default function Home() {
 
     if (item.navTarget) {
       setActiveNav(item.navTarget);
-      try { localStorage.setItem("routino_active_nav", item.navTarget); } catch {}
+      try { browserStore.setItem("routino_active_nav", item.navTarget); } catch {}
     }
     setNotifications(prev => prev.filter(n => n.id !== item.id));
     setShowNotifications(false);
@@ -1669,7 +1728,7 @@ export default function Home() {
       const next = prev.map(m => m.id === id ? { ...m, starred: !m.starred } : m);
       try {
         const starredIds = next.filter(m => m.starred).map(m => m.id);
-        localStorage.setItem("routino_starred_mail", JSON.stringify(starredIds));
+        browserStore.setItem("routino_starred_mail", JSON.stringify(starredIds));
       } catch {}
       return next;
     });
@@ -1680,7 +1739,7 @@ export default function Home() {
       const next = prev.map(m => m.id === id ? { ...m, read: !m.read } : m);
       try {
         const readIds = next.filter(m => m.read).map(m => m.id);
-        localStorage.setItem("routino_read_mail", JSON.stringify(readIds));
+        browserStore.setItem("routino_read_mail", JSON.stringify(readIds));
       } catch {}
       return next;
     });
@@ -1688,7 +1747,7 @@ export default function Home() {
 
   const handleSelectNav = (tab: string, pushUrl = true) => {
     setActiveNav(tab);
-    try { localStorage.setItem("routino_active_nav", tab); } catch {}
+    try { browserStore.setItem("routino_active_nav", tab); } catch {}
 
     if (pushUrl && typeof window !== "undefined") {
       const slug = TAB_TO_PARAM[tab] || "overview";
@@ -1737,7 +1796,7 @@ export default function Home() {
   const handleFocusComplete = (mins: number) => {
     setFocusMinutes(prev => {
       const next = prev + mins;
-      try { localStorage.setItem("routino_focus", String(next)); } catch {}
+      try { browserStore.setItem("routino_focus", String(next)); } catch {}
       syncToDatabase({ focusMinutes: next });
       return next;
     });
@@ -1746,7 +1805,7 @@ export default function Home() {
 
   const handleUpdateFocusMinutes = (mins: number) => {
     setFocusMinutes(mins);
-    try { localStorage.setItem("routino_focus", String(mins)); } catch {}
+    try { browserStore.setItem("routino_focus", String(mins)); } catch {}
     syncToDatabase({ focusMinutes: mins });
     toast(`Focus target set to ${mins} minutes`);
   };
@@ -1754,7 +1813,7 @@ export default function Home() {
   const handleToggleSound = () => {
     setSoundEnabled(prev => {
       const next = !prev;
-      try { localStorage.setItem("routino_sound_enabled", String(next)); } catch {}
+      try { browserStore.setItem("routino_sound_enabled", String(next)); } catch {}
       syncToDatabase({ soundEnabled: next });
       toast(next ? "Audio feedback enabled" : "Audio muted", "info");
       return next;
@@ -1764,7 +1823,7 @@ export default function Home() {
   const handleClearCompletedTasks = () => {
     setTasks(prev => {
       const next = prev.filter(t => !t.checked);
-      try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       syncToDatabase({ tasks: next });
       return next;
     });
@@ -1774,13 +1833,13 @@ export default function Home() {
   const addNote = (newNoteData: Omit<KeepNote, "id" | "createdAt" | "updatedAt">) => {
     const newNote: KeepNote = {
       ...newNoteData,
-      id: "note-" + Date.now(),
+      id: "note-" + crypto.randomUUID(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     setNotes(prev => {
       const next = [newNote, ...prev];
-      try { localStorage.setItem("routino_notes", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_notes", JSON.stringify(next)); } catch {}
       syncToDatabase({ notes: next });
       return next;
     });
@@ -1790,7 +1849,7 @@ export default function Home() {
   const updateNote = (id: string, updates: Partial<KeepNote>) => {
     setNotes(prev => {
       const next = prev.map(n => n.id === id ? { ...n, ...updates, updatedAt: Date.now() } : n);
-      try { localStorage.setItem("routino_notes", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_notes", JSON.stringify(next)); } catch {}
       syncToDatabase({ notes: next });
       return next;
     });
@@ -1799,7 +1858,7 @@ export default function Home() {
   const deleteNote = (id: string) => {
     setNotes(prev => {
       const next = prev.filter(n => n.id !== id);
-      try { localStorage.setItem("routino_notes", JSON.stringify(next)); } catch {}
+      try { browserStore.setItem("routino_notes", JSON.stringify(next)); } catch {}
       syncToDatabase({ notes: next });
       return next;
     });
@@ -1808,11 +1867,12 @@ export default function Home() {
 
   const handleReorderNotes = (reordered: KeepNote[]) => {
     setNotes(reordered);
-    try { localStorage.setItem("routino_notes", JSON.stringify(reordered)); } catch {}
+    try { browserStore.setItem("routino_notes", JSON.stringify(reordered)); } catch {}
     syncToDatabase({ notes: reordered });
   };
 
   const handleImportData = (imported: {
+    taskTemplates?: TaskTemplate[];
     tasks?: Task[];
     customEvents?: DashboardEvent[];
     quickLinks?: QuickLink[];
@@ -1823,6 +1883,8 @@ export default function Home() {
     focusMinutes?: number;
     soundEnabled?: boolean;
   }) => {
+    const invalid = workspaceValidationError(imported);
+    if (invalid) { toast(invalid); return; }
     if (imported.subscriptions !== undefined && !isSubscriptionList(imported.subscriptions)) {
       toast("Invalid subscription data in backup. No workspace changes were made.");
       return;
@@ -1835,35 +1897,37 @@ export default function Home() {
         toast("Trackers are not ready to restore. No workspace changes were made."); return;
       }
     }
+    if (imported.taskTemplates) { setTaskTemplates(imported.taskTemplates); browserStore.setItem("routino_task_templates", JSON.stringify(imported.taskTemplates)); }
     if (imported.tasks) {
       setTasks(imported.tasks);
-      try { localStorage.setItem("routino_tasks", JSON.stringify(imported.tasks)); } catch {}
+      try { browserStore.setItem("routino_tasks", JSON.stringify(imported.tasks)); } catch {}
     }
     if (imported.customEvents) {
       setCustomEvents(imported.customEvents);
-      try { localStorage.setItem("routino_events", JSON.stringify(imported.customEvents)); } catch {}
+      try { browserStore.setItem("routino_events", JSON.stringify(imported.customEvents)); } catch {}
     }
     if (imported.quickLinks) {
       setQuickLinks(imported.quickLinks);
-      try { localStorage.setItem("routino_links", JSON.stringify(imported.quickLinks)); } catch {}
+      try { browserStore.setItem("routino_links", JSON.stringify(imported.quickLinks)); } catch {}
     }
     if (imported.habits && Array.isArray(imported.habits)) {
       setHabits(imported.habits);
-      try { localStorage.setItem("routino_habits", JSON.stringify(imported.habits)); } catch {}
+      try { browserStore.setItem("routino_habits", JSON.stringify(imported.habits)); } catch {}
     }
     if (imported.notes && Array.isArray(imported.notes)) {
       setNotes(imported.notes);
-      try { localStorage.setItem("routino_notes", JSON.stringify(imported.notes)); } catch {}
+      try { browserStore.setItem("routino_notes", JSON.stringify(imported.notes)); } catch {}
     }
     if (typeof imported.soundEnabled === "boolean") {
       setSoundEnabled(imported.soundEnabled);
-      try { localStorage.setItem("routino_sound_enabled", String(imported.soundEnabled)); } catch {}
+      try { browserStore.setItem("routino_sound_enabled", String(imported.soundEnabled)); } catch {}
     }
     if (typeof imported.focusMinutes === "number") {
       setFocusMinutes(imported.focusMinutes);
-      try { localStorage.setItem("routino_focus", String(imported.focusMinutes)); } catch {}
+      try { browserStore.setItem("routino_focus", String(imported.focusMinutes)); } catch {}
     }
     syncToDatabase({
+      taskTemplates: imported.taskTemplates,
       tasks: imported.tasks,
       customEvents: imported.customEvents,
       quickLinks: imported.quickLinks,
@@ -1878,8 +1942,19 @@ export default function Home() {
 
   /* ── Render ── */
   return (
-    <div className="min-h-screen">
-      {workspaceSaveError && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[80] rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:left-auto sm:max-w-md">Workspace changes are kept locally but database sync failed. They will retry when connected.<button className="ml-3 font-semibold underline" onClick={() => { void syncToDatabase(); }}>Retry now</button></div>}
+    <AccountStorageContext.Provider value={currentAccount.current}><div className="min-h-screen" key={currentAccount.current || "guest"}>
+      {coreConflict && currentAccount.current && <WorkspaceConflict account={currentAccount.current} onResolve={async (revision, useCloud, snapshot) => {
+        const account = currentAccount.current;
+        const key = `routino_workspace_pending:${account}`;
+        if (localStorage.getItem(key) !== snapshot) throw new Error("Your draft changed. Compare the copies again before choosing.");
+        localStorage.setItem(`${key}:recovery:${Date.now()}`, snapshot);
+        if (!useCloud) localStorage.setItem(key, JSON.stringify({ ...JSON.parse(snapshot), expectedCoreRevision: revision }));
+        coreRevision.current = revision;
+        conflictBlocked.current = false; setCoreConflict(false);
+        if (useCloud) { localStorage.removeItem(key); setWorkspaceSaveError(false); window.dispatchEvent(new Event("routino:workspace-restored")); }
+        else if (!await syncToDatabase()) throw new Error("Save could not complete. The local recovery copy is preserved.");
+      }} />}
+      {workspaceSaveError && !coreConflict && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[80] rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:left-auto sm:max-w-md">Workspace changes are kept locally but database sync failed. They will retry when connected.<button className="ml-3 font-semibold underline" onClick={() => { void syncToDatabase(); }}>Retry now</button></div>}
       {/* ─── Sidebar (desktop) ─── */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col justify-between border-r border-line bg-[#fbfcf8] lg:flex">
         {/* Scrollable upper navigation & apps area */}
@@ -2153,7 +2228,7 @@ export default function Home() {
                 const changed = action === "skip" ? skipTaskOccurrence(before, id, today, Date.now()) : setSeriesPaused(before, id, action === "pause", today, Date.now());
                 if (changed === before) { toast("No occurrence can be changed with these repeat settings. Check the series end date.", "info"); return; }
                 const next = withTaskActivity(before, changed);
-                setTasks(next); try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+                setTasks(next); try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
                 void syncToDatabase({ tasks: next }, before);
                 offerTaskUndo(action === "skip" ? "Occurrence skipped; history preserved" : action === "pause" ? "Series paused" : "Series resumed", before, next);
               }}
@@ -2161,12 +2236,12 @@ export default function Home() {
                 const changed = snoozeTask(tasks, id, date, new Intl.DateTimeFormat("en-CA").format(new Date()));
                 if (changed === tasks) return;
                 const next = withTaskActivity(tasks, changed, Date.now(), "Snoozed");
-                setTasks(next); try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {} void syncToDatabase({ tasks: next }); toast("Task moved; repeat schedule preserved");
+                setTasks(next); try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {} void syncToDatabase({ tasks: next }); toast("Task moved; repeat schedule preserved");
               }}
               onUpdateTaskRecurrence={(id, recurrence) => {
                 const next = withTaskActivity(tasks, tasks.map(task => task.id === id ? { ...task, recurrence, recurrenceTemplate: undefined, dueDate: recurrence ? task.dueDate || new Intl.DateTimeFormat("en-CA").format(new Date()) : task.dueDate } : task));
                 setTasks(next);
-                try { localStorage.setItem("routino_tasks", JSON.stringify(next)); } catch {}
+                try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
                 void syncToDatabase({ tasks: next });
               }}
               onAddTask={addTask}
@@ -2782,16 +2857,16 @@ export default function Home() {
                                         )}
                                         {task.dueDate && (
                                           <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[8px] font-bold ${
-                                            task.dueDate < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
+                                            taskDueDay(task.dueDate)! < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
                                               ? "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]"
-                                              : task.dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
+                                              : taskDueDay(task.dueDate) === new Intl.DateTimeFormat("en-CA").format(new Date())
                                               ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
                                               : "bg-[#f8fafc] text-[#475569] border border-[#e2e8f0]"
                                           }`}>
                                             <Clock3 size={8} />
-                                            {task.dueDate < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
+                                            {taskDueDay(task.dueDate)! < new Intl.DateTimeFormat("en-CA").format(new Date()) && !task.checked
                                               ? "OVERDUE"
-                                              : task.dueDate === new Intl.DateTimeFormat("en-CA").format(new Date())
+                                              : taskDueDay(task.dueDate) === new Intl.DateTimeFormat("en-CA").format(new Date())
                                               ? "DUE TODAY"
                                               : task.dueDate}
                                           </span>
@@ -3080,12 +3155,12 @@ export default function Home() {
                 <ReadLaterPanel links={quickLinks} onAdd={() => setShowQuickLinkModal(true)} onDelete={id => {
                   const next = quickLinks.filter(item => item.id !== id);
                   setQuickLinks(next);
-                  try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+                  try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
                   syncToDatabase({ quickLinks: next });
                 }} onUpdate={link => {
                   const next = quickLinks.map(item => item.id === link.id ? link : item);
                   setQuickLinks(next);
-                  try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+                  try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
                   syncToDatabase({ quickLinks: next });
                 }} />
 
@@ -3183,12 +3258,12 @@ export default function Home() {
         onAppendScratchpad={(text) => {
           const current =
             typeof window !== "undefined"
-              ? localStorage.getItem("routino_scratchpad") || ""
+              ? browserStore.getItem("routino_scratchpad") || ""
               : "";
           const updated = current ? `${current}\n${text}` : text;
           if (typeof window !== "undefined") {
             try {
-              localStorage.setItem("routino_scratchpad", updated);
+              browserStore.setItem("routino_scratchpad", updated);
             } catch {}
           }
           toast("Appended to scratchpad!");
@@ -3229,7 +3304,7 @@ export default function Home() {
         habits={habits}
         scratchpadText={
           typeof window !== "undefined"
-            ? localStorage.getItem("routino_scratchpad") || ""
+            ? browserStore.getItem("routino_scratchpad") || ""
             : ""
         }
       />
@@ -3258,6 +3333,8 @@ export default function Home() {
         onSessionComplete={handleFocusComplete}
       />
       <TaskModal
+        templates={taskTemplates}
+        onTemplatesChange={templates => { try { browserStore.setItem("routino_task_templates", JSON.stringify(templates)); setTaskTemplates(templates); void syncToDatabase({ taskTemplates: templates }); } catch { toast("Browser storage is unavailable. The template was not saved."); } }}
         isOpen={showTaskModal}
         onClose={() => {
           setShowTaskModal(false);
@@ -3286,7 +3363,7 @@ export default function Home() {
           const account = currentAccount.current;
           const next = deleted ? customEvents.filter(item => item.id !== event.id) : [...customEvents.filter(item => item.id !== event.id), event];
           setCustomEvents(next);
-          try { localStorage.setItem("routino_events", JSON.stringify(next)); } catch {}
+          try { browserStore.setItem("routino_events", JSON.stringify(next)); } catch {}
           syncToDatabase({ customEvents: next });
           setLiveData(previous => previous ? { ...previous, events: (previous.events || []).filter(item => item.id !== event.id) } : previous);
           setShowEventModal(false); setViewingEvent(null);
@@ -3310,7 +3387,7 @@ export default function Home() {
                 const existing = current.find(item => item.id === event.id);
                 if ((!deleted && JSON.stringify(existing) !== JSON.stringify(event)) || (deleted && existing)) { toast("Session changed since that action; undo skipped."); return current; }
                 const updated = [...current.filter(item => item.id !== event.id), restored];
-                try { localStorage.setItem("routino_events", JSON.stringify(updated)); } catch {}
+                try { browserStore.setItem("routino_events", JSON.stringify(updated)); } catch {}
                 void syncToDatabase({ customEvents: updated }); return updated;
               });
               undoComplete = true;
@@ -3359,6 +3436,7 @@ export default function Home() {
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <GoogleSetupModal isOpen={showGoogleSetup} onClose={() => setShowGoogleSetup(false)} />
       <PreferencesModal
+        taskTemplates={taskTemplates}
         openDataToken={preferencesDataToken}
         isOpen={showPreferences}
         onClose={() => setShowPreferences(false)}
@@ -3429,6 +3507,6 @@ export default function Home() {
         }}
         onDeleteHabit={deleteHabit}
       />
-    </div>
+    </div></AccountStorageContext.Provider>
   );
 }

@@ -64,7 +64,7 @@ export async function restoreWorkspaceBackup(email: string, id: string, expected
       INSERT INTO routino_workspace_backups (id, email, bucket, data, reason)
       SELECT ${beforeId}, email, ${beforeId}, data, 'before-restore' FROM target RETURNING id
     ) UPDATE routino_workspaces SET data = ${JSON.stringify(source.data)}::jsonb || jsonb_build_object(
-      'updatedAt', ${updatedAt}::text, 'trackerRevision', COALESCE((routino_workspaces.data->>'trackerRevision')::integer, 0) + 1
+      'updatedAt', ${updatedAt}::text, 'coreRevision', COALESCE((routino_workspaces.data->>'coreRevision')::integer, 0) + 1, 'trackerRevision', COALESCE((routino_workspaces.data->>'trackerRevision')::integer, 0) + 1
     ) || CASE WHEN ${JSON.stringify(source.data)}::jsonb ? 'calendarColorState' OR routino_workspaces.data ? 'calendarColorState'
       THEN jsonb_build_object('calendarColorState',
         (COALESCE(${JSON.stringify(source.data)}::jsonb->'calendarColorState', routino_workspaces.data->'calendarColorState') - 'pendingRunId' - 'operationStartedAt')

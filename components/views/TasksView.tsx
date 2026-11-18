@@ -1,4 +1,6 @@
 "use client";
+import { taskDueDay } from "@/lib/taskDates";
+import { useAccountStorage } from "@/components/AccountStorage";
 
 import { TaskActivityHistory } from "@/components/TaskActivityHistory";
 import { TaskSnooze } from "@/components/TaskSnooze";
@@ -58,6 +60,7 @@ export function TasksView({
   onToggleSubTask,
   highlightedTaskId,
 }: TasksViewProps) {
+  const browserStore = useAccountStorage();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<"all" | "active" | "today" | "upcoming" | "priority" | "project" | "travel" | "completed">("all");
   const [ignoredDetections, setIgnoredDetections] = useState<TaskDetection[]>([]);
@@ -68,8 +71,8 @@ export function TasksView({
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
   const [savedViews, setSavedViews] = useState<string[]>([]);
   const [viewName, setViewName] = useState("");
-  useEffect(() => { try { const value = JSON.parse(localStorage.getItem("routino_task_views") || "[]"); if (Array.isArray(value)) setSavedViews(value.filter(item => typeof item === "string")); } catch {} }, []);
-  const saveView = () => { const name = viewName.trim(); if (!name) return; const next = Array.from(new Set([...savedViews, name])).slice(-12); setSavedViews(next); setViewName(""); try { localStorage.setItem("routino_task_views", JSON.stringify(next)); } catch {} };
+  useEffect(() => { try { const value = JSON.parse(browserStore.getItem("routino_task_views") || "[]"); if (Array.isArray(value)) setSavedViews(value.filter(item => typeof item === "string")); } catch {} }, []);
+  const saveView = () => { const name = viewName.trim(); if (!name) return; const next = Array.from(new Set([...savedViews, name])).slice(-12); setSavedViews(next); setViewName(""); try { browserStore.setItem("routino_task_views", JSON.stringify(next)); } catch {} };
 
   const todayStr = new Intl.DateTimeFormat("en-CA").format(new Date());
 
@@ -93,8 +96,8 @@ export function TasksView({
   const historyCount = tasks.filter(t => t.checked).length;
   const skippedCount = tasks.filter(t => t.skipped).length;
   const doneCount = tasks.filter(t => t.checked && !t.skipped).length;
-  const todayTasksCount = tasks.filter((t) => !t.checked && (t.dueDate === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")))).length;
-  const upcomingTasksCount = tasks.filter((t) => !t.checked && Boolean(t.dueDate && t.dueDate > todayStr)).length;
+  const todayTasksCount = tasks.filter((t) => !t.checked && (taskDueDay(t.dueDate)! === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")))).length;
+  const upcomingTasksCount = tasks.filter((t) => !t.checked && Boolean(t.dueDate && taskDueDay(t.dueDate)! > todayStr)).length;
   const projectTasksCount = tasks.filter((t) => t.category === "project").length;
   const travelTasksCount = tasks.filter((t) => t.category === "travel").length;
   const progressPercent = tasks.length > 0 ? (doneCount / tasks.length) * 100 : 0;
@@ -165,8 +168,8 @@ export function TasksView({
     if (selectedFilter === "active") return !t.checked;
     if (selectedFilter === "completed") return t.checked;
     if (selectedFilter === "priority") return t.priority;
-    if (selectedFilter === "today") return !t.checked && (t.dueDate === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")));
-    if (selectedFilter === "upcoming") return !t.checked && Boolean(t.dueDate && t.dueDate > todayStr);
+    if (selectedFilter === "today") return !t.checked && (taskDueDay(t.dueDate)! === todayStr || (!t.dueDate && t.meta.toLowerCase().includes("today")));
+    if (selectedFilter === "upcoming") return !t.checked && Boolean(t.dueDate && taskDueDay(t.dueDate)! > todayStr);
     if (selectedFilter === "project") return t.category === "project";
     if (selectedFilter === "travel") return t.category === "travel";
     return true;
@@ -183,13 +186,13 @@ export function TasksView({
         if (a.priority && !b.priority) return -1;
         if (!a.priority && b.priority) return 1;
 
-        const aOverdue = Boolean(a.dueDate && a.dueDate < todayStr);
-        const bOverdue = Boolean(b.dueDate && b.dueDate < todayStr);
+        const aOverdue = Boolean(a.dueDate && taskDueDay(a.dueDate)! < todayStr);
+        const bOverdue = Boolean(b.dueDate && taskDueDay(b.dueDate)! < todayStr);
         if (aOverdue && !bOverdue) return -1;
         if (!aOverdue && bOverdue) return 1;
 
-        const aToday = Boolean(a.dueDate === todayStr);
-        const bToday = Boolean(b.dueDate === todayStr);
+        const aToday = Boolean(taskDueDay(a.dueDate)! === todayStr);
+        const bToday = Boolean(taskDueDay(b.dueDate)! === todayStr);
         if (aToday && !bToday) return -1;
         if (!aToday && bToday) return 1;
       }
@@ -468,17 +471,17 @@ export function TasksView({
                           {task.dueDate && (
                             <span
                               className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-bold uppercase text-[8px] ${
-                                task.dueDate < todayStr && !task.checked
+                                taskDueDay(task.dueDate)! < todayStr && !task.checked
                                   ? "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]"
-                                  : task.dueDate === todayStr
+                                  : taskDueDay(task.dueDate)! === todayStr
                                   ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
                                   : "bg-[#f8fafc] text-[#475569] border border-[#e2e8f0]"
                               }`}
                             >
                               <Clock size={8} />
-                              {task.dueDate < todayStr && !task.checked
+                              {taskDueDay(task.dueDate)! < todayStr && !task.checked
                                 ? `Overdue (${task.dueDate})`
-                                : task.dueDate === todayStr
+                                : taskDueDay(task.dueDate)! === todayStr
                                 ? "Due Today"
                                 : `Due ${task.dueDate}`}
                             </span>

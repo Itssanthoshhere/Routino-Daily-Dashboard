@@ -1,4 +1,5 @@
 "use client";
+import { taskDueDay } from "@/lib/taskDates";
 
 import { useMemo } from "react";
 import {
@@ -158,7 +159,7 @@ export function MorningDigestModal({
   // Active and overdue tasks
   const activeTasks = useMemo(() => tasks.filter((t) => !t.checked), [tasks]);
   const overdueTasks = useMemo(() => {
-    return tasks.filter((t) => !t.checked && t.dueDate && t.dueDate < todayStr);
+    return tasks.filter((t) => !t.checked && t.dueDate && taskDueDay(t.dueDate)! < todayStr);
   }, [tasks, todayStr]);
 
   const urgentDeadlines = useMemo(() => {
@@ -166,7 +167,7 @@ export function MorningDigestModal({
     nextWeek.setDate(nextWeek.getDate() + 7);
     const nextWeekStr = new Intl.DateTimeFormat("en-CA").format(nextWeek);
     return tasks.filter(
-      (t) => !t.checked && t.dueDate && t.dueDate >= todayStr && t.dueDate <= nextWeekStr
+      (t) => !t.checked && t.dueDate && taskDueDay(t.dueDate)! >= todayStr && taskDueDay(t.dueDate)! <= nextWeekStr
     );
   }, [tasks, todayStr]);
 

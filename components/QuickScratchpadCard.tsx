@@ -1,4 +1,5 @@
 "use client";
+import { useAccountStorage } from "@/components/AccountStorage";
 
 import { useState, useEffect } from "react";
 import { StickyNote, Copy, Check, Plus, Trash2, ArrowRight, ListTodo, ChevronDown, ChevronUp } from "lucide-react";
@@ -16,6 +17,7 @@ export function QuickScratchpadCard({
   onAddTask,
   onNavigateToNotes,
 }: QuickScratchpadCardProps) {
+  const browserStore = useAccountStorage();
   const [content, setContent] = useState("");
   const [copied, setCopied] = useState(false);
   const [savedStatus, setSavedStatus] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function QuickScratchpadCard({
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("routino_scratchpad");
+      const stored = browserStore.getItem("routino_scratchpad");
       if (stored) setContent(stored);
     } catch {}
   }, []);
@@ -36,7 +38,7 @@ export function QuickScratchpadCard({
   const handleChange = (val: string) => {
     setContent(val);
     try {
-      localStorage.setItem("routino_scratchpad", val);
+      browserStore.setItem("routino_scratchpad", val);
     } catch {}
   };
 

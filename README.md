@@ -75,7 +75,15 @@ The responsive interface includes desktop/mobile navigation, accessible dialogs,
 
 ## 📅 Focus scheduling and meeting notes
 
-**Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability.
+**Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability. Before booking a task focus session, Routino rechecks connected Google calendars, linked Outlook events, and saved events. Failed checks or a newly busy slot stop booking. Another calendar client can still create a conflicting event between that check and creation.
+
+**Workspace reliability:** core records now use account-scoped browser caches and a database revision. Legacy caches are copied only to their recorded original owner; original copies are retained, and caches without a known owner are not automatically assigned. Notes, habits, saved events, links, and templates send record changes while preserving saved ordering. A stale save opens a local/cloud comparison rather than overwriting another device’s changes. Both resolution choices retain an account-specific local recovery copy. Existing pending drafts without a known base revision require review. Older open tabs must refresh before saving with the new account/revision checks.
+
+**Task deadlines and templates:** date-only deadlines stay on their local calendar day; timed deadlines are grouped by their local due day. In **Add Priority**, choose Bill payment, Travel preparation, or Project setup, or save the current title/category/priority/checklist as a reusable template. Each applied template receives fresh unchecked sub-steps. Templates sync with the workspace and are included in JSON export/import; they do not copy dates or completion history.
+
+**Vault auto-lock:** Notes offers Off, 1, 5 (default), or 15 minutes. When enabled, backgrounding the page also locks the vault. An open encrypted note is saved through the normal local-first flow before locking, and an encrypted composer draft is retained on this device and restored after unlocking. If draft preservation fails, the vault reports the failure and leaves the draft open rather than discarding it. Saved notes and the PIN are not rewritten by auto-lock.
+
+**Document retention:** Preferences → General → Document storage retention reviews unreferenced private uploads older than 75 days. Live records, the Recycle Bin, and database backup references protect files. Recent uploads are retained beyond the external-backup window. Cleanup requires a separate permanent-deletion confirmation and rechecks references; no background purge is enabled. An unavailable database or backup table blocks cleanup.
 
 **Jump to date** beside the calendar arrows opens the selected day and its seven-day strip. **Today** returns to the current day. Navigation uses loaded events and does not modify saved records. Calendar remembers the selected date, day/week view, and category per signed-in account in this browser, including after reload. These display preferences are local to the device; search text is not remembered.
 
@@ -328,6 +336,8 @@ npm run lint                        # TypeScript check
 node scripts/test-trackers.cjs       # tracker regression checks
 node scripts/test-workspace-features.cjs # search, history, and reminder checks
 node scripts/test-review-fixes.cjs     # timing, action identity, and habit counter regressions
+npm test # all isolated regression suites; no live provider or database writes
+TZ=America/Los_Angeles npm test # alternate-timezone checks
 node scripts/test-task-duplicates.cjs # similar unfinished tasks and duplicate confirmation keys
 node scripts/test-task-quick-parse.cjs # natural-language dates, times, priorities, categories, and title cleanup
 node scripts/test-calendar-navigation.cjs # date jumps, leap days, year boundaries, and DST
@@ -368,3 +378,5 @@ public/               Static assets
 ```
 
 Please use fictional data in screenshots, issues, and pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Routino is distributed under the [MIT License](LICENSE).
+
+Pull-request and main-branch CI runs TypeScript, the local regression suites in two timezones, a production build, and the production PWA check. Live provider scheduling and actual permanent file deletion are not performed by CI.

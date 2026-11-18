@@ -55,7 +55,7 @@ export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Prop
       </div>
 
       <p className="mt-1 text-xs text-muted">
-        Open blocks across your merged calendars for the next 7 days.
+        Suggestions use loaded events. Connected calendars are checked again before booking; availability can still change while a session is being created.
       </p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">

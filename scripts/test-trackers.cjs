@@ -86,10 +86,10 @@ async function routes() {
   let stored;
   const mocks = { "next/server": { NextResponse: { json: (body, options) => ({ body, options }) } }, "@/lib/auth": { auth: async () => ({ user: { email: "example@example.test" } }) }, "@/lib/db": { getUserWorkspace: async () => existing, getDatabaseStatus: () => ({ configured: true }), saveUserWorkspace: async (_, value) => { stored = value; return { success: true }; }, saveTrackerWorkspace: async () => ({ success: false, conflict: true }) } };
   const api = load("app/api/user-data/route.ts", mocks);
-  await api.POST({ json: async () => ({ subscriptions: [] }) });
+  await api.POST({ json: async () => ({ expectedAccount: "example@example.test", expectedCoreRevision: 0, subscriptions: [] }) });
   for (const key of Object.keys(existing).filter(key => key !== "subscriptions")) assert.deepEqual(stored[key], existing[key]);
   assert.deepEqual(stored.subscriptions, []);
-  await api.POST({ json: async () => ({ focusMinutes: 90 }) }); assert.deepEqual(stored.subscriptions, [plan]);
+  await api.POST({ json: async () => ({ expectedAccount: "example@example.test", expectedCoreRevision: 0, focusMinutes: 90 }) }); assert.deepEqual(stored.subscriptions, [plan]);
   const trackerApi = load("app/api/tracker-workspace/route.ts", mocks);
   assert.equal((await trackerApi.PATCH({ json: async () => ({ revision: 0, patch: { subscriptions: [plan] } }) })).options.status, 409);
   assert.equal((await trackerApi.PATCH({ json: async () => ({ revision: 0, patch: { airtel: { records: [null] } } }) })).options.status, 400);

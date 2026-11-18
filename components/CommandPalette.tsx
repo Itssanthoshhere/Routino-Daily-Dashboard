@@ -351,7 +351,7 @@ export function CommandPalette({
               <div className="space-y-1">
                 {filteredEvents.slice(0, query.trim() ? 20 : 3).map((event) => (
                   <button
-                    key={event.id}
+                    key={`${event.calendarId || event.source || "custom"}:${event.id}`}
                     onClick={() => handleAction(() => onNavigate("Calendar"))}
                     className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[12px] text-ink hover:bg-[#eef2ea] transition"
                   >

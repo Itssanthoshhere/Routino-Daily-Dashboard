@@ -21,6 +21,7 @@ import { Task } from "@/types/dashboard";
 import { FocusSlot } from "@/lib/focusSlots";
 import { FocusSlotFinder } from "@/components/FocusSlotFinder";
 import { CalendarEventSearch } from "@/components/CalendarEventSearch";
+import { calendarStart } from "@/lib/taskDates";
 import { calendarJumpPosition } from "@/lib/calendarNavigation";
 import { CalendarColorLegend } from "@/components/CalendarColorLegend";
 import { CalendarColorManager } from "@/components/CalendarColorManager";
@@ -117,7 +118,7 @@ export function CalendarView({
     return events.filter((ev) => {
       const startStr = ev.start?.dateTime ?? ev.start?.date;
       if (!startStr) return selectedDayIndex === 0 && weekOffset === 0;
-      const d = new Date(startStr);
+      const d = calendarStart(ev.start)!;
       return d.toDateString() === selectedDate.toDateString();
     });
   }, [events, selectedDate, selectedDayIndex, weekOffset]);
@@ -132,7 +133,7 @@ export function CalendarView({
     return events.filter((ev) => {
       const startStr = ev.start?.dateTime ?? ev.start?.date;
       if (!startStr) return false;
-      const d = new Date(startStr);
+      const d = calendarStart(ev.start)!;
       return weekDatesStrSet.has(d.toDateString());
     });
   }, [events, weekDatesStrSet]);
@@ -190,7 +191,7 @@ export function CalendarView({
     (d: Date) => {
       const evs = events.filter((ev) => {
         const s = ev.start?.dateTime ?? ev.start?.date;
-        return s && new Date(s).toDateString() === d.toDateString();
+        return s && calendarStart(ev.start)!.toDateString() === d.toDateString();
       });
       const bananaEvs = evs.filter(
         (e) =>
@@ -255,7 +256,7 @@ export function CalendarView({
 
     return (
       <div
-        key={event.id || idx}
+        key={`${event.calendarId || event.source || "custom"}:${event.id || idx}`}
         onClick={() => onSelectEvent(event)}
         className="flex items-start justify-between gap-4 py-3.5 first:pt-0 last:pb-0 hover:bg-[#fbfcf9] transition p-2 rounded-xl cursor-pointer group"
       >
@@ -718,7 +719,7 @@ export function CalendarView({
               {days.map((day) => {
                 const dayEvs = weekFilteredEvents.filter((ev) => {
                   const s = ev.start?.dateTime ?? ev.start?.date;
-                  return s && new Date(s).toDateString() === day.dateObj.toDateString();
+                  return s && calendarStart(ev.start)!.toDateString() === day.dateObj.toDateString();
                 });
                 if (dayEvs.length === 0) return null;
                 const meta = getDayMeta(day.dateObj);

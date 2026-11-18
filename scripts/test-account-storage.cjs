@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
+const m={exports:{}};new Function('module','exports',ts.transpileModule(fs.readFileSync('lib/accountStorage.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(m,m.exports);
+const {scopedStorage,migrateAccountCache}=m.exports;
+const values=new Map([['routino_tasks','legacy'],['routino_verified_workspace_account','a@example.com']]);
+const store={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
+let owner='b@example.com';const scoped=scopedStorage(store,()=>owner);
+migrateAccountCache(store,owner);assert.equal(scoped.getItem('routino_tasks'),null);
+owner='a@example.com';migrateAccountCache(store,owner);assert.equal(scoped.getItem('routino_tasks'),'legacy');
+scoped.setItem('routino_tasks','new');migrateAccountCache(store,owner);assert.equal(scoped.getItem('routino_tasks'),'new');assert.equal(store.getItem('routino_tasks'),'legacy');
+store.setItem('routino_verified_workspace_account','b@example.com');
+owner='b@example.com';migrateAccountCache(store,owner);assert.equal(scoped.getItem('routino_tasks'),null);scoped.setItem('routino_tasks','B');
+owner=null;assert.equal(scoped.getItem('routino_tasks'),null);
+owner='a@example.com';assert.equal(scoped.getItem('routino_tasks'),'new');
+console.log('Passed: account isolation, guest isolation, owner-verified migration, retained originals, and non-overwrite migration.');

@@ -122,7 +122,7 @@ export function DayTimelineBar({
         const meetUrl = getMeetingUrl(ev);
 
         return {
-          id: ev.id,
+          id: `${ev.calendarId || ev.source || "custom"}:${ev.id}`,
           summary: ev.summary || "Untitled Event",
           location: ev.location || null,
           startDate,

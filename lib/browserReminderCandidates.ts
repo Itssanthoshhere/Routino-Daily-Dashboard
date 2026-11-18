@@ -1,3 +1,4 @@
+import { taskDueDay } from "@/lib/taskDates";
 import type { Task } from "@/types/dashboard";
 import type { Subscription } from "@/types/subscriptions";
 import type { AirtelData } from "@/types/airtel";
@@ -5,7 +6,7 @@ import { workspaceNotifications } from "@/lib/workspaceNotifications";
 
 export function browserReminderCandidates(tasks: Task[], subscriptions: Subscription[], airtel: AirtelData, today: string, now: number) {
   const items = workspaceNotifications(tasks, subscriptions, airtel, today);
-  for (const task of tasks.filter(task => !task.checked && task.dueDate?.slice(0, 10) === today)) {
+  for (const task of tasks.filter(task => !task.checked && taskDueDay(task.dueDate) === today)) {
     if (task.dueDate!.length > 10) {
       const due = new Date(task.dueDate!).getTime();
       if (!Number.isFinite(due) || due > now) continue;

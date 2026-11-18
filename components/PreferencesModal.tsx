@@ -1,5 +1,7 @@
 "use client";
 
+import type { TaskTemplate } from "@/lib/taskTemplates";
+import { DocumentStorageManager } from "@/components/DocumentStorageManager";
 import { CalendarColorManager } from "@/components/CalendarColorManager";
 import { BrowserReminderSettings } from "@/components/BrowserReminders";
 import { KEYBOARD_SHORTCUTS } from "@/lib/keyboardShortcuts";
@@ -36,6 +38,7 @@ import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 type PreferencesModalProps = {
+  taskTemplates?: TaskTemplate[];
   openDataToken?: number;
   subscriptions?: Subscription[];
   airtel?: AirtelData;
@@ -49,6 +52,7 @@ type PreferencesModalProps = {
   habits?: Habit[];
   notes?: KeepNote[];
   onImportData: (data: {
+    taskTemplates?: TaskTemplate[];
     tasks?: Task[];
     customEvents?: DashboardEvent[];
     quickLinks?: QuickLink[];
@@ -74,6 +78,7 @@ type PreferencesModalProps = {
 };
 
 export function PreferencesModal({
+  taskTemplates,
   openDataToken = 0,
   isOpen,
   onClose,
@@ -115,6 +120,7 @@ export function PreferencesModal({
       exportedAt: new Date().toISOString(),
       appName: appConfig.name,
       data: {
+        taskTemplates,
         focusMinutes,
         soundEnabled,
         tasks,
@@ -154,6 +160,7 @@ export function PreferencesModal({
             throw new Error("Invalid subscription data");
           }
           onImportData({
+            taskTemplates: parsed.data.taskTemplates,
             tasks: parsed.data.tasks,
             customEvents: parsed.data.customEvents,
             quickLinks: parsed.data.quickLinks,
@@ -259,6 +266,7 @@ export function PreferencesModal({
           {activeTab === "general" && (
             <div className="space-y-4">
               <BrowserReminderSettings email={userEmail} />
+              {userEmail && <DocumentStorageManager />}
               <CalendarColorManager connected={Boolean(userEmail)} label="Colour events" />
               {/* Focus Duration Setting */}
               <div className="rounded-2xl border border-line bg-white p-4">

@@ -1,4 +1,4 @@
-const CACHE = "routino-shell-v2";
+const CACHE = "routino-shell-v3";
 self.addEventListener("message", event => { if (event.data?.type === "ACTIVATE_UPDATE") self.skipWaiting(); });
 self.addEventListener("install", event => {
   event.waitUntil((async () => {

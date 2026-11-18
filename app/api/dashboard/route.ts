@@ -1,3 +1,4 @@
+import { calendarPages, mapCalendarBatches } from "@/lib/calendarPages";
 import { countRecentGmailUnread } from "@/lib/recentUnread";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -40,12 +41,15 @@ export async function GET() {
     const calendarMap = new Map<string, { id: string; summary?: string; backgroundColor?: string }>();
     calendarMap.set("primary", { id: "primary", summary: "Primary Calendar" });
 
+    let calendarListComplete = calendarListRes.ok;
     if (calendarListRes.ok) {
-      const calListData = await calendarListRes.json();
+      try {
+      const calListItems = await calendarPages("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader", googleFetch, "google", calendarListRes);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allCals: any[] = Array.isArray(calListData.items) ? calListData.items : [];
+      const allCals: any[] = calListItems;
       allCals.forEach((cal: any) => {
         if (cal && cal.id) {
+          if (cal.primary) calendarMap.delete("primary");
           calendarMap.set(cal.id, {
             id: cal.id,
             summary: cal.summary,
@@ -53,9 +57,10 @@ export async function GET() {
           });
         }
       });
+      } catch { calendarListComplete = false; }
     }
 
-    const targetCals = Array.from(calendarMap.values()).slice(0, 20);
+    const targetCals = Array.from(calendarMap.values());
     const calendarResults: Array<{
       id: string;
       summary: string;
@@ -64,11 +69,12 @@ export async function GET() {
       error?: string;
       eventCount?: number;
     }> = [];
+    if (!calendarListComplete) calendarResults.push({ id: "calendar-list", summary: "Calendar discovery incomplete", status: "failed", error: "Some calendars could not be discovered. Retry sync before relying on availability." });
 
     if (targetCals.length > 0) {
-      const eventsPerCal = await Promise.all(
+      const eventsPerCal = await mapCalendarBatches(targetCals,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        targetCals.map(async (cal: any) => {
+        async (cal: any) => {
           try {
             const res = await googleFetch(
               `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500`
@@ -83,8 +89,7 @@ export async function GET() {
               });
               return [];
             }
-            const data = await res.json();
-            const items = Array.isArray(data.items) ? data.items : [];
+            const items = await calendarPages(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500`, googleFetch, "google", res) as any[];
             calendarResults.push({
               id: cal.id,
               summary: cal.summary || (cal.id === "primary" ? "Primary Calendar" : cal.id),
@@ -109,7 +114,7 @@ export async function GET() {
             });
             return [];
           }
-        })
+        }
       );
       calendarEvents = eventsPerCal.flat();
     }
@@ -120,8 +125,7 @@ export async function GET() {
         `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500`
       );
       if (primaryRes.ok) {
-        const primaryData = await primaryRes.json();
-        calendarEvents = Array.isArray(primaryData.items) ? primaryData.items : [];
+        calendarEvents = await calendarPages(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500`, googleFetch, "google", primaryRes);
         if (!calendarResults.some(c => c.id === "primary")) {
           calendarResults.push({
             id: "primary",
@@ -137,8 +141,8 @@ export async function GET() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const uniqueMap = new Map<string, any>();
     calendarEvents.forEach((item) => {
-      if (item && item.id && !uniqueMap.has(item.id)) {
-        uniqueMap.set(item.id, item);
+      if (item && item.id && !uniqueMap.has(`${item.calendarId || "primary"}:${item.id}`)) {
+        uniqueMap.set(`${item.calendarId || "primary"}:${item.id}`, item);
       }
     });
 
@@ -221,7 +225,7 @@ export async function GET() {
       calendarsChecked: calendarResults,
       sourcesStatus: {
         gmail: mail.ok ? "checked" : "failed",
-        calendarList: calendarListRes.ok ? "checked" : "failed",
+        calendarList: calendarListComplete ? "checked" : "failed",
         calendarsTotal: targetCals.length,
         calendarsChecked: calendarResults.filter(c => c.status === "checked").length,
         calendarsFailed: calendarResults.filter(c => c.status === "failed").length,

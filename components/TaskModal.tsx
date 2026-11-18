@@ -4,9 +4,13 @@ import { useState, useEffect } from "react";
 import { Plus, X, AlertCircle, CheckSquare, Trash2, Plane, Sparkles, Calendar } from "lucide-react";
 import { Task, SubTask } from "@/types/dashboard";
 import type { TaskRecurrence } from "@/lib/taskRecurrence";
+import { taskDueDay, rescheduleTaskDate } from "@/lib/taskDates";
+import { builtInTaskTemplates, templateSubtasks, type TaskTemplate } from "@/lib/taskTemplates";
 import { inferTaskCategory } from "@/lib/meeting";
 
 type TaskModalProps = {
+  templates?: TaskTemplate[];
+  onTemplatesChange?: (templates: TaskTemplate[]) => void;
   editing?: boolean;
   isOpen: boolean;
   onClose: () => void;
@@ -15,7 +19,9 @@ type TaskModalProps = {
   availableTasks?: Task[];
 };
 
-export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = false, availableTasks = [] }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = false, availableTasks = [], templates = [], onTemplatesChange }: TaskModalProps) {
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [templateMessage, setTemplateMessage] = useState("");
   const [editScope, setEditScope] = useState<"occurrence" | "future">("future");
   const [title, setTitle] = useState("");
   const [meta, setMeta] = useState("");
@@ -32,7 +38,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
 
   useEffect(() => {
     if (isOpen) {
-      setEditScope("future");
+      setEditScope("future"); setSelectedTemplate(""); setTemplateMessage("");
       setRepeat(initialTask?.recurrence?.frequency || "none");
       setRepeatInterval(String(initialTask?.recurrence?.interval || 1));
       setRepeatUntil(initialTask?.recurrence?.until || "");
@@ -41,7 +47,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
         setMeta(initialTask.meta || "");
         setPriority(initialTask.priority ?? false);
         setCategory(initialTask.category || "work");
-        setDueDate(initialTask.dueDate?.slice(0, 10) || "");
+        setDueDate(taskDueDay(initialTask.dueDate) || "");
         setHasUserPickedCategory(!!initialTask.category);
         setSubtasks(initialTask.subtasks || []);
       } else {
@@ -106,8 +112,8 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
       meta: meta.trim() || defaultMeta,
       priority,
       category: finalCategory,
-      dueDate: dueDate ? dueDate + (initialTask?.dueDate?.slice(10) || "") : undefined,
-      recurrence: repeat === "none" ? undefined : { frequency: repeat, paused: initialTask?.recurrence?.paused, interval: repeat === "weekdays" ? 1 : interval, until: repeatUntil || undefined, anchorDate: dueDate === initialTask?.dueDate?.slice(0, 10) ? initialTask.recurrence?.anchorDate || dueDate : dueDate },
+      dueDate: rescheduleTaskDate(initialTask?.dueDate, dueDate),
+      recurrence: repeat === "none" ? undefined : { frequency: repeat, paused: initialTask?.recurrence?.paused, interval: repeat === "weekdays" ? 1 : interval, until: repeatUntil || undefined, anchorDate: dueDate === taskDueDay(initialTask?.dueDate) ? initialTask?.recurrence?.anchorDate || dueDate : dueDate },
       subtasks: subtasks.length > 0 ? subtasks : undefined,
       link: initialTask?.link || undefined,
       dependsOn: dependsOn.length ? dependsOn : undefined,
@@ -147,6 +153,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          {!editing && <div className="rounded-xl border border-line bg-white p-3 text-xs"><label>Start from a template<select aria-label="Task template" className="mt-1 w-full rounded-lg border border-line p-2" value={selectedTemplate} onChange={event => { const id = event.target.value; setSelectedTemplate(id); const template = [...builtInTaskTemplates,...templates].find(item=>item.id===id); if (!template) return; setTitle(template.title); setCategory(template.category); setPriority(template.priority); setSubtasks(templateSubtasks(template)); setHasUserPickedCategory(true); setTemplateMessage("Template applied. Review your deadline and repeat settings before adding."); }}><option value="">Choose a template</option>{[...builtInTaskTemplates,...templates].map(template=><option key={template.id} value={template.id}>{template.name}</option>)}</select></label><p className="mt-1 text-muted">Templates fill title, category, priority, and a fresh checklist. Dates and completed history are not copied.</p>{onTemplatesChange && <div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={!title.trim() || templates.length>=100} className="btn-theme rounded border border-line p-2" onClick={()=>{onTemplatesChange([...templates,{id:crypto.randomUUID(),name:title.trim(),title:title.trim(),category,priority,steps:subtasks.map(step=>step.title)}]);setTemplateMessage("Template saved to your workspace.");}}>Save current task as template</button>{templates.some(template=>template.id===selectedTemplate) && <button type="button" className="btn-theme rounded border border-line p-2" onClick={()=>{onTemplatesChange(templates.filter(template=>template.id!==selectedTemplate));setSelectedTemplate("");setTemplateMessage("Template removed. Existing tasks are unchanged.");}}>Remove saved template</button>}</div>}{templateMessage && <p role="status" className="mt-2 text-muted">{templateMessage}</p>}</div>}
           <div>
             <label className="block text-[11px] font-semibold text-ink">Task Title</label>
             <input

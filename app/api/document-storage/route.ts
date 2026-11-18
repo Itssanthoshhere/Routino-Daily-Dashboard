@@ -1,0 +1,5 @@
+import { auth } from "@/lib/auth";
+import { unusedDocuments, removeUnusedDocuments } from "@/lib/documentLifecycle";
+const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "private, no-store" } });
+export async function GET() { const email = (await auth())?.user?.email; if (!email) return json({error:"Sign in first."},401); try { return json({files:await unusedDocuments(email)}); } catch { return json({error:"Could not verify file retention. No files were changed."},503); } }
+export async function DELETE(request: Request) { const email = (await auth())?.user?.email; if (!email) return json({error:"Sign in first."},401); try { const body = await request.json(); if (body.confirm !== true || !Array.isArray(body.paths) || body.paths.length > 100 || !body.paths.every((p:unknown)=>typeof p === "string")) return json({error:"Review and confirm up to 100 unused files."},400); return json({deleted:await removeUnusedDocuments(email,body.paths)}); } catch { return json({error:"Deletion could not complete. Reload the retention review before retrying."},409); } }

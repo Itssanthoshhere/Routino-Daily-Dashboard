@@ -1,3 +1,4 @@
+import { coreCollections, mergeCollection, type CollectionChanges } from "@/lib/collectionChanges";
 import type { Task } from "@/types/dashboard";
 
 type Patch = Record<string, unknown>;
@@ -16,5 +17,18 @@ export function queueWorkspacePatch(previous: Patch, incoming: Patch): Patch {
     for (const task of incoming.tasks as Task[]) if ((incoming.replaceTaskIds as string[]).includes(task.id)) { map.set(task.id, task); deleted.delete(task.id); }
     result.tasks = Array.from(map.values()); result.replaceTaskIds = Array.from(replaced); result.deletedTaskIds = Array.from(deleted);
   }
+  const changes: CollectionChanges = { ...(previous.collectionChanges as CollectionChanges || {}) };
+  for (const field of coreCollections) {
+    const incomingChange = (incoming.collectionChanges as CollectionChanges | undefined)?.[field];
+    if (!incomingChange || !Array.isArray(incoming[field])) continue;
+    const prior = changes[field];
+    const removed = new Set([...(prior?.deletedIds || []), ...incomingChange.deletedIds]);
+    const replaced = new Set([...(prior?.replaceIds || []), ...incomingChange.replaceIds]);
+    for (const id of incomingChange.replaceIds) removed.delete(id);
+    for (const id of incomingChange.deletedIds) replaced.delete(id);
+    result[field] = mergeCollection((previous[field] || []) as {id:string}[], incoming[field] as {id:string}[], incomingChange);
+    changes[field] = { replaceIds: Array.from(replaced), deletedIds: Array.from(removed), orderIds: incomingChange.orderIds ?? prior?.orderIds };
+  }
+  if (Object.keys(changes).length) result.collectionChanges = changes;
   return result;
 }

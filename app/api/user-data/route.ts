@@ -1,3 +1,5 @@
+import { coreCollections, mergeCollection, type CollectionChanges } from "@/lib/collectionChanges";
+import { workspaceValidationError } from "@/lib/workspaceValidation";
 import { isTaskActivity } from "@/lib/taskActivity";
 import { NextRequest, NextResponse } from "next/server";
 import { isTaskRecurrence } from "@/lib/taskRecurrence";
@@ -51,6 +53,11 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+    const invalid = workspaceValidationError(body);
+    if (invalid) return NextResponse.json({ error: invalid }, { status: 400 });
+    if (typeof body.expectedAccount !== "string" || body.expectedAccount.toLowerCase() !== email.toLowerCase()) return NextResponse.json({ error: "The signed-in account changed. Refresh before saving.", conflict: true }, { status: 409 });
+    const revision = body.expectedCoreRevision;
+    if (!Number.isInteger(revision) || revision < 0) return NextResponse.json({ error: "Refresh Routino before saving: a workspace revision is required." }, { status: 409 });
     const {
       subscriptions,
       replaceTaskIds,
@@ -77,6 +84,7 @@ export async function POST(req: NextRequest) {
     const taskIds = (value: unknown) => Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
     const mergingTasks = Array.isArray(tasks) && Array.isArray(replaceTaskIds) && Array.isArray(deletedTaskIds);
     const existingWorkspace = await getUserWorkspace(email);
+    if ((existingWorkspace?.coreRevision || 0) !== revision) return NextResponse.json({ error: "Another device changed this workspace. Review the local and cloud copies before saving.", conflict: true }, { status: 409 });
     if (subscriptions !== undefined && existingWorkspace?.trackerRevision !== undefined) {
       return NextResponse.json({ error: "Tracker records were updated. Refresh this tab and use tracker sync to save subscriptions." }, { status: 409, headers: { "Cache-Control": "private, no-store" } });
     }
@@ -144,14 +152,21 @@ export async function POST(req: NextRequest) {
       soundEnabled: typeof soundEnabled === "boolean" ? soundEnabled : existingWorkspace?.soundEnabled ?? true,
       habits: savedHabits ?? existingWorkspace?.habits,
       notes: Array.isArray(notes) ? notes : existingWorkspace?.notes,
+      taskTemplates: body.taskTemplates ?? existingWorkspace?.taskTemplates,
       activeNav: typeof activeNav === "string" ? activeNav : existingWorkspace?.activeNav ?? "Overview",
       updatedAt: new Date().toISOString(),
     };
 
-    const fields = ["tasks", "customEvents", "quickLinks", "focusMinutes", "soundEnabled", "habits", "notes", "activeNav", "subscriptions"].filter(key => Object.prototype.hasOwnProperty.call(body, key));
-    const result = await saveUserWorkspace(email, workspaceData, [...fields, "updatedAt"], mergingTasks ? { incoming: tasks, replacedIds: taskIds(replaceTaskIds), deletedIds: taskIds(deletedTaskIds) } : undefined);
+    for (const field of coreCollections) {
+      const change = (body.collectionChanges as CollectionChanges | undefined)?.[field];
+      if (change && Array.isArray(body[field])) (workspaceData as Record<string, unknown>)[field] = mergeCollection((existingWorkspace?.[field] || []) as {id:string}[], body[field], change);
+    }
+    const fields = ["tasks", "customEvents", "quickLinks", "focusMinutes", "soundEnabled", "habits", "notes", "activeNav", "subscriptions", "taskTemplates"].filter(key => Object.prototype.hasOwnProperty.call(body, key));
+    const result = await saveUserWorkspace(email, workspaceData, [...fields, "updatedAt"], mergingTasks ? { incoming: tasks, replacedIds: taskIds(replaceTaskIds), deletedIds: taskIds(deletedTaskIds) } : undefined, revision);
 
+    if (result.conflict) return NextResponse.json({ error: "Another device saved changes. Your local draft is preserved.", conflict: true }, { status: 409 });
     return NextResponse.json({
+      revision: revision + 1,
       success: result.success,
       source: result.source,
       savedAt: result.success ? workspaceData.updatedAt : undefined,

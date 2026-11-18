@@ -19,6 +19,8 @@ export type UserWorkspaceData = {
   subscriptions?: Subscription[];
   airtel?: AirtelData;
   trackerRevision?: number;
+  coreRevision?: number;
+  taskTemplates?: import("@/lib/taskTemplates").TaskTemplate[];
   subscriptionJournalImported?: boolean;
   tasks: Task[];
   customEvents: DashboardEvent[];
@@ -110,7 +112,7 @@ async function outlookRecordForUse(
   return record;
 }
 
-export async function getOutlookAccount(email: string): Promise<OutlookAccountRecord | null> {
+export async function getOutlookAccount(email: string, strict = false): Promise<OutlookAccountRecord | null> {
   const normalizedEmail = email.toLowerCase().trim();
   const sql = getNeonClient();
 
@@ -128,8 +130,10 @@ export async function getOutlookAccount(email: string): Promise<OutlookAccountRe
       if (rows.length > 0 && rows[0]?.profile) {
         return await outlookRecordForUse(normalizedEmail, rows[0].profile as OutlookAccountRecord);
       }
+      if (strict) return null;
     } catch (err) {
       console.error("[db] Error fetching Outlook account from SQL:", err);
+      if (strict) throw new Error("Could not verify the linked Outlook calendar.");
     }
   }
 
@@ -146,14 +150,17 @@ export async function getOutlookAccount(email: string): Promise<OutlookAccountRe
         body: JSON.stringify(["GET", `routino:outlook:${normalizedEmail}`]),
         cache: "no-store",
       });
+      if (!res.ok && strict) throw new Error("Linked calendar credentials are unavailable.");
       if (res.ok) {
         const json = await res.json();
+        if (json.error && strict) throw new Error("Linked calendar credentials are unavailable.");
         if (json.result) {
           const record = (typeof json.result === "string" ? JSON.parse(json.result) : json.result) as OutlookAccountRecord;
           return await outlookRecordForUse(normalizedEmail, record);
         }
       }
-    } catch {}
+      if (strict) return null;
+    } catch { if (strict) throw new Error("Could not verify the linked Outlook calendar."); }
   }
 
   // Filesystem fallback
@@ -345,8 +352,9 @@ export async function saveUserWorkspace(
   email: string,
   data: UserWorkspaceData,
   changedFields?: string[],
-  taskMerge?: { incoming: Task[]; replacedIds: string[]; deletedIds: string[] }
-): Promise<{ success: boolean; source: string; error?: string }> {
+  taskMerge?: { incoming: Task[]; replacedIds: string[]; deletedIds: string[] },
+  expectedCoreRevision?: number
+): Promise<{ success: boolean; source: string; error?: string; conflict?: boolean }> {
   const normalizedEmail = email.toLowerCase().trim();
   const sql = getNeonClient();
 
@@ -360,6 +368,12 @@ export async function saveUserWorkspace(
       await ensureRecycleBin();
       await backupWorkspace(normalizedEmail);
       const patch = changedFields ? Object.fromEntries(changedFields.filter(key => key in data).map(key => [key, data[key as keyof UserWorkspaceData]])) : data;
+      if (expectedCoreRevision !== undefined) {
+        await sql`INSERT INTO routino_workspaces (email, data) VALUES (${normalizedEmail}, '{}'::jsonb) ON CONFLICT DO NOTHING`;
+        const rows = await sql`UPDATE routino_workspaces SET data = data || ${JSON.stringify(patch)}::jsonb || jsonb_build_object('coreRevision', ${expectedCoreRevision + 1}::integer), updated_at = NOW()
+          WHERE email = ${normalizedEmail} AND COALESCE((data->>'coreRevision')::integer, 0) = ${expectedCoreRevision} RETURNING email`;
+        return { success: rows.length > 0, conflict: rows.length === 0, source: "neon-postgres" };
+      }
       if (taskMerge) {
         const untouched = { ...patch }; delete (untouched as Partial<UserWorkspaceData>).tasks;
         const excludedIds = Array.from(new Set([...taskMerge.replacedIds, ...taskMerge.deletedIds]));
@@ -391,6 +405,7 @@ export async function saveUserWorkspace(
       if (!read.ok || snapshot.error) return { success: false, source };
       const raw = typeof snapshot.result === "string" ? snapshot.result : snapshot.result ? JSON.stringify(snapshot.result) : "";
       const existing = raw ? JSON.parse(raw) : {};
+      if (expectedCoreRevision !== undefined && (existing.coreRevision || 0) !== expectedCoreRevision) return { success: false, conflict: true, source };
       const patch = changedFields ? Object.fromEntries(changedFields.filter(key => key in data).map(key => [key, data[key as keyof UserWorkspaceData]])) : data;
       if (taskMerge) {
         const replaced = new Set(taskMerge.replacedIds), removed = new Set(taskMerge.deletedIds);
@@ -398,11 +413,12 @@ export async function saveUserWorkspace(
         for (const task of taskMerge.incoming) if (replaced.has(task.id) && !removed.has(task.id)) merged.set(task.id, task);
         (patch as Partial<UserWorkspaceData>).tasks = Array.from(merged.values());
       }
+      if (expectedCoreRevision !== undefined) (patch as Partial<UserWorkspaceData>).coreRevision = expectedCoreRevision + 1;
       // Compare raw strings in Lua; encode JSON in JS so empty arrays remain arrays.
       const script = `local raw = redis.call('GET', KEYS[1]); if (raw or '') ~= ARGV[1] then return 0 end; redis.call('SET', KEYS[1], ARGV[2]); return 1`;
       const res = await fetch(redis.url, { method: "POST", headers: { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" }, body: JSON.stringify(["EVAL", script, 1, getRedisKey(normalizedEmail), raw, JSON.stringify({ ...existing, ...patch })]) });
       const result = await res.json();
-      return { success: res.ok && !result.error && result.result === 1, source };
+      return { success: res.ok && !result.error && result.result === 1, conflict: res.ok && !result.error && result.result === 0, source };
     } catch { return { success: false, source, error: "Workspace database save failed." }; }
   }
 
@@ -416,6 +432,11 @@ export async function saveUserWorkspace(
     await fs.mkdir(dataDir, { recursive: true });
     const safeEmail = encodeURIComponent(normalizedEmail);
     const filePath = path.join(dataDir, `user-${safeEmail}.json`);
+    if (expectedCoreRevision !== undefined) {
+      const existing = await getUserWorkspace(normalizedEmail);
+      if ((existing?.coreRevision || 0) !== expectedCoreRevision) return { success: false, conflict: true, source: "local-fs" };
+      data = { ...data, coreRevision: expectedCoreRevision + 1 };
+    }
     await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
     return { success: true, source: "local-fs" };
   } catch (err: unknown) {

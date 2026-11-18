@@ -51,7 +51,7 @@ export async function restoreRecycleEntry(email: string, id: string, version: st
   const restored = restoreDeletedRecord(row.data, id);
   if (!restored.success) return restored;
   await backupWorkspace(account);
-  const next = { ...restored.data, updatedAt: new Date().toISOString(), trackerRevision: (row.data.trackerRevision || 0) + 1 };
+  const next = { ...restored.data, coreRevision: (row.data.coreRevision || 0) + 1, updatedAt: new Date().toISOString(), trackerRevision: (row.data.trackerRevision || 0) + 1 };
   const result = await sql`UPDATE routino_workspaces SET data=${JSON.stringify(next)}::jsonb, updated_at=NOW() WHERE email=${account} AND updated_at::text=${version} RETURNING email`;
   return result.length ? { success: true } : { success: false, conflict: true };
 }

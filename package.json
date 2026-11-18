@@ -45,7 +45,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "node scripts/test.cjs",
+    "test:pwa": "node scripts/test-pwa.cjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

@@ -14,7 +14,7 @@ export async function GET() {
   if (!email) return json({ error: "Sign in to sync trackers." }, 401);
   try {
     const data = await getUserWorkspace(email);
-    return json({ data: { subscriptions: data?.subscriptions, airtel: data?.airtel, subscriptionJournalImported: data?.subscriptionJournalImported || false, assetRecords: data?.assetRecords || {}, assetDocuments: data?.assetDocuments || {} }, revision: data?.trackerRevision || 0, dbStatus: getDatabaseStatus() });
+    return json({ email: email.toLowerCase(), data: { subscriptions: data?.subscriptions, airtel: data?.airtel, subscriptionJournalImported: data?.subscriptionJournalImported || false, assetRecords: data?.assetRecords || {}, assetDocuments: data?.assetDocuments || {} }, revision: data?.trackerRevision || 0, dbStatus: getDatabaseStatus() });
   } catch {
     return json({ error: "Could not read saved trackers. Your local copy is preserved." }, 503);
   }
@@ -29,6 +29,7 @@ export async function PATCH(request: NextRequest) {
   if (!body || typeof body !== "object" || Array.isArray(body) || !Number.isInteger(body.revision) || body.revision < 0 || !body.patch || typeof body.patch !== "object" || Array.isArray(body.patch)) return json({ error: "Invalid tracker update." }, 400);
   const patch = body.patch as TrackerPatch;
   if (Object.keys(patch).some(key => !["subscriptions", "airtel", "subscriptionJournalImported", "assetDocuments", "assetRecords"].includes(key)) || (patch.assetRecords !== undefined && !isAssetRecords(patch.assetRecords)) || (patch.assetDocuments !== undefined && !isAssetDocuments(patch.assetDocuments)) || (patch.subscriptions !== undefined && !isSubscriptionList(patch.subscriptions)) || (patch.airtel !== undefined && !isAirtelData(patch.airtel)) || (patch.subscriptionJournalImported !== undefined && typeof patch.subscriptionJournalImported !== "boolean")) return json({ error: "Invalid tracker records." }, 400);
+  if (typeof body.expectedAccount !== "string" || body.expectedAccount.toLowerCase() !== email.toLowerCase()) return json({ error: "The signed-in account changed. Refresh before saving." }, 409);
   try {
     const result = await saveTrackerWorkspace(email, patch, body.revision);
     if (result.conflict) return json({ error: "Another device changed these records. Reload the saved version before retrying; your local draft is preserved." }, 409);

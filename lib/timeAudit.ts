@@ -291,7 +291,7 @@ export function processEventForAudit(
   const category = categorizeEventTitle(title, categories);
 
   return {
-    id: event.id,
+    id: `${event.calendarId || event.source || "custom"}:${event.id}`,
     title,
     start: startDate,
     end: endDate,

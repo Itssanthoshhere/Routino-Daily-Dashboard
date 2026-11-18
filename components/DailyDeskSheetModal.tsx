@@ -340,7 +340,7 @@ export function DailyDeskSheetModal({
                           : "All day";
                         return (
                           <div
-                            key={ev.id}
+                            key={`${ev.calendarId || ev.source || "custom"}:${ev.id}`}
                             className="flex items-start gap-2 text-[10.5px] rounded-lg border border-black/10 bg-white px-2 py-1 print:border-black/20"
                           >
                             <span className="font-bold text-muted text-[9.5px] w-14 shrink-0">
