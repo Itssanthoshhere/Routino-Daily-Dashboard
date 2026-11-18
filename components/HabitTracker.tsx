@@ -96,12 +96,14 @@ export function HabitTracker({
     name: string;
     icon?: string;
     streak?: number;
+    completedDates?: string[];
   }) => {
     if (data.id && onUpdateHabit) {
       onUpdateHabit(data.id, {
         name: data.name,
         icon: data.icon,
         streak: data.streak,
+        ...(data.completedDates ? { completedDates: data.completedDates } : {}),
       });
     } else {
       onAddHabit(data.name, data.icon);

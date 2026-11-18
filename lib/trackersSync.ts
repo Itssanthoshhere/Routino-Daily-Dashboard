@@ -41,10 +41,10 @@ type GVizResponse = {
   };
 };
 
-async function fetchGVizSheet(sheetName: string): Promise<GVizResponse | null> {
+async function fetchGVizSheet(sheetName: string, range?: string): Promise<GVizResponse | null> {
   if (!GOOGLE_SHEET_ID) return null;
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+    const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}${range ? `&range=${encodeURIComponent(range)}&headers=0` : ""}`;
     const res = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
       cache: "no-store",
@@ -67,6 +67,14 @@ function parseNumber(val: unknown): number {
   const cleaned = String(val).replace(/[^0-9.-]/g, "");
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
+}
+
+export function parsePurchasePrice(cell: GVizCell | null | undefined): { price: number; priceFormatted: string } {
+  // Mixed-type Sheets columns can expose a blank raw value alongside formatted currency.
+  const raw = cell?.v;
+  const usableRaw = typeof raw === "number" ? Number.isFinite(raw) : typeof raw === "string" && /\d/.test(raw);
+  const price = parseNumber(usableRaw ? raw : cell?.f);
+  return { price, priceFormatted: new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(price) };
 }
 
 function parseString(cell: GVizCell | null | undefined): string {
@@ -398,6 +406,18 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
     // Parse Purchases
     const purchases: TrackerPurchase[] = [];
     if (purchaseData?.table?.rows) {
+      // GViz discards minority string values in otherwise numeric columns.
+      // Read missing prices in isolation, verifying the row identity before using them.
+      const recoveredPrices = new Map<number, GVizCell>();
+      await Promise.all(purchaseData.table.rows.map(async (row, idx) => {
+        if (!parseString(row.c[1]) || row.c[8]?.v != null || row.c[8]?.f) return;
+        const sheetRow = idx + 2;
+        const isolated = await fetchGVizSheet("Purchase Summary", `A${sheetRow}:M${sheetRow}`);
+        const candidate = isolated?.table.rows[0];
+        if (candidate && [0, 1, 2, 3, 4, 7].every(column => parseString(candidate.c[column]) === parseString(row.c[column])) && candidate.c[8]) {
+          recoveredPrices.set(idx, candidate.c[8]);
+        }
+      }));
       purchaseData.table.rows.forEach((row, idx) => {
         const prod = parseString(row.c[1]);
         if (!prod || prod.toLowerCase() === "product") return;
@@ -406,14 +426,7 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         const oDate = parseString(row.c[4]) || parseGVizDate(row.c[4]);
         const dDate = parseString(row.c[5]) || parseGVizDate(row.c[5]);
         const seller = parseString(row.c[7]);
-        let price = row.c[8] ? parseNumber(row.c[8].v ?? row.c[8].f) : 0;
-        let priceFormatted = parseString(row.c[8]);
-
-        if (!priceFormatted && price > 0) {
-          priceFormatted = `₹${price.toLocaleString("en-IN")}`;
-        } else if (!priceFormatted) {
-          priceFormatted = "₹0.00";
-        }
+        const { price, priceFormatted } = parsePurchasePrice(recoveredPrices.get(idx) ?? row.c[8]);
         const mode = parseString(row.c[9]);
         const loc = parseString(row.c[10]);
         const days = row.c[11] ? parseNumber(row.c[11].v ?? row.c[11].f) : 0;

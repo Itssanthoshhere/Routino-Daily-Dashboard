@@ -2,6 +2,7 @@
 
 import { SubscriptionPriceHistory } from "@/components/SubscriptionPriceHistory";
 import { SubscriptionInsights } from "@/components/SubscriptionInsights";
+import { SubscriptionDocuments } from "@/components/SubscriptionDocuments";
 import { renewalReminderStart } from "@/lib/reminderTiming";
 import { CancellationChecklist } from "@/components/CancellationChecklist";
 import { saveSubscriptionPrice } from "@/lib/subscriptionPriceHistory";
@@ -90,6 +91,7 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
       {s.billingHistory && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">Netflix invoices · {s.billingHistory.length} payments · {money(s.billingHistory.reduce((sum, invoice) => sum + invoice.amount, 0), s.currency)} total (same payments as journal)</summary><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{s.billingHistory.map(invoice => <li key={invoice.date}>{invoice.date} · {money(invoice.amount, s.currency)} · Membership {invoice.periodStart}–{invoice.periodEnd} · {money(invoice.subtotal, s.currency)} + {money(invoice.tax, s.currency)} IGST</li>)}</ul></details>}
       {s.payments && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">{s.payments.length} recorded payments · {money(s.payments.reduce((sum, payment) => sum + payment.amount, 0), s.currency)} paid</summary><ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">{s.payments.map(payment => <li key={`${payment.journal}-${payment.rowId}`}>{payment.date} · {money(payment.amount, s.currency)} · {payment.journal} journal{payment.notes ? ` · ${payment.notes}` : ""}</li>)}</ul></details>}
       {s.notes && <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-xs text-muted">{s.notes}</p>}
+      <SubscriptionDocuments subscription={s} disabled={disabled} onChange={updated => onChange(storedSubscriptions.map(item => item.id === updated.id ? updated : item))} />
       {s.renewalDate && <p className="mt-2 text-xs text-muted">Renews {countdown(s.renewalDate)}</p>}
       {s.trialEndDate && <p className="mt-2 text-xs text-muted">Trial ends {countdown(s.trialEndDate)}</p>}
       {s.cancellationDeadline && <p className="mt-2 text-xs text-muted">Cancel by {s.cancellationDeadline} · {countdown(s.cancellationDeadline)}</p>}

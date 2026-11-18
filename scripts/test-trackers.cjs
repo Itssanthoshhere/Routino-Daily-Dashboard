@@ -9,6 +9,11 @@ function load(relativePath, mocks = {}) {
   return module.exports;
 }
 const { monthlyCost, nextRenewal } = load("types/subscriptions.ts");
+const { parsePurchasePrice } = load("lib/trackersSync.ts", { "server-only": {} });
+for (const cell of [{ v: "₹23,009.00" }, { v: 23009 }, { v: "", f: "₹23,009.00" }, { v: null, f: "₹23,009.00" }]) {
+  assert.deepEqual(parsePurchasePrice(cell), { price: 23009, priceFormatted: "₹23,009.00" });
+}
+assert.equal(parsePurchasePrice({ v: 0, f: "₹999" }).price, 0);
 const { isSubscriptionList, isSubscriptionDate } = load("lib/subscriptionValidation.ts");
 const { isAirtelData } = load("lib/airtelValidation.ts");
 const { subscriptionExpenses } = load("lib/subscriptionExpenses.ts");

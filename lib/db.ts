@@ -9,8 +9,10 @@ import { Task, DashboardEvent, QuickLink, Habit, KeepNote } from "@/types/dashbo
 
 import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
+import type { AssetDocuments } from "@/types/documents";
 
 export type UserWorkspaceData = {
+  assetDocuments?: AssetDocuments;
   recycleBin?: RecycleEntry[];
   subscriptions?: Subscription[];
   airtel?: AirtelData;
@@ -421,7 +423,7 @@ export async function saveUserWorkspace(
   }
 }
 
-export type TrackerPatch = Pick<UserWorkspaceData, "subscriptions" | "airtel" | "subscriptionJournalImported">;
+export type TrackerPatch = Pick<UserWorkspaceData, "subscriptions" | "airtel" | "subscriptionJournalImported" | "assetDocuments">;
 
 /** Compare-and-swap tracker fields without replacing unrelated workspace data. */
 export async function saveTrackerWorkspace(email: string, patch: TrackerPatch, revision: number): Promise<{ success: boolean; conflict?: boolean; data?: UserWorkspaceData }> {

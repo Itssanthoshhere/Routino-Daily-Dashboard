@@ -1,4 +1,6 @@
+import type { SavedDocument } from "@/types/documents";
 export type Subscription = {
+  documents?: SavedDocument[];
   reminderDaysBefore?: number;
   statusHistory?: { date: string; status: Subscription["status"] }[];
   lastUsedDate?: string;

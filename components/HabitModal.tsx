@@ -18,6 +18,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Habit } from "@/types/dashboard";
+import { HabitHistoryEditor } from "@/components/HabitHistoryEditor";
 
 export const HABIT_ICONS = [
   { id: "flame", label: "Energy", icon: Flame },
@@ -45,7 +46,7 @@ type HabitModalProps = {
   isOpen: boolean;
   onClose: () => void;
   habit?: Habit | null; // null/undefined for create mode, Habit for edit mode
-  onSaveHabit: (data: { id?: string; name: string; icon?: string; streak?: number }) => void;
+  onSaveHabit: (data: { id?: string; name: string; icon?: string; streak?: number; completedDates?: string[] }) => void;
   onDeleteHabit?: (id: string) => void;
 };
 
@@ -59,6 +60,7 @@ export function HabitModal({
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<string>("flame");
   const [streak, setStreak] = useState<number>(0);
+  const [dates, setDates] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isEditMode = Boolean(habit);
@@ -68,10 +70,12 @@ export function HabitModal({
       setName(habit.name);
       setIcon(habit.icon || "flame");
       setStreak(habit.streak ?? 0);
+      setDates(habit.completedDates || []);
     } else {
       setName("");
       setIcon("flame");
       setStreak(0);
+      setDates([]);
     }
     setConfirmDelete(false);
   }, [habit, isOpen]);
@@ -87,6 +91,7 @@ export function HabitModal({
       name: name.trim(),
       icon,
       streak: Math.max(0, Number(streak) || 0),
+      ...(habit ? { completedDates: dates } : {}),
     });
 
     onClose();
@@ -157,6 +162,7 @@ export function HabitModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {habit && <HabitHistoryEditor dates={dates} onChange={(next, currentStreak) => { setDates(next); setStreak(currentStreak); }} />}
           <div>
             <label className="block text-[11px] font-semibold text-ink">
               Habit Name <span className="text-[#c05746]">*</span>

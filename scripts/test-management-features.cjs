@@ -1,0 +1,69 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const ts = require('typescript');
+function load(file) {
+  const module = { exports: {} };
+  new Function('require', 'module', 'exports', ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText)(name => name.startsWith('@/') ? load(`${name.slice(2)}.ts`) : require(name), module, module.exports);
+  return module.exports;
+}
+const { completionStreak } = load('lib/habitHistory.ts');
+const { assetDocumentKey, isAssetDocuments } = load('lib/assetDocuments.ts');
+const asset = { sNo: 1, product: 'Laptop', model: 'Example', orderDate: '2026-01-01', seller: 'Store' };
+assert.equal(assetDocumentKey(asset), assetDocumentKey({ ...asset, sNo: 99 }), 'Sheet row reordering must not orphan bills');
+assert.notEqual(assetDocumentKey(asset), assetDocumentKey({ ...asset, model: 'Different' }));
+assert.equal(isAssetDocuments({}), true);
+assert.equal(isAssetDocuments({ asset: [{ id: 'bill', name: 'Invoice', url: 'https://example.invalid/bill.pdf', uploadedAt: '2026-11-18T00:00:00Z' }] }), true);
+assert.equal(isAssetDocuments({ asset: [{ id: 'bill', name: 'Invoice', url: 'javascript:alert(1)', uploadedAt: '2026-11-18T00:00:00Z' }] }), false);
+assert.equal(completionStreak(['2026-11-16', '2026-11-17'], '2026-11-18'), 2);
+assert.equal(completionStreak(['2026-11-16', '2026-11-18'], '2026-11-18'), 1);
+assert.equal(completionStreak(['2026-11-11'], '2026-11-18'), 0);
+assert.equal(completionStreak(['2024-02-28', '2024-02-29', '2024-03-01'], '2024-03-01'), 3);
+const { documentPath, ownsDocument, documentType, MAX_DOCUMENT_BYTES } = load('lib/subscriptionDocuments.ts');
+const path = documentPath('owner@example.invalid');
+assert.equal(ownsDocument('owner@example.invalid', path), true);
+assert.equal(ownsDocument('other@example.invalid', path), false);
+assert.equal(ownsDocument('owner@example.invalid', `${path}/../secret`), false);
+assert.equal(documentType('bill.pdf', Buffer.from('%PDF-1.7\n')), 'application/pdf');
+assert.equal(documentType('bill.pdf', Buffer.from('<html>fake</html>')), null);
+assert.equal(documentType('bill.html', Buffer.from('%PDF-1.7\n')), null);
+assert.equal(documentType('bill.txt', Buffer.from('Sample invoice')), 'text/plain');
+assert.equal(documentType('bill.txt', Buffer.from([65,0,66])), null);
+assert.equal(documentType('bill.txt', Buffer.alloc(MAX_DOCUMENT_BYTES + 1, 65)), null);
+const { isSubscription } = load('lib/subscriptionValidation.ts');
+const subscription = { id: 'test', name: 'Test', amount: 1, currency: 'INR', cycle: 'monthly', status: 'active', category: 'Test', notes: '', renewalDate: '2026-12-01', documents: [{ id: 'doc', name: 'Bill', pathname: path, uploadedAt: '2026-11-18T00:00:00Z' }] };
+assert.equal(isSubscription(subscription), true);
+assert.equal(isSubscription({ ...subscription, documents: [{ ...subscription.documents[0], pathname: undefined, url: 'javascript:alert(1)' }] }), false);
+assert.equal(isSubscription({ ...subscription, documents: Array(51).fill(subscription.documents[0]) }), false);
+console.log('Passed: habit history gaps and leap days; private document owner isolation; path traversal rejection; file formats and limits; document metadata validation.');
+
+async function verifyRoutes() {
+  let email = null; let uploadedPath = null; let reads = 0;
+  const module = { exports: {} };
+  const code = ts.transpileModule(fs.readFileSync('app/api/subscription-documents/route.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+  new Function('require', 'module', 'exports', code)(name => {
+    if (name === '@/lib/auth') return { auth: async () => email ? { user: { email } } : null };
+    if (name === '@vercel/blob') return { put: async (path, body, options) => { assert.equal(options.access, 'private'); uploadedPath = path; }, get: async () => { reads++; return { statusCode: 200, stream: new Blob(['private test']).stream() }; } };
+    return name.startsWith('@/') ? load(`${name.slice(2)}.ts`) : require(name);
+  }, module, module.exports);
+  const route = module.exports;
+  assert.equal((await route.GET(new Request('https://example.invalid/api/subscription-documents?path=other'))).status, 401);
+  assert.equal((await route.POST(new Request('https://example.invalid/api/subscription-documents', { method: 'POST' }))).status, 401);
+  const oldToken = process.env.BLOB_READ_WRITE_TOKEN;
+  process.env.BLOB_READ_WRITE_TOKEN = 'mock-test';
+  try {
+    email = 'owner@example.invalid';
+    const form = new FormData(); form.append('file', new File(['test bill'], 'bill.txt', { type: 'text/plain' }));
+    const uploaded = await route.POST(new Request('https://example.invalid/api/subscription-documents', { method: 'POST', body: form }));
+    assert.equal(uploaded.status, 200);
+    assert.equal((await uploaded.json()).document.pathname, uploadedPath);
+    email = 'other@example.invalid';
+    assert.equal((await route.GET(new Request(`https://example.invalid/api/subscription-documents?path=${uploadedPath}`))).status, 404);
+    assert.equal(reads, 0, 'Other accounts must be rejected before Blob reads');
+    email = 'owner@example.invalid';
+    const download = await route.GET(new Request(`https://example.invalid/api/subscription-documents?path=${uploadedPath}&name=bill.txt`));
+    assert.equal(download.status, 200); assert.match(download.headers.get('content-disposition'), /^attachment;/); assert.equal(download.headers.get('cache-control'), 'private, no-store');
+    assert.equal(await download.text(), 'private test');
+    console.log('Passed: document route authentication, private upload options, cross-account denial, attachment download, and private no-store headers.');
+  } finally { if (oldToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN; else process.env.BLOB_READ_WRITE_TOKEN = oldToken; }
+}
+verifyRoutes().catch(error => { console.error(error); process.exitCode = 1; });

@@ -89,6 +89,12 @@ Open **Q → microphone** to dictate into Task, Note, or Scratchpad, then review
 
 Daily habits retain their completion history and streaks. Optional elapsed-day counters use a saved start date or last completion date and refresh at local midnight and when the tab resumes. Elapsed days do not fabricate daily completions or increase the streak; tick each day to extend a daily streak.
 
+**Quick Links → Manage** supports title/URL edits, pinning, moving links up/down, and confirmed removal. Pinned links appear first; saved order and removals persist through workspace sync. Read Later shares the same link records.
+
+**Edit habit → Completion history** lets you select or correct past dates, navigate calendar months, and preview the recalculated consecutive-day streak before saving. Future completion dates are disabled. Cancel closes the editor without applying draft history.
+
+**Meeting follow-ups** on Overview collects unfinished checklist actions from unencrypted meeting notes. Open the note, open its linked task, or convert an action into a task. Completed/skipped linked tasks leave the follow-up list; locked note content is not exposed.
+
 ## 🔎 Global workspace search
 
 Use `⌘ K` / `Ctrl K` or the search button to find tasks (including checklist text), calendar events, unlocked notes, subscriptions, and recharge history. Search subscriptions by service, price, currency, status, or renewal date; recharges by date, amount, notes, or payment method. Results open the relevant workspace view. Locked notes and ciphertext are excluded. Search runs locally over loaded account data, without a separate external index. Refine broad queries to narrow capped result lists.
@@ -144,6 +150,10 @@ The **Total expense** dialog separates recorded payments from monthly/yearly pro
 **Planning and usage:** monthly/annual equivalents and category totals keep currencies separate. The upcoming-payment timeline covers three calendar months and labels projections and access expiries. Comparable recorded price increases are highlighted. **Used recently** records the date you confirm usage; it does not monitor provider activity. Status changes saved through Edit append dated history, without reconstructing earlier pauses.
 
 Optional trial-end and cancellation deadlines guide **Add Google Calendar alert** and **Add review task**. Choose 1, 3, or 7 days before the deadline (default 3). A passed Calendar alert time moves to 15 minutes from now with a notice. Saved reminder dates prevent ordinary repeated clicks for the same date; changing a deadline or lead time does not automatically update an already-created reminder. Provider cancellation still requires your action.
+
+**Bills, invoices & documents** accepts private PDF, PNG, JPG, DOCX, and TXT uploads up to 3 MB per file, plus external document links. Files use the configured private Vercel Blob store; account-scoped authenticated downloads are delivered as attachments. The subscription saves the file reference, name, upload date, and size through the existing tracker revision flow. Check tracker sync status after upload; drafts remain local if that save fails. Storage usage counts toward your provider plan. Workspace backups contain file references, not copies of file contents. No bill parsing, malware scanning, or automatic payment is performed.
+
+The same attachment panel appears on each **Gadgets & Assets** card. Asset bill references save separately in the account tracker workspace without changing the source spreadsheet’s purchase records. Product, model, order date, and seller identify the asset, so moving a spreadsheet row does not detach its bills. Changing those identifying values requires relinking; identical records with the same identifying values share attachments.
 
 ### Airtel Recharge
 
@@ -298,6 +308,7 @@ npm run lint                        # TypeScript check
 node scripts/test-trackers.cjs       # tracker regression checks
 node scripts/test-workspace-features.cjs # search, history, and reminder checks
 node scripts/test-review-fixes.cjs     # timing, action identity, and habit counter regressions
+node scripts/test-management-features.cjs # habit history and private document validation
 npm run build                       # production build
 ```
 
@@ -313,6 +324,7 @@ These integration checks require configured private storage and perform writes:
 | `node scripts/verify-tracker-database.cjs` | Independent reads, stale-write rejection, concurrent task saves, and owner-data preservation using a temporary test account. |
 | `node scripts/verify-recycle-bin.cjs` | Transactional deletion capture, task/recharge/journal recovery, encrypted notes, stale restore rejection, and account isolation with disposable records. |
 | `node scripts/verify-external-backup.cjs` | Creates or verifies the owner's daily Blob copy, checks isolation, and confirms the source workspace is unchanged. Can load ignored `.env.backup.local`. |
+| `node scripts/verify-subscription-documents.cjs` | Uploads and independently reads a disposable private Blob document, then removes only that test upload. Existing user files are unchanged. |
 
 The migration utility `scripts/migrate-tracker-records.cjs` uses a pre-migration backup and compare-and-swap guard for private tracker imports. Keep private exports in ignored `.data/`; never commit them.
 

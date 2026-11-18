@@ -13,6 +13,7 @@ const optionalDate = (value: unknown) => value === undefined || value === "" || 
 
 export function isSubscription(value: unknown): value is Subscription {
   if (!record(value)) return false;
+  if (value.documents !== undefined && (!Array.isArray(value.documents) || value.documents.length > 50 || !value.documents.every(doc => record(doc) && text(doc.id) && text(doc.name) && doc.name.length <= 180 && text(doc.uploadedAt) && Number.isFinite(Date.parse(doc.uploadedAt)) && ((text(doc.pathname) && /^subscription-documents\/[0-9a-f]{64}\/[0-9a-f-]{36}$/.test(doc.pathname)) || (text(doc.url) && /^https?:\/\//.test(doc.url)))))) return false;
   if (value.reminderDaysBefore !== undefined && (typeof value.reminderDaysBefore !== "number" || ![1, 3, 7].includes(value.reminderDaysBefore))) return false;
   if (value.statusHistory !== undefined && (!Array.isArray(value.statusHistory) || !value.statusHistory.every(entry => record(entry) && isSubscriptionDate(entry.date) && ["active", "paused", "cancelled", "unconfirmed", "completed"].includes(String(entry.status))))) return false;
   if (![value.lastUsedDate, value.trialEndDate, value.cancellationDeadline, value.renewalTaskDate, value.renewalCalendarDate].every(optionalDate)) return false;

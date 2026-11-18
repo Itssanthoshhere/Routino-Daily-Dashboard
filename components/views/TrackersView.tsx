@@ -49,6 +49,9 @@ import { subscriptionsFromJournals } from "@/lib/subscriptionJournal";
 import { AirtelRenewal } from "@/components/AirtelRenewal";
 import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
 import { SubscriptionManager } from "@/components/SubscriptionManager";
+import { RecordDocuments } from "@/components/SubscriptionDocuments";
+import { assetDocumentKey } from "@/lib/assetDocuments";
+import type { AssetDocuments } from "@/types/documents";
 import { emptyAirtelData, type AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
@@ -56,6 +59,8 @@ export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "pla
 type TabKey = TrackersTabKey;
 
 export type TrackersViewProps = {
+  assetDocuments?: AssetDocuments;
+  onAssetDocumentsChange?: (documents: AssetDocuments) => void;
   onRenewalTask?: (subscription: Subscription, date: string) => void;
   airtel?: AirtelData;
   onRechargeRenewal?: (patch: { airtel: AirtelData; subscriptions: Subscription[] }) => boolean | void;
@@ -302,7 +307,7 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   };
 }
 
-export function TrackersView({ onRenewalTask, initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, onRechargeRenewal, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
+export function TrackersView({ assetDocuments = {}, onAssetDocumentsChange, onRenewalTask, initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, onRechargeRenewal, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab || "eb");
 
   useEffect(() => {
@@ -2758,6 +2763,8 @@ export function TrackersView({ onRenewalTask, initialTab, tabChangeKey, onTabCha
                           {p.priceFormatted}
                         </span>
                       </div>
+
+                      {onAssetDocumentsChange && <RecordDocuments recordName={`${p.product} ${p.model}`} documents={assetDocuments[assetDocumentKey(p)] || []} disabled={!!subscriptionsDisabled} onChange={documents => onAssetDocumentsChange({ ...assetDocuments, [assetDocumentKey(p)]: documents })} />}
 
                       {/* Warranty & Lifecycle Badge */}
                       <div className="mt-3">

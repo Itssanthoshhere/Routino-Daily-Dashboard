@@ -6,11 +6,13 @@ import { emptyAirtelData, type AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 import { isAirtelData } from "@/lib/airtelValidation";
 import { isSubscriptionList } from "@/lib/subscriptionValidation";
+import { isAssetDocuments } from "@/lib/assetDocuments";
+import type { AssetDocuments } from "@/types/documents";
 
-type Data = { subscriptions: Subscription[]; airtel: AirtelData; subscriptionJournalImported: boolean };
+type Data = { subscriptions: Subscription[]; airtel: AirtelData; subscriptionJournalImported: boolean; assetDocuments?: AssetDocuments };
 type Status = "loading" | "synced" | "syncing" | "local" | "error" | "conflict";
 const empty = (): Data => ({ subscriptions: [], airtel: emptyAirtelData(), subscriptionJournalImported: false });
-const valid = (data: Data) => !!data && isSubscriptionList(data.subscriptions) && isAirtelData(data.airtel) && typeof data.subscriptionJournalImported === "boolean";
+const valid = (data: Data) => !!data && isSubscriptionList(data.subscriptions) && isAirtelData(data.airtel) && typeof data.subscriptionJournalImported === "boolean" && (data.assetDocuments === undefined || isAssetDocuments(data.assetDocuments));
 
 export function useTrackerWorkspace(email?: string | null) {
   const [data, setData] = useState<Data>(empty);
@@ -71,7 +73,7 @@ export function useTrackerWorkspace(email?: string | null) {
       const result = await response.json();
       if (generation !== state.current.generation) return;
       if (!response.ok) throw new Error(result.error || "Could not load saved records.");
-      const server: Data = { subscriptions: result.data?.subscriptions ?? [], airtel: result.data?.airtel ?? emptyAirtelData(), subscriptionJournalImported: result.data?.subscriptionJournalImported ?? false };
+      const server: Data = { subscriptions: result.data?.subscriptions ?? [], airtel: result.data?.airtel ?? emptyAirtelData(), subscriptionJournalImported: result.data?.subscriptionJournalImported ?? false, assetDocuments: result.data?.assetDocuments ?? {} };
       if (!valid(server)) throw new Error("Saved tracker records need repair. Existing data has not been overwritten.");
       if (current.pending && !replaceLocal) return;
       if (replaceLocal) {

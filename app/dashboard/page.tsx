@@ -37,6 +37,8 @@ import { TaskModal } from "@/components/TaskModal";
 import { EventModal } from "@/components/EventModal";
 import { MailDrawer } from "@/components/MailDrawer";
 import { QuickLinkModal } from "@/components/QuickLinkModal";
+import { QuickLinkManager } from "@/components/QuickLinkManager";
+import { MeetingFollowUps } from "@/components/MeetingFollowUps";
 import { SyncCenter } from "@/components/SyncCenter";
 import { hasMeetingAction, meetingActionKey } from "@/lib/meetingActions";
 import { ReadLaterPanel } from "@/components/ReadLaterPanel";
@@ -557,26 +559,7 @@ export default function Home() {
       if (storedLinks !== null) {
         const parsed = JSON.parse(storedLinks);
         if (Array.isArray(parsed)) {
-          const hasKeep = parsed.some(
-            (l: QuickLink) =>
-              l.title?.toLowerCase().includes("keep") ||
-              l.url?.toLowerCase().includes("keep.google.com")
-          );
-          if (!hasKeep) {
-            const keepLink: QuickLink = {
-              id: "ql-keep",
-              title: "Google Keep",
-              subtitle: "Notes & lists",
-              url: appConfig.links.keep,
-              iconName: "keep",
-              available: true,
-            };
-            const updated = [...parsed, keepLink];
-            setQuickLinks(updated);
-            try { localStorage.setItem("routino_links", JSON.stringify(updated)); } catch {}
-          } else {
-            setQuickLinks(parsed);
-          }
+          setQuickLinks(parsed);
         }
       }
 
@@ -1241,26 +1224,8 @@ export default function Home() {
             try { localStorage.setItem("routino_events", JSON.stringify(d.customEvents)); } catch {}
           }
           if (Array.isArray(d.quickLinks)) {
-            const hasKeep = d.quickLinks.some(
-              (l: QuickLink) =>
-                l.title?.toLowerCase().includes("keep") ||
-                l.url?.toLowerCase().includes("keep.google.com")
-            );
-            const merged = hasKeep
-              ? d.quickLinks
-              : [
-                  ...d.quickLinks,
-                  {
-                    id: "ql-keep",
-                    title: "Google Keep",
-                    subtitle: "Notes & lists",
-                    url: appConfig.links.keep,
-                    iconName: "keep" as const,
-                    available: true,
-                  },
-                ];
-            setQuickLinks(merged);
-            try { localStorage.setItem("routino_links", JSON.stringify(merged)); } catch {}
+            setQuickLinks(d.quickLinks);
+            try { localStorage.setItem("routino_links", JSON.stringify(d.quickLinks)); } catch {}
           }
           if (typeof d.focusMinutes === "number") {
             setFocusMinutes(d.focusMinutes);
@@ -1658,6 +1623,12 @@ export default function Home() {
       return next;
     });
     toast(`"${link.title}" added to quick links`);
+  };
+
+  const updateQuickLinks = (next: QuickLink[]) => {
+    setQuickLinks(next);
+    try { localStorage.setItem("routino_links", JSON.stringify(next)); } catch {}
+    void syncToDatabase({ quickLinks: next });
   };
 
   const dismissNotifications = (ids: string[]) => {
@@ -2109,6 +2080,8 @@ export default function Home() {
             />
           ) : activeNav === "Trackers" ? (
             <TrackersView
+              assetDocuments={trackerWorkspace.assetDocuments}
+              onAssetDocumentsChange={assetDocuments => { trackerWorkspace.update({ assetDocuments }); }}
               onRenewalTask={(subscription, date) => addTask({ title: `Review renewal: ${subscription.name}`, meta: `Review billing before ${date}`, dueDate: date, category: "personal", priority: true })}
               onJournalSubscriptions={trackerWorkspace.importSubscriptions}
               subscriptions={subscriptions}
@@ -3105,16 +3078,21 @@ export default function Home() {
                   syncToDatabase({ quickLinks: next });
                 }} />
 
+                <MeetingFollowUps notes={notes} tasks={tasks} onOpenNote={note => { setSearchNote({ id: note.id }); setActiveNav("Notes"); }} onOpenTask={task => { setHighlightedTaskId(task.id); setActiveNav("Tasks"); }} onCreateTask={(note, text, id) => {
+                  if (hasMeetingAction(tasks, note.id, id)) return;
+                  addTask({ title: text, meta: `Meeting note: ${note.id} · Action: ${id}`, meetingActionKey: meetingActionKey(note.id, id), category: "meeting", priority: false });
+                }} />
+
                 {/* Quick links */}
                 <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
                   <SectionHeading
                     icon={Link2}
                     title="Quick links"
                     sub="Your frequently used places"
-                    right={<button onClick={() => setShowQuickLinkModal(true)} aria-label="Add link" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition"><Plus size={14} /></button>}
+                    right={<div className="flex items-center gap-2"><QuickLinkManager links={quickLinks} onChange={updateQuickLinks} /><button onClick={() => setShowQuickLinkModal(true)} aria-label="Add link" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition"><Plus size={14} /></button></div>}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {quickLinks.map((link, index) => {
+                    {[...quickLinks].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned)).map((link, index) => {
                       const IconComponent = linkIcons[link.iconName] || Link2;
                       const key = `${link.id}-${index}`;
                       if (!link.available) {
@@ -3429,6 +3407,7 @@ export default function Home() {
               name: data.name,
               icon: data.icon,
               streak: data.streak,
+              ...(data.completedDates ? { completedDates: data.completedDates } : {}),
             });
           } else {
             addHabit(data.name, data.icon);
