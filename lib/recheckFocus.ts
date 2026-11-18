@@ -1,3 +1,4 @@
+import { bufferedFocusEvents, focusPreferences } from "@/lib/focusWorkspace";
 import { googleFetch } from "@/lib/google";
 import { calendarPages } from "@/lib/calendarPages";
 import { getUserWorkspace, getOutlookAccount, saveOutlookAccount } from "@/lib/db";
@@ -5,15 +6,18 @@ import { fetchOutlookEvents, refreshOutlookToken, getOutlookRedirectUri } from "
 import { hasFocusConflict } from "@/lib/focusAvailability";
 import type { DashboardEvent } from "@/types/dashboard";
 export async function recheckFocus(email: string, start: Date, end: Date, timeZone: string) {
+  const workspace = await getUserWorkspace(email);
+  const preferences = focusPreferences(workspace?.focusRecords || []);
+  const queryStart = new Date(start.getTime() - Math.max(preferences.bufferMinutes, preferences.breakMinutes)*60000);
+  const queryEnd = new Date(end.getTime() + preferences.bufferMinutes*60000);
   const calendars = await calendarPages("https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader", googleFetch, "google") as {id:string}[];
   const ids = new Set(["primary",...calendars.map(calendar=>calendar.id)]);
   const events: DashboardEvent[] = [];
   // Sequential requests avoid launching an unbounded burst for accounts with many calendars.
   for (const id of Array.from(ids)) {
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(id)}/events?singleEvents=true&timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}&maxResults=2500`;
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(id)}/events?singleEvents=true&timeMin=${encodeURIComponent(queryStart.toISOString())}&timeMax=${encodeURIComponent(queryEnd.toISOString())}&maxResults=2500`;
     events.push(...await calendarPages(url,googleFetch,"google") as DashboardEvent[]);
   }
-  const workspace = await getUserWorkspace(email);
   events.push(...workspace?.customEvents || []);
   const outlook = await getOutlookAccount(email, true);
   if (outlook) {
@@ -25,5 +29,5 @@ export async function recheckFocus(email: string, start: Date, end: Date, timeZo
     }
     events.push(...await fetchOutlookEvents(outlook.accessToken));
   }
-  return !hasFocusConflict(events,start,end,timeZone);
+  return !hasFocusConflict(bufferedFocusEvents(events,preferences),start,end,timeZone);
 }

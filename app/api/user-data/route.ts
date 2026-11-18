@@ -152,6 +152,7 @@ export async function POST(req: NextRequest) {
       soundEnabled: typeof soundEnabled === "boolean" ? soundEnabled : existingWorkspace?.soundEnabled ?? true,
       habits: savedHabits ?? existingWorkspace?.habits,
       notes: Array.isArray(notes) ? notes : existingWorkspace?.notes,
+      focusRecords: body.focusRecords ?? existingWorkspace?.focusRecords,
       taskTemplates: body.taskTemplates ?? existingWorkspace?.taskTemplates,
       activeNav: typeof activeNav === "string" ? activeNav : existingWorkspace?.activeNav ?? "Overview",
       updatedAt: new Date().toISOString(),
@@ -161,7 +162,7 @@ export async function POST(req: NextRequest) {
       const change = (body.collectionChanges as CollectionChanges | undefined)?.[field];
       if (change && Array.isArray(body[field])) (workspaceData as Record<string, unknown>)[field] = mergeCollection((existingWorkspace?.[field] || []) as {id:string}[], body[field], change);
     }
-    const fields = ["tasks", "customEvents", "quickLinks", "focusMinutes", "soundEnabled", "habits", "notes", "activeNav", "subscriptions", "taskTemplates"].filter(key => Object.prototype.hasOwnProperty.call(body, key));
+    const fields = ["tasks", "customEvents", "quickLinks", "focusMinutes", "soundEnabled", "habits", "notes", "activeNav", "subscriptions", "focusRecords", "taskTemplates"].filter(key => Object.prototype.hasOwnProperty.call(body, key));
     const result = await saveUserWorkspace(email, workspaceData, [...fields, "updatedAt"], mergingTasks ? { incoming: tasks, replacedIds: taskIds(replaceTaskIds), deletedIds: taskIds(deletedTaskIds) } : undefined, revision);
 
     if (result.conflict) return NextResponse.json({ error: "Another device saved changes. Your local draft is preserved.", conflict: true }, { status: 409 });

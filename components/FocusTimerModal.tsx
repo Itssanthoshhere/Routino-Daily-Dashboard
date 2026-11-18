@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FocusHistory, useFocusWorkspace } from "@/components/FocusWorkspace";
+import { useEffect, useRef, useState } from "react";
 import {
   Play,
   Pause,
@@ -40,6 +41,14 @@ const PRESETS = [
 ];
 
 export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [], tasks = [], onScheduleTask }: FocusTimerModalProps) {
+  const {records,save} = useFocusWorkspace();
+  const session = useRef<{id:string;taskId?:string;taskTitle:string;break:boolean}|null>(null);
+  const completed = useRef(false);
+  const deadline = useRef<number | null>(null);
+  const [retrySave,setRetrySave] = useState(0);
+  const [taskId,setTaskId] = useState("");
+  const [isBreak,setIsBreak] = useState(false);
+  const [saveError,setSaveError] = useState("");
   const [showFinder, setShowFinder] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState(25);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -61,6 +70,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
   // When preset changes, update timer and stop previous sound
   useEffect(() => {
     setTimeLeft(selectedPreset * 60);
+    session.current=null; completed.current=false; deadline.current=null;
     setIsRunning(false);
     ambientSound.stop();
   }, [selectedPreset]);
@@ -78,31 +88,39 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
   useEffect(() => {
     if (!isOpen) {
       ambientSound.stop();
+      if (deadline.current) setTimeLeft(Math.max(0,Math.ceil((deadline.current-Date.now())/1000)));
+      deadline.current=null;
       setIsRunning(false);
     }
   }, [isOpen]);
 
-  // Countdown timer loop
+  // Wall-clock countdown survives background-tab timer throttling.
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsRunning(false);
-            ambientSound.stop();
-            if (soundEnabled) playChime();
-            onSessionComplete?.(selectedPreset);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
+    if (!isRunning) return;
+    if (deadline.current === null) deadline.current = Date.now() + timeLeft * 1000;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((deadline.current! - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      if (!remaining) { setIsRunning(false); deadline.current=null; ambientSound.stop(); }
     };
-  }, [isRunning, timeLeft, selectedPreset, soundEnabled, onSessionComplete]);
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [isRunning, timeLeft]);
+
+  useEffect(() => {
+    if (timeLeft !== 0 || !session.current || completed.current) return;
+    const current = session.current;
+    try {
+      if (!current.break) {
+        if (!records.some(r=>r.id===current.id)) save([...records,{id:current.id,kind:"session",taskId:current.taskId,taskTitle:current.taskTitle,minutes:selectedPreset,completedAt:new Date().toISOString()}]);
+        completed.current = true;
+        onSessionComplete?.(selectedPreset);
+      }
+      completed.current = true;
+      if (soundEnabled) { try { playChime(); } catch {} }
+      setSaveError("");
+    } catch { setSaveError("Session could not be saved. Keep this timer open and retry."); }
+  }, [timeLeft,records,save,selectedPreset,onSessionComplete,soundEnabled,retrySave]);
 
   if (!isOpen) return null;
 
@@ -113,6 +131,8 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
   const progressPercent = Math.min(100, Math.max(0, ((totalSeconds - timeLeft) / totalSeconds) * 100));
 
   const handleClose = () => {
+    if (deadline.current) setTimeLeft(Math.max(0,Math.ceil((deadline.current-Date.now())/1000)));
+    deadline.current=null;
     setIsRunning(false);
     ambientSound.stop();
     onClose();
@@ -122,13 +142,20 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
     setIsRunning(false);
     ambientSound.stop();
     setTimeLeft(selectedPreset * 60);
+    session.current = null; completed.current = false; deadline.current=null;
   };
 
   const handleTogglePlay = () => {
     if (soundEnabled && !isRunning) {
       playTick();
     }
+    if (!session.current || timeLeft === 0) {
+      const task = tasks.find(t=>t.id===taskId);
+      session.current={id:crypto.randomUUID(),taskId:task?.id,taskTitle:task?.title || intention,break:isBreak}; completed.current=false;
+      if (timeLeft===0) setTimeLeft(selectedPreset*60);
+    }
     const nextRunning = !isRunning;
+    if (!nextRunning) { if (deadline.current) setTimeLeft(Math.max(0, Math.ceil((deadline.current-Date.now())/1000))); deadline.current=null; }
     setIsRunning(nextRunning);
     if (!nextRunning) {
       ambientSound.stop();
@@ -147,9 +174,11 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
   // Add minutes dynamically to current timer session (e.g. +5m, +10m)
   const handleAddMinutes = (additionalMinutes: number) => {
     if (soundEnabled) playTick();
-    const additionalSeconds = additionalMinutes * 60;
+    const nextMinutes = Math.min(360, Math.max(1, selectedPreset + additionalMinutes));
+    const additionalSeconds = (nextMinutes - selectedPreset) * 60;
+    session.current=null; completed.current=false; deadline.current=null;
     setTimeLeft((prev) => prev + additionalSeconds);
-    setSelectedPreset((prev) => prev + additionalMinutes);
+    setSelectedPreset(nextMinutes);
   };
 
   // Set custom minutes directly
@@ -159,6 +188,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
     if (!isNaN(parsed) && parsed > 0 && parsed <= 360) {
       setIsRunning(false);
       ambientSound.stop();
+      setIsBreak(false); session.current=null; completed.current=false; deadline.current=null;
       setSelectedPreset(parsed);
       setTimeLeft(parsed * 60);
       setIsCustomPreset(false);
@@ -168,8 +198,11 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
       <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+        <label className="mb-3 block text-xs">Link focus to a task<select disabled={isRunning || !!session.current} value={taskId} onChange={e=>setTaskId(e.target.value)} className="mt-1 w-full rounded-lg border border-line bg-white p-2"><option value="">Unassigned focus</option>{tasks.filter(t=>!t.checked&&!t.skipped).map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
+        <FocusHistory />
+        {saveError && <p role="alert" className="text-xs text-red-700">{saveError}<button type="button" onClick={()=>{setRetrySave(n=>n+1);}}>Retry</button></p>}
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-line pb-4">
+        <div className="mt-5 flex items-center justify-between gap-3 border-b border-line pb-4">
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-forest text-accent shadow-sm">
               <Focus size={16} />
@@ -196,7 +229,8 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
               key={preset.label}
               onClick={() => {
                 setIsCustomPreset(false);
-                setSelectedPreset(preset.minutes);
+                session.current=null; completed.current=false; deadline.current=null; setIsRunning(false); setTimeLeft(preset.minutes*60);
+                setIsBreak(preset.label.includes("Break")); setSelectedPreset(preset.minutes);
               }}
               className={`rounded-xl py-2 px-1 text-center text-[10px] font-medium transition ${
                 !isCustomPreset && selectedPreset === preset.minutes

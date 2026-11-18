@@ -1,3 +1,4 @@
+import { bufferedFocusEvents, defaultFocusPreferences, type FocusPreferences } from "@/lib/focusWorkspace";
 import { DashboardEvent } from "@/types/dashboard";
 
 export type FocusSlot = { start: Date; end: Date; minutes: number };
@@ -6,22 +7,28 @@ export function findFocusSlots(
   events: DashboardEvent[],
   from = new Date(),
   days = 7,
-  duration = 45
+  duration = 45,
+  preferences: FocusPreferences = defaultFocusPreferences
 ): FocusSlot[] {
   const slots: FocusSlot[] = [];
+  if (!Number.isFinite(duration) || duration <= 0) return slots;
+  const buffered = bufferedFocusEvents(events, preferences);
   const startDay = new Date(from);
   startDay.setHours(0, 0, 0, 0);
-  const stepMs = Math.max(duration * 60000, 90 * 60000); // 90 min spacing in wide open gaps
+  const stepMs = Math.max((duration + preferences.breakMinutes) * 60000, 90 * 60000); // 90 min spacing in wide open gaps
 
   for (let day = 0; day < days && slots.length < 12; day++) {
     const dayStart = new Date(startDay);
     dayStart.setDate(dayStart.getDate() + day);
-    dayStart.setHours(8, 0, 0, 0);
+    if (!preferences.days.includes(dayStart.getDay())) continue;
+    const [sh, sm] = preferences.start.split(":").map(Number);
+    dayStart.setHours(sh, sm, 0, 0);
 
     const dayEnd = new Date(dayStart);
-    dayEnd.setHours(20, 0, 0, 0);
+    const [eh, em] = preferences.end.split(":").map(Number);
+    dayEnd.setHours(eh, em, 0, 0);
 
-    const busy = events
+    const busy = buffered
       .flatMap((event) => {
         const start = event.start?.dateTime ? new Date(event.start.dateTime) : event.start?.date ? new Date(`${event.start.date}T00:00:00`) : null;
         const end = event.end?.dateTime ? new Date(event.end.dateTime) : event.end?.date ? new Date(`${event.end.date}T00:00:00`) : null;

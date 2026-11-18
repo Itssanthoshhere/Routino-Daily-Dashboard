@@ -1,3 +1,4 @@
+import { validFocusRecord } from "@/lib/focusWorkspace";
 import { isDocumentList } from "@/lib/assetDocuments";
 import { coreCollections } from "@/lib/collectionChanges";
 import { validTaskTemplates } from "@/lib/taskTemplates";
@@ -51,6 +52,7 @@ export function workspaceValidationError(value: unknown): string | null {
   if (!record(value)) return "Workspace update must be an object.";
   const checks: Record<string, (v: unknown) => boolean> = {
     collectionChanges: v => record(v) && Object.entries(v).every(([key,change]) => coreCollections.includes(key as typeof coreCollections[number]) && record(change) && strings(change.replaceIds) && strings(change.deletedIds) && optional(change.orderIds, strings)),
+    focusRecords: v => list(v, validFocusRecord),
     taskTemplates: validTaskTemplates,
     tasks: v => list(v, validTask), notes: v => list(v, validNote), habits: v => list(v, validHabit), customEvents: v => list(v, validEvent), quickLinks: v => list(v, validLink),
     focusMinutes: v => typeof v === "number" && Number.isFinite(v) && v >= 1 && v <= 1440,

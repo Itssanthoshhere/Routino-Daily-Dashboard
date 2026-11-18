@@ -20,6 +20,7 @@ export type UserWorkspaceData = {
   airtel?: AirtelData;
   trackerRevision?: number;
   coreRevision?: number;
+  focusRecords?: import("@/lib/focusWorkspace").FocusRecord[];
   taskTemplates?: import("@/lib/taskTemplates").TaskTemplate[];
   subscriptionJournalImported?: boolean;
   tasks: Task[];

@@ -1,5 +1,8 @@
 "use client";
 
+import { FocusPreferencesEditor, useFocusWorkspace } from "@/components/FocusWorkspace";
+import { focusPreferences } from "@/lib/focusWorkspace";
+import { localDay, taskDueDay } from "@/lib/taskDates";
 import { useMemo, useState } from "react";
 import { CalendarClock, Check, X } from "lucide-react";
 import { DashboardEvent, Task } from "@/types/dashboard";
@@ -13,6 +16,9 @@ type Props = {
 };
 
 export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Props) {
+  const {records} = useFocusWorkspace();
+  const preferences = useMemo(()=>focusPreferences(records),[records]);
+  const [overdueOnly,setOverdueOnly] = useState(false);
   const [duration, setDuration] = useState(45);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -22,10 +28,11 @@ export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Prop
   const [selectedSlot, setSelectedSlot] = useState(0);
 
   const slots = useMemo(
-    () => findFocusSlots(events, new Date(), 7, duration),
-    [events, duration]
+    () => findFocusSlots(events, new Date(), 7, duration, preferences),
+    [events, duration, preferences]
   );
-  const openTasks = tasks.filter((task) => !task.checked && !task.skipped);
+  const chosenSlot = slots[Math.min(selectedSlot, slots.length - 1)];
+  const openTasks = tasks.filter((task) => !task.checked && !task.skipped && (!overdueOnly || (!!taskDueDay(task.dueDate) && taskDueDay(task.dueDate)! < localDay(new Date()))));
 
   const format = (date: Date) =>
     new Intl.DateTimeFormat(undefined, {
@@ -58,6 +65,9 @@ export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Prop
         Suggestions use loaded events. Connected calendars are checked again before booking; availability can still change while a session is being created.
       </p>
 
+      <FocusPreferencesEditor key={JSON.stringify(preferences)} />
+      <label className="mt-3 flex items-center gap-2 text-xs"><input type="checkbox" checked={overdueOnly} onChange={e=>{setOverdueOnly(e.target.checked);setSelectedTask("");}}/>Suggest time for overdue tasks only</label>
+      <p className="mt-1 text-xs text-muted">Choose a task and time, then approve the booking below. Task deadlines and repeat schedules stay unchanged.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-medium text-muted">
           Duration
@@ -102,7 +112,7 @@ export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Prop
               type="button"
               onClick={() => setSelectedSlot(index)}
               className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-xs transition cursor-pointer ${
-                selectedSlot === index
+                Math.min(selectedSlot, slots.length - 1) === index
                   ? "border-forest bg-[#eef5ee] font-medium"
                   : "border-line bg-white hover:bg-[#f5f7f2]"
               }`}
@@ -111,7 +121,7 @@ export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Prop
                 {format(slot.start)} –{" "}
                 {slot.end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
               </span>
-              {selectedSlot === index && <Check size={14} className="text-forest shrink-0 ml-2" />}
+              {Math.min(selectedSlot, slots.length - 1) === index && <Check size={14} className="text-forest shrink-0 ml-2" />}
             </button>
           ))
         ) : (
@@ -123,17 +133,17 @@ export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Prop
 
       <button
         type="button"
-        disabled={saving || !selectedTask || !slots.length}
+        disabled={saving || !openTasks.some(t=>t.id===selectedTask) || !slots.length}
         onClick={async () => {
           const task = openTasks.find((item) => item.id === selectedTask);
-          if (task && slots[selectedSlot]) {
+          if (task && chosenSlot) {
             setSaving(true); setError("");
-            try { await onScheduleTask(task, slots[selectedSlot]); } catch (error) { setError(error instanceof Error ? error.message : "Could not schedule session"); } finally { setSaving(false); }
+            try { await onScheduleTask(task, chosenSlot); } catch (error) { setError(error instanceof Error ? error.message : "Could not schedule session"); } finally { setSaving(false); }
           }
         }}
         className="mt-3.5 w-full rounded-xl bg-forest px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm hover:bg-[#8b1116] transition disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
       >
-        {saving ? "Scheduling…" : "Schedule into Google Calendar"}
+        {saving ? "Scheduling…" : "Approve & schedule into Google Calendar"}
       </button>
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { FocusRecord } from "@/lib/focusWorkspace";
 import type { TaskTemplate } from "@/lib/taskTemplates";
 import { DocumentStorageManager } from "@/components/DocumentStorageManager";
 import { CalendarColorManager } from "@/components/CalendarColorManager";
@@ -38,6 +39,7 @@ import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 type PreferencesModalProps = {
+  focusRecords?: FocusRecord[];
   taskTemplates?: TaskTemplate[];
   openDataToken?: number;
   subscriptions?: Subscription[];
@@ -52,6 +54,7 @@ type PreferencesModalProps = {
   habits?: Habit[];
   notes?: KeepNote[];
   onImportData: (data: {
+    focusRecords?: FocusRecord[];
     taskTemplates?: TaskTemplate[];
     tasks?: Task[];
     customEvents?: DashboardEvent[];
@@ -78,6 +81,7 @@ type PreferencesModalProps = {
 };
 
 export function PreferencesModal({
+  focusRecords,
   taskTemplates,
   openDataToken = 0,
   isOpen,
@@ -120,6 +124,7 @@ export function PreferencesModal({
       exportedAt: new Date().toISOString(),
       appName: appConfig.name,
       data: {
+        focusRecords,
         taskTemplates,
         focusMinutes,
         soundEnabled,
@@ -160,6 +165,7 @@ export function PreferencesModal({
             throw new Error("Invalid subscription data");
           }
           onImportData({
+            focusRecords: parsed.data.focusRecords,
             taskTemplates: parsed.data.taskTemplates,
             tasks: parsed.data.tasks,
             customEvents: parsed.data.customEvents,
