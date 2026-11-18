@@ -53,6 +53,9 @@ import { AssetServiceHistory } from "@/components/AssetServiceHistory";
 import { AssetWarranty } from "@/components/AssetWarranty";
 import type { AssetRecords } from "@/types/assets";
 import { RecordDocuments } from "@/components/SubscriptionDocuments";
+import { AssetCare } from "@/components/AssetCare";
+import { DocumentLibrary } from "@/components/DocumentLibrary";
+import { documentLibrary } from "@/lib/documentLibrary";
 import { assetDocumentKey } from "@/lib/assetDocuments";
 import type { AssetDocuments } from "@/types/documents";
 import { emptyAirtelData, type AirtelData } from "@/types/airtel";
@@ -2671,6 +2674,8 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
             </div>
           </div>
 
+          <DocumentLibrary documents={documentLibrary(data.purchases, assetDocuments, assetRecords, subscriptions)} />
+
           {/* Search, Brand Filter Chips & Sort Controls */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="relative flex-1 w-full sm:w-auto">
@@ -2776,6 +2781,7 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
                       {onAssetRecordsChange && <AssetWarranty record={assetRecords[assetDocumentKey(p)] || {}} disabled={!!subscriptionsDisabled} onChange={record => onAssetRecordsChange({ ...assetRecords, [assetDocumentKey(p)]: record })} onReminder={onAssetWarrantyReminder ? date => onAssetWarrantyReminder(assetDocumentKey(p), p.product, date) : undefined} />}
 
                       {onAssetRecordsChange && <AssetServiceHistory record={assetRecords[assetDocumentKey(p)] || {}} disabled={!!subscriptionsDisabled} onChange={record => onAssetRecordsChange({ ...assetRecords, [assetDocumentKey(p)]: record })} />}
+                      {onAssetRecordsChange && <AssetCare assetName={p.product} receipts={(assetDocuments[assetDocumentKey(p)] || []).length} record={assetRecords[assetDocumentKey(p)] || {}} disabled={!!subscriptionsDisabled} onChange={record => onAssetRecordsChange({ ...assetRecords, [assetDocumentKey(p)]: record })} />}
 
                       {/* Warranty & Lifecycle Badge */}
                       <div className="mt-3">
