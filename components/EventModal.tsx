@@ -6,6 +6,7 @@ import { DashboardEvent } from "@/types/dashboard";
 import { appConfig } from "@/lib/config";
 import { getMeetingUrl } from "@/lib/meeting";
 import { FocusEventActions } from "@/components/FocusEventActions";
+import { EventColorProtection } from "@/components/EventColorProtection";
 
 type EventModalProps = {
   isOpen: boolean;
@@ -63,7 +64,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent, onFocusCh
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-lg rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl">
+      <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl">
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#edf0ff] text-[#6088d1]">
@@ -173,6 +174,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent, onFocusCh
                     Done
                   </button>
                 </div>
+                {eventToView?.calendarId && eventToView.id && eventToView.start?.dateTime && !eventToView.isCustom && eventToView.source !== "custom" && eventToView.source !== "outlook" && <EventColorProtection key={`${eventToView.calendarId}:${eventToView.id}`} event={eventToView} />}
                 {eventToView?.summary?.startsWith("Focus: ") && onFocusChange && <FocusEventActions key={eventToView.id} event={eventToView} onChange={onFocusChange} />}
                 {onCreateMeetingNote && <button className="btn-theme mt-3 rounded-xl border border-line px-4 py-2 text-xs font-semibold" onClick={() => onCreateMeetingNote(eventToView)}>Create Meeting Note</button>}
                 </>

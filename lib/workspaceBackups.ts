@@ -65,6 +65,13 @@ export async function restoreWorkspaceBackup(email: string, id: string, expected
       SELECT ${beforeId}, email, ${beforeId}, data, 'before-restore' FROM target RETURNING id
     ) UPDATE routino_workspaces SET data = ${JSON.stringify(source.data)}::jsonb || jsonb_build_object(
       'updatedAt', ${updatedAt}::text, 'trackerRevision', COALESCE((routino_workspaces.data->>'trackerRevision')::integer, 0) + 1
-    ), updated_at = NOW() WHERE email IN (SELECT email FROM target) AND EXISTS (SELECT 1 FROM saved) RETURNING data`;
+    ) || CASE WHEN ${JSON.stringify(source.data)}::jsonb ? 'calendarColorState' OR routino_workspaces.data ? 'calendarColorState'
+      THEN jsonb_build_object('calendarColorState',
+        (COALESCE(${JSON.stringify(source.data)}::jsonb->'calendarColorState', routino_workspaces.data->'calendarColorState') - 'pendingRunId' - 'operationStartedAt')
+        || jsonb_build_object('revision', GREATEST(
+          COALESCE((routino_workspaces.data->'calendarColorState'->>'revision')::integer, 0),
+          COALESCE((${JSON.stringify(source.data)}::jsonb->'calendarColorState'->>'revision')::integer, 0)
+        ) + 1)) ELSE '{}'::jsonb END,
+    updated_at = NOW() WHERE email IN (SELECT email FROM target) AND EXISTS (SELECT 1 FROM saved) RETURNING data`;
   return result.length ? { success: true, data: result[0].data } : { success: false, conflict: true };
 }

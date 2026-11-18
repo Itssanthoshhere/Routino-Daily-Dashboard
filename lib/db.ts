@@ -12,6 +12,7 @@ import type { Subscription } from "@/types/subscriptions";
 import type { AssetDocuments } from "@/types/documents";
 
 export type UserWorkspaceData = {
+  calendarColorState?: import("@/lib/calendarColorSettings").ColorState;
   assetRecords?: import("@/types/assets").AssetRecords;
   assetDocuments?: AssetDocuments;
   recycleBin?: RecycleEntry[];
@@ -464,4 +465,38 @@ export async function saveTrackerWorkspace(email: string, patch: TrackerPatch, r
   const data = { ...existing, ...payload } as UserWorkspaceData;
   const result = await saveUserWorkspace(normalized, data);
   return { success: result.success, data: result.success ? data : undefined };
+}
+
+/** Isolated calendar revision prevents rule/history saves replacing core or tracker fields. */
+export async function saveCalendarColorState(email: string, state: import("@/lib/calendarColorSettings").ColorState, revision: number) {
+  const normalized = email.toLowerCase().trim();
+  const next = { ...state, revision: revision + 1 };
+  const payload = { calendarColorState: next, updatedAt: new Date().toISOString() };
+  const sql = getNeonClient();
+  if (sql) {
+    await sql`CREATE TABLE IF NOT EXISTS routino_workspaces (email TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+    await sql`INSERT INTO routino_workspaces (email, data) VALUES (${normalized}, '{}'::jsonb) ON CONFLICT DO NOTHING`;
+    const rows = await sql`UPDATE routino_workspaces SET data = data || ${JSON.stringify(payload)}::jsonb, updated_at = NOW() WHERE email = ${normalized} AND COALESCE((data->'calendarColorState'->>'revision')::integer, 0) = ${revision} RETURNING email`;
+    return rows.length ? next : null;
+  }
+  const redis = getRedisConfig();
+  if (redis) {
+    const headers = { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" };
+    const response = await fetch(redis.url, { method: "POST", headers, body: JSON.stringify(["GET", getRedisKey(normalized)]), cache: "no-store" });
+    const snapshot = await response.json();
+    if (!response.ok || snapshot.error) throw new Error("Calendar settings read failed.");
+    const raw = typeof snapshot.result === "string" ? snapshot.result : snapshot.result ? JSON.stringify(snapshot.result) : "";
+    const existing = raw ? JSON.parse(raw) : {};
+    if ((existing.calendarColorState?.revision || 0) !== revision) return null;
+    const script = "local raw = redis.call('GET', KEYS[1]); if (raw or '') ~= ARGV[1] then return 0 end; redis.call('SET', KEYS[1], ARGV[2]); return 1";
+    const saved = await fetch(redis.url, { method: "POST", headers, body: JSON.stringify(["EVAL", script, 1, getRedisKey(normalized), raw, JSON.stringify({ ...existing, ...payload })]) });
+    const result = await saved.json();
+    if (!saved.ok || result.error) throw new Error("Calendar settings save failed.");
+    return result.result === 1 ? next : null;
+  }
+  if (process.env.NODE_ENV === "production") throw new Error("Configure durable storage before saving calendar settings.");
+  const existing = await getUserWorkspace(normalized);
+  if ((existing?.calendarColorState?.revision || 0) !== revision) return null;
+  const saved = await saveUserWorkspace(normalized, { ...existing, ...payload } as UserWorkspaceData, ["calendarColorState", "updatedAt"]);
+  return saved.success ? next : null;
 }

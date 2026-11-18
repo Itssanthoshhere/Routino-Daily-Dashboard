@@ -77,7 +77,11 @@ The responsive interface includes desktop/mobile navigation, accessible dialogs,
 
 **Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability.
 
-**Calendar auto-colours** use Sage for meals, Blueberry for routine/social time, Flamingo for movies and series, Tomato for games, Graphite for typing/notes, and Banana for work. Entertainment recognises movie/series terms, season/episode markers, and configured show keywords. Word boundaries avoid accidental matches such as “super” inside “Superbase”; technical time-series titles are excluded. The connected Calendar view scans writable Google calendars from 14 days ago through 60 days ahead, follows pagination, skips all-day/already-correct events, and patches only `colorId`. Throttled writes retry up to five attempts with backoff. New or renamed loaded events trigger another pass; successful scans are cached per account/session, failures remain retryable, and updated colours refresh in the app. This rolling window differs from a fixed-date Apps Script backfill; Outlook and saved custom events are not written by this action.
+**Colour events** at the top of Calendar or in Preferences provides editable, ordered keyword rules, enabled toggles, named Google colors, whole-word/contains matching, and account-synced event/calendar exclusions. Defaults use Sage meals, Blueberry routine/social, Flamingo movies/series, Tomato games, Graphite typing/notes, and Banana work. Preview is read-only; calendar colors change only after **Apply selected & save rules**. Older auto-write requests cannot bypass the preview flow. The button opens the date-and-preview step directly. A compact **Colour guide** displays enabled saved rules below the calendar toolbar. In **Rules & exclusions**, **Test an event title** shows the first matching draft rule and colour without saving settings or changing an event.
+
+Choose a local **From / Through** range up to two years. Writable Google calendars and event pages are scanned; all-day, excluded, unmatched, and already-correct events are skipped. Previews show old/new colors and selectable events in batches of 25. **Keep this event’s color** adds a draft exclusion; save rules/exclusions to persist it. For a timed Google event, **Details → Keep this colour** saves the same exclusion directly; **Allow rule changes** removes it. This toggle never recolours or edits the event. Rule names, keywords, ordering, or dates changing invalidates the preview. The server rescans before Apply and checks Google event versions so a stale preview cannot overwrite newer event edits. Only `colorId` is patched; Outlook and saved custom events are not written.
+
+**History & Undo** retains the latest 10 batches. Undo restores confirmed changes only when the event version still matches; later edits become conflicts and remain untouched. Progress is saved after every event under a calendar-specific database revision, separate from core/tracker revisions. A pending-operation lock prevents simultaneous color writes. After two minutes without progress, **Recover interrupted operation** releases an interrupted lock; unconfirmed changes are marked uncertain and never automatically undone. Retry preview to inspect current colors. Backups preserve color settings/history, but restoring a workspace backup does not itself roll back Google Calendar colors. Workspace restore advances the colour revision and clears stale operation locks so pre-restore tabs cannot overwrite restored settings.
 
 Select an unfinished task to create a focus event in your primary Google Calendar. The app waits for Google’s response, shows errors, and keeps a linked workspace copy. Focus events can be rescheduled or deleted from their details. **Undo** checks the account and newer edits; restoring a deleted future Google event creates a new event/link. Outlook remains read-only. No automatic purchase, booking, or invitation workflow is implied.
 
@@ -204,7 +208,7 @@ Task completion/deletion, recurring-task actions, subscription completion/deleti
 
 | Integration | Access | Behavior |
 | --- | --- | --- |
-| Google Calendar | Read events; `calendar.events` for focus scheduling, focus edit/delete, renewal review events, and colorization | Explicit scheduling actions write to the primary calendar. Calendar view also runs session-based colorization when connected. |
+| Google Calendar | Read events; `calendar.events` for focus scheduling, focus edit/delete, renewal review events, and colorization | Explicit scheduling actions write to the primary calendar. Color changes require a version-checked preview and explicit Apply. |
 | Gmail | Read-only message access | No sending, archiving, labelling, or deleting mail. |
 | Google Drive | `drive.metadata.readonly` | File metadata and links only. |
 | Microsoft Outlook | Delegated `User.Read`, `Mail.Read`, `Calendars.Read` | Read-only profile, mail, and calendar access via Microsoft Graph. |
@@ -318,7 +322,8 @@ npm run lint                        # TypeScript check
 node scripts/test-trackers.cjs       # tracker regression checks
 node scripts/test-workspace-features.cjs # search, history, and reminder checks
 node scripts/test-review-fixes.cjs     # timing, action identity, and habit counter regressions
-node scripts/test-calendar-colors.cjs # category mappings, pagination, retries, and color-only writes
+node scripts/test-calendar-colors.cjs # default category mappings and legacy auto-write prevention
+node scripts/test-calendar-color-manager.cjs # previews, exclusions, stale versions, selective Apply, and Undo
 node scripts/test-management-features.cjs # habit history and private document validation
 npm run build                       # production build
 ```
@@ -337,6 +342,7 @@ These integration checks require configured private storage and perform writes:
 | `node scripts/verify-external-backup.cjs` | Creates or verifies the owner's daily Blob copy, checks isolation, and confirms the source workspace is unchanged. Can load ignored `.env.backup.local`. |
 | `node scripts/verify-subscription-documents.cjs` | Uploads and independently reads a disposable private Blob document, then removes only that test upload. Existing user files are unchanged. |
 | `node scripts/verify-asset-records.cjs` | Saves warranty, repair, and receipt metadata under a disposable account; independently checks persistence, stale-write rejection, and unrelated-field preservation; removes only its test account and snapshots. |
+| `node scripts/verify-calendar-color-state.cjs` | Uses a disposable account to check independent color revisions, concurrent/stale-save rejection, and preservation of core/tracker data; cleans up only that account and its snapshots. |
 
 The migration utility `scripts/migrate-tracker-records.cjs` uses a pre-migration backup and compare-and-swap guard for private tracker imports. Keep private exports in ignored `.data/`; never commit them.
 

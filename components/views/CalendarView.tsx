@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   CalendarDays,
   Clock,
@@ -15,15 +15,13 @@ import {
   AlertTriangle,
   RotateCcw,
   Sparkles,
-  Palette,
-  Check,
-  X,
-  ArrowRight,
 } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
 import { Task } from "@/types/dashboard";
 import { FocusSlot } from "@/lib/focusSlots";
 import { FocusSlotFinder } from "@/components/FocusSlotFinder";
+import { CalendarColorLegend } from "@/components/CalendarColorLegend";
+import { CalendarColorManager } from "@/components/CalendarColorManager";
 import { connectGoogle } from "@/app/actions";
 import { getMeetingUrl, findScheduleConflicts, isBananaYellowColor } from "@/lib/meeting";
 
@@ -32,7 +30,6 @@ type CalendarViewProps = {
   onOpenAddEvent: () => void;
   onSelectEvent: (event: DashboardEvent) => void;
   isConnected: boolean;
-  accountEmail?: string | null;
   onColorized?: () => void;
   tasks: Task[];
   onScheduleTask: (task: Task, slot: FocusSlot) => void | Promise<void>;
@@ -45,7 +42,6 @@ export function CalendarView({
   onOpenAddEvent,
   onSelectEvent,
   isConnected,
-  accountEmail,
   onColorized,
   tasks,
   onScheduleTask,
@@ -54,43 +50,7 @@ export function CalendarView({
   const [weekOffset, setWeekOffset] = useState<number>(0);
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
   const [viewMode, setViewMode] = useState<"day" | "week">("day");
-  const [isColorizing, setIsColorizing] = useState(false);
-  const [colorizeMessage, setColorizeMessage] = useState<string | null>(null);
-  const [colorizeError, setColorizeError] = useState<string | null>(null);
-  const [showReauthPrompt, setShowReauthPrompt] = useState(false);
   const [showFocusFinder, setShowFocusFinder] = useState(false);
-
-  const refreshAfterColoring = useRef(onColorized);
-  useEffect(() => { refreshAfterColoring.current = onColorized; }, [onColorized]);
-  const coloringInFlight = useRef(false);
-  const attempted = useRef("");
-  const fingerprint = useMemo(() => JSON.stringify(events.filter(event => event.source !== "outlook" && event.source !== "custom").map(event => [event.calendarId, event.id, event.summary, event.start?.dateTime]).sort((a,b) => String(a).localeCompare(String(b)))), [events]);
-  const cacheKey = `routino_calendar_colors_v2:${accountEmail?.trim().toLowerCase() || "connected"}`;
-  const handleAutoColorize = useCallback(async () => {
-    if (coloringInFlight.current) return;
-    coloringInFlight.current = true;
-    attempted.current = `${cacheKey}:${fingerprint}`;
-    setIsColorizing(true); setColorizeMessage(null); setColorizeError(null); setShowReauthPrompt(false);
-    try {
-      const response = await fetch("/api/calendar/auto-colorize", { method: "POST" });
-      const data = await response.json();
-      if (data.updatedCount > 0) refreshAfterColoring.current?.();
-      if (data.needsReauth) setShowReauthPrompt(true);
-      if (response.ok && data.success && !data.needsReauth) {
-        try { sessionStorage.setItem(cacheKey, fingerprint); } catch { /* Coloring still succeeds without browser storage. */ }
-        setColorizeMessage(data.message);
-      } else setColorizeError(data.error || "Could not finish coloring calendar events. Please retry.");
-    } catch { setColorizeError("Failed to connect to the auto-colorize service. Please retry."); }
-    finally { coloringInFlight.current = false; setIsColorizing(false); }
-  }, [cacheKey, fingerprint]);
-
-  // Run again for new/renamed events; color-only refreshes do not trigger another pass.
-  useEffect(() => {
-    if (!isConnected || isColorizing || attempted.current === `${cacheKey}:${fingerprint}`) return;
-    try { if (sessionStorage.getItem(cacheKey) === fingerprint) return; } catch { /* Browser storage is optional. */ }
-    const timer = window.setTimeout(() => { void handleAutoColorize(); }, 300);
-    return () => window.clearTimeout(timer);
-  }, [isConnected, isColorizing, cacheKey, fingerprint, handleAutoColorize]);
 
   // Today base date (midnight)
   const todayDate = useMemo(() => {
@@ -380,7 +340,7 @@ export function CalendarView({
               : "Connect Google for real-time calendar events"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {!isConnected && (
             <form action={connectGoogle}>
               <button
@@ -410,18 +370,7 @@ export function CalendarView({
             <Clock size={14} className={showFocusFinder ? "text-forest" : "text-muted"} />
             <span>Find focus time</span>
           </button>
-          {isConnected && (
-            <button
-              type="button"
-              onClick={handleAutoColorize}
-              disabled={isColorizing}
-              className="flex items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 py-2.5 text-[12px] font-semibold text-ink shadow-2xs hover:bg-[#f1f3ed] transition disabled:opacity-50 cursor-pointer"
-              title="Automatically color meals sage, routine blueberry, movies and series flamingo, games red, typing graphite, and work yellow on Google Calendar"
-            >
-              <Sparkles size={14} className={isColorizing ? "animate-spin text-forest" : "text-amber-500"} />
-              <span>{isColorizing ? "Colorizing..." : "Auto-Colorize"}</span>
-            </button>
-          )}
+          <CalendarColorManager connected={isConnected} onChanged={onColorized} />
           <a
             href="https://calendar.google.com"
             target="_blank"
@@ -433,82 +382,7 @@ export function CalendarView({
         </div>
       </div>
 
-      {/* Auto-colorize status banner */}
-      {colorizeMessage && (
-        <div className="flex items-center justify-between rounded-2xl bg-forest/10 border border-forest/20 px-4 py-3 text-[12px] font-semibold text-forest shadow-2xs animate-in fade-in slide-in-from-top-1 duration-150">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-6 w-6 place-items-center rounded-lg bg-forest/20 text-forest shrink-0">
-              <Check size={13} className="stroke-[3]" />
-            </span>
-            <span>{colorizeMessage}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setColorizeMessage(null)}
-            className="text-forest/70 hover:text-forest p-1 cursor-pointer transition"
-            aria-label="Dismiss"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* Auto-colorize error banner */}
-      {colorizeError && (
-        <div className="flex items-center justify-between rounded-2xl bg-red-50 border border-red-200/80 px-4 py-3 text-[12px] font-medium text-red-900 shadow-2xs animate-in fade-in slide-in-from-top-1 duration-150">
-          <div className="flex items-center gap-2.5">
-            <span className="grid h-6 w-6 place-items-center rounded-lg bg-red-100 text-red-700 shrink-0">
-              <AlertTriangle size={13} />
-            </span>
-            <span>{colorizeError}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setColorizeError(null)}
-            className="text-red-700 hover:text-red-900 p-1 cursor-pointer transition"
-            aria-label="Dismiss"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
-      {/* Permission Re-auth Banner */}
-      {showReauthPrompt && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-amber-300/80 bg-gradient-to-r from-[#fffcf2] via-[#fffbeb] to-[#fffdf5] p-4 sm:p-5 text-amber-950 shadow-sm animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-100 text-amber-800 shrink-0 shadow-2xs ring-1 ring-amber-200">
-              <Sparkles size={18} />
-            </span>
-            <div className="min-w-0">
-              <h4 className="text-[13.5px] font-bold text-amber-950">
-                Google Calendar Edit Permission Required
-              </h4>
-              <p className="text-[11.5px] text-amber-900/90 mt-0.5 leading-relaxed">
-                Your account is currently connected with <strong>read-only</strong> access. To allow Routino to colorize events directly on Google Calendar, click below to authorize calendar edit permission.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0 sm:self-center">
-            <button
-              type="button"
-              onClick={() => setShowReauthPrompt(false)}
-              className="rounded-xl px-3.5 py-2 text-[11.5px] font-medium text-amber-900/80 hover:bg-amber-100/70 transition cursor-pointer"
-            >
-              Dismiss
-            </button>
-            <form action={connectGoogle}>
-              <button
-                type="submit"
-                className="flex items-center gap-1.5 rounded-xl bg-forest px-4 py-2 text-[12px] font-bold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer whitespace-nowrap"
-              >
-                <span>Grant Edit Permission</span>
-                <ArrowRight size={13} />
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <CalendarColorLegend connected={isConnected} />
 
       {/* 7-Day Navigation & Range Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl border border-line bg-white/70 p-3 sm:px-4 sm:py-2.5 shadow-2xs backdrop-blur-xs">

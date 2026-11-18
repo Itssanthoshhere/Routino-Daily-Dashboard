@@ -75,7 +75,7 @@ import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 import { playTick } from "@/lib/sound";
 import { appConfig } from "@/lib/config";
 import { DAILY_INTENTIONS, getTodayIntentionIndex } from "@/lib/quotes";
-import { getMeetingUrl, inferEventCategory, inferTaskCategory } from "@/lib/meeting";
+import { GOOGLE_EVENT_COLORS, getMeetingUrl, inferEventCategory, inferTaskCategory } from "@/lib/meeting";
 
 /* ─── Sample / seed data ────────────────────────────────────────── */
 
@@ -715,6 +715,12 @@ export default function Home() {
   }, [toast, gmailExhausted]);
 
   useEffect(() => {
+    const refreshColors = () => { void fetchDashboard(false); };
+    window.addEventListener("routino:calendar-colors-changed", refreshColors);
+    return () => window.removeEventListener("routino:calendar-colors-changed", refreshColors);
+  }, [fetchDashboard]);
+
+  useEffect(() => {
     fetchDashboard(false);
 
     const onFocusOrVisible = () => {
@@ -930,7 +936,7 @@ export default function Home() {
   const allEvents = useMemo(() => {
     const live = (liveData?.events ?? []).map((ev) => {
       const cat = inferEventCategory(ev);
-      return { ...ev, tag: ev.tag || cat.tag, color: ev.color || cat.color };
+      return { ...ev, tag: ev.tag || cat.tag, color: (ev.colorId && GOOGLE_EVENT_COLORS[ev.colorId]?.hex) || ev.color || cat.color };
     });
     const outlook = (outlookData?.events ?? []).map((ev) => ({
       ...ev,
@@ -2066,7 +2072,6 @@ export default function Home() {
           {/* ─── CONDITIONAL VIEWS BASED ON ACTIVE NAV ─── */}
           {activeNav === "Calendar" ? (
             <CalendarView
-              accountEmail={verifiedWorkspaceAccount}
               onColorized={() => { void fetchDashboard(false); }}
               events={allEvents}
               onOpenAddEvent={() => { setViewingEvent(null); setShowEventModal(true); }}
