@@ -1987,7 +1987,7 @@ export default function Home() {
             <div className="text-[12px] text-muted">Workspace <span className="mx-2 text-[#c4cbc3]">/</span><span className="font-semibold text-ink">{activeNav}</span></div>
           </div>
           <div className="flex items-center gap-2">
-            <SyncCenter email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
+            <SyncCenter trackerStatus={trackerWorkspace.status} trackerSavedAt={trackerWorkspace.savedAt} coreError={workspaceSaveError} syncing={isSyncing} email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
             <Link
               href="/"
               className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#526056] hover:bg-[#f1f3ed] hover:text-ink transition"
