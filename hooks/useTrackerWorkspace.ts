@@ -2,7 +2,7 @@
 
 import { recordDeviceSave } from "@/lib/deviceSync";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { undoRecords, undoMembership } from "@/lib/undoRecords";
+import { undoKeyedRecords, undoRecords, undoMembership } from "@/lib/undoRecords";
 import { emptyAirtelData, type AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 import { isAirtelData } from "@/lib/airtelValidation";
@@ -168,6 +168,8 @@ export function useTrackerWorkspace(email?: string | null) {
       if (!records || !deletedIds) return false;
       patch.airtel = { ...current.airtel, records, deletedIds };
     }
+    if(before.assetRecords&&after.assetRecords){const restored=undoKeyedRecords(current.assetRecords||{},before.assetRecords,after.assetRecords);if(!restored)return false;patch.assetRecords=restored;}
+    if(before.assetDocuments&&after.assetDocuments){const restored=undoKeyedRecords(current.assetDocuments||{},before.assetDocuments,after.assetDocuments);if(!restored)return false;patch.assetDocuments=restored;}
     return update(patch);
   }, [update]);
 

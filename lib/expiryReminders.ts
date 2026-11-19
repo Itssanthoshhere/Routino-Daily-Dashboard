@@ -9,6 +9,7 @@ export function expiryReminders(subscriptions: Subscription[], airtel: AirtelDat
   };
   if (airtel.plan) add({ id: `airtel:${airtel.plan.id}`, name: "Airtel recharge", date: airtel.plan.endDate, tab: "airtel", detail: "Review your recharge and its included services." });
   for (const subscription of subscriptions) {
+    for (const entry of subscription.expiryRecords || []) add({id:`document:${subscription.id}:${entry.id}`,name:`${entry.name} · ${entry.kind}`,date:entry.expiryDate,tab:"subscriptions",detail:`${subscription.name} · ${entry.provider || "Review expiry with the provider."}`});
     if (subscription.status !== "active" || ["one-time", "unknown"].includes(subscription.cycle)) continue;
     if (subscription.cycle === "bundled" && airtel.plan && subscription.bundleRechargeId === airtel.plan.id) continue;
     const date = subscription.cycle === "bundled" ? subscription.bundleEndDate : subscription.renewalDate;

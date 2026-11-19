@@ -2,7 +2,7 @@
 import { habitPaused, pauseAwareStreak } from "@/lib/habitTargets";
 import type { HabitPlanning } from "@/components/HabitPlanning";
 import { WorkspacePreferencesProvider, OverviewLayout } from "@/components/WorkspacePreferences";
-import { launchShortcut, validWorkspacePreference, type WorkspacePreference } from "@/lib/workspacePreferences";
+import { workspaceScrollBehavior, launchShortcut, validWorkspacePreference, type WorkspacePreference } from "@/lib/workspacePreferences";
 import { DeviceSyncReporter } from "@/components/DeviceSyncActivity";
 import { recordDeviceSave } from "@/lib/deviceSync";
 import { NoteConnectionsProvider } from "@/components/NoteConnections";
@@ -16,7 +16,7 @@ import type { FocusRecord } from "@/lib/focusWorkspace";
 import { scopedStorage, migrateAccountCache } from "@/lib/accountStorage";
 import { bulkUpdateTasks, type TaskBulkAction } from "@/lib/taskOrganization";
 import { taskDueDay } from "@/lib/taskDates";
-import { coreCollections, collectionDiff, mergeCollection, type CollectionChanges } from "@/lib/collectionChanges";
+import { coreCollections, collectionDiff, mergeCollection, type CollectionChanges, type CollectionName } from "@/lib/collectionChanges";
 import type { TaskTemplate } from "@/lib/taskTemplates";
 import { workspaceValidationError } from "@/lib/workspaceValidation";
 import { WorkspaceConflict } from "@/components/WorkspaceConflict";
@@ -25,6 +25,7 @@ import { AccountStorageContext } from "@/components/AccountStorage";
 import { RecycleBin } from "@/components/RecycleBin";
 import { inboxCountLabel } from "@/lib/inboxCount";
 import { useBackupWarnings } from "@/hooks/useBackupWarnings";
+import {UndoHistory,type UndoEntry} from "@/components/UndoHistory";
 import { undoRecords } from "@/lib/undoRecords";
 import { airtelRecharges } from "@/lib/airtelRecharges";
 import { withTaskActivity } from "@/lib/taskActivity";
@@ -35,6 +36,8 @@ import { mergeTaskRecords } from "@/lib/taskMerge";
 import { queueWorkspacePatch } from "@/lib/workspacePatch";
 import { completeRepeatingTask, editTaskOccurrences, skipTaskOccurrence, setSeriesPaused } from "@/lib/taskRecurrence";
 import { isSubscriptionList } from "@/lib/subscriptionValidation";
+import {RemindersInbox} from "@/components/RemindersInbox";
+import {unifiedReminders} from "@/lib/unifiedReminders";
 import { ExpiryReminders } from "@/components/ExpiryReminders";
 import { useTrackerWorkspace } from "@/hooks/useTrackerWorkspace";
 import { isAirtelData } from "@/lib/airtelValidation";
@@ -418,6 +421,8 @@ export default function Home() {
       overall: "checked" | "failed" | "partial";
     };
   }>({ connected: false, events: [], unread: [] });
+  const [undoHistory,setUndoHistory]=useState<UndoEntry[]>([]);
+  useEffect(()=>{setUndoHistory([]);},[verifiedWorkspaceAccount]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [focusMinutes, setFocusMinutes] = useState(appConfig.defaults.focusMinutes);
   const [hydrated, setHydrated] = useState(false);
@@ -729,6 +734,11 @@ export default function Home() {
   /* ── Toast helper ── */
   const toast = useCallback((message: string, type: "success" | "info" = "success", action?: ToastMessage["action"]) => {
     const id = `toast-${Date.now()}-${++globalToastSeq}-${Math.random().toString(36).slice(2, 7)}`;
+    if(action?.label==="Undo"){
+      const account=currentAccount.current;const original=action;let used=false;const createdAt=Date.now();
+      const run=()=>{if(used||currentAccount.current!==account||Date.now()-createdAt>=30*60000)return;used=true;setUndoHistory(rows=>rows.filter(row=>row.id!==id));original.onClick();};
+      action={...action,onClick:run};setUndoHistory(rows=>[{id,message,createdAt,account,run},...rows.filter(row=>Date.now()-row.createdAt<30*60000)].slice(0,20));
+    }
     setToasts(prev => {
       const isDuplicate = prev.some(t => t.message === message && t.type === type);
       if (isDuplicate && !action) return prev;
@@ -940,7 +950,7 @@ export default function Home() {
     const isGoogle = Boolean(liveData?.connected);
     const isOutlook = Boolean(outlookData?.connected);
 
-    const realNotifications: NotificationItem[] = [...workspaceNotifications(tasks, subscriptions, trackerWorkspace.airtel, notificationDay), ...backupAlerts.map(item => ({ id: item.id, title: item.title, time: item.detail, type: "system" as const, read: false, openPreferences: true }))];
+    const realNotifications: NotificationItem[] = [...workspaceNotifications(tasks, subscriptions, trackerWorkspace.airtel, notificationDay, trackerWorkspace.assetRecords), ...backupAlerts.map(item => ({ id: item.id, title: item.title, time: item.detail, type: "system" as const, read: false, openPreferences: true }))];
 
     if (isGoogle && googleMail.length > 0) {
       realNotifications.push({
@@ -989,7 +999,7 @@ export default function Home() {
     }
 
     setNotifications(realNotifications.filter(item => !dismissedNotifications.includes(item.id)));
-  }, [liveData, googleMail, outlookData, tasks, subscriptions, trackerWorkspace.airtel, notificationDay, dismissedNotifications, backupAlertKey]);
+  }, [liveData, googleMail, outlookData, tasks, subscriptions, trackerWorkspace.airtel, trackerWorkspace.assetRecords, notificationDay, dismissedNotifications, backupAlertKey]);
 
   useEffect(() => {
     if (liveData?.connected || outlookData?.connected) setNotice(false);
@@ -1204,7 +1214,7 @@ export default function Home() {
       replaceAllHabits?: boolean;
       notes?: KeepNote[];
       activeNav?: string;
-    }, baselineTasks?: Task[]) => {
+    }, baselineTasks?: Task[], baselineCollections?: Partial<Record<CollectionName,{id:string}[]>>) => {
       const offline = typeof window !== "undefined" && !navigator.onLine;
       let offlineAccount: string | null = null;
       try { if (offline) offlineAccount = localStorage.getItem("routino_verified_workspace_account"); } catch {}
@@ -1215,7 +1225,7 @@ export default function Home() {
       const accountKey = `routino_workspace_pending:${account}`;
       const collectionChanges: CollectionChanges = {};
       for (const field of coreCollections) {
-        if (Array.isArray(overrideData?.[field])) collectionChanges[field] = collectionDiff((coreSnapshot.current[field] || []) as {id:string}[], overrideData[field]!);
+        if (Array.isArray(overrideData?.[field])) collectionChanges[field] = collectionDiff(baselineCollections?.[field] || (coreSnapshot.current[field] || []) as {id:string}[], overrideData[field]!);
       }
       const incoming = { ...overrideData, ...(Object.keys(collectionChanges).length ? { collectionChanges } : {}), ...(overrideData?.tasks ? {
         replaceTaskIds: overrideData.tasks.filter(task => JSON.stringify(task) !== JSON.stringify((baselineTasks || tasks).find(existing => existing.id === task.id))).map(task => task.id),
@@ -1384,6 +1394,11 @@ export default function Home() {
     } });
   };
 
+  const offerCoreUndo = <T extends {id:string},>(message:string,before:T[],after:T[],collection:"notes"|"habits"|"quickLinks",setter:React.Dispatch<React.SetStateAction<T[]>>,cacheKey:string) => {
+    if(JSON.stringify(before)===JSON.stringify(after))return;const account=currentAccount.current;
+    toast(message,"info",{label:"Undo",onClick:()=>{if(currentAccount.current!==account)return;setter(current=>{const restored=undoRecords(current,before,after);if(!restored){toast("Record changed since that action; Undo skipped to preserve newer edits.","info");return current;}try{browserStore.setItem(cacheKey,JSON.stringify(restored));}catch{toast("Browser storage unavailable. Undo was not applied.","info");return current;}void syncToDatabase({[collection]:restored} as Parameters<typeof syncToDatabase>[0],undefined,{[collection]:current});return restored;});}});
+  };
+
   const toggleTask = (id: string) => {
     setTasks(prev => {
       const task = prev.find(item => item.id === id);
@@ -1407,6 +1422,7 @@ export default function Home() {
       const next = withTaskActivity(previous, editTaskOccurrences(previous, editingTaskId, updates, scope));
       try { browserStore.setItem("routino_tasks", JSON.stringify(next)); } catch {}
       void syncToDatabase({ tasks: next });
+      offerTaskUndo("Task changes saved",previous,next);
       return next;
     });
     toast("Task changes saved");
@@ -1484,6 +1500,7 @@ export default function Home() {
       });
       try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, replaceHabitIds: [id] });
+      offerCoreUndo("Habit changed",prev,next,"habits",setHabits,"routino_habits");
       return next;
     });
   };
@@ -1501,6 +1518,7 @@ export default function Home() {
       const next = [...prev, newHabit];
       try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, replaceHabitIds: [newHabit.id] });
+      offerCoreUndo("Habit changed",prev,next,"habits",setHabits,"routino_habits");
       return next;
     });
     toast(`Habit "${name}" created!`);
@@ -1511,6 +1529,7 @@ export default function Home() {
       const next = prev.map(h => (h.id === id ? { ...h, ...updates } : h));
       try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, replaceHabitIds: [id] });
+      offerCoreUndo("Habit changed",prev,next,"habits",setHabits,"routino_habits");
       return next;
     });
     toast("Habit updated!");
@@ -1521,6 +1540,7 @@ export default function Home() {
       const next = prev.filter(h => h.id !== id);
       try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, deletedHabitIds: [id] });
+      offerCoreUndo("Habit changed",prev,next,"habits",setHabits,"routino_habits");
       return next;
     });
     toast("Habit deleted", "info");
@@ -1735,12 +1755,14 @@ export default function Home() {
       const next = [...prev, link];
       try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
       syncToDatabase({ quickLinks: next });
+      offerCoreUndo("Quick link changed",prev,next,"quickLinks",setQuickLinks,"routino_links");
       return next;
     });
     toast(`"${link.title}" added to quick links`);
   };
 
   const updateQuickLinks = (next: QuickLink[]) => {
+    offerCoreUndo("Quick links updated",quickLinks,next,"quickLinks",setQuickLinks,"routino_links");
     setQuickLinks(next);
     try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
     void syncToDatabase({ quickLinks: next });
@@ -1889,6 +1911,7 @@ export default function Home() {
       const next = [newNote, ...prev];
       try { browserStore.setItem("routino_notes", JSON.stringify(next)); } catch {}
       syncToDatabase({ notes: next });
+      offerCoreUndo("Note changed",prev,next,"notes",setNotes,"routino_notes");
       return next;
     });
     toast("Note saved!");
@@ -1899,6 +1922,7 @@ export default function Home() {
       const next = prev.map(n => n.id === id ? { ...n, ...updates, updatedAt: Date.now() } : n);
       try { browserStore.setItem("routino_notes", JSON.stringify(next)); } catch {}
       syncToDatabase({ notes: next });
+      offerCoreUndo("Note changed",prev,next,"notes",setNotes,"routino_notes");
       return next;
     });
   };
@@ -1908,6 +1932,7 @@ export default function Home() {
       const next = prev.filter(n => n.id !== id);
       try { browserStore.setItem("routino_notes", JSON.stringify(next)); } catch {}
       syncToDatabase({ notes: next });
+      offerCoreUndo("Note changed",prev,next,"notes",setNotes,"routino_notes");
       return next;
     });
     toast("Note removed", "info");
@@ -2128,13 +2153,15 @@ export default function Home() {
       {/* ─── Main ─── */}
       <main id="overview" className="min-h-screen lg:ml-[236px]">
         {/* Header */}
-        <header className="sticky top-0 z-40 flex h-[68px] items-center justify-between border-b border-line bg-[#f7f7f2]/95 px-5 backdrop-blur-md sm:px-8 xl:px-10">
+        <header className="sticky top-0 z-40 flex min-h-[68px] flex-wrap items-center justify-between gap-3 py-3 border-b border-line bg-[#f7f7f2]/95 px-5 backdrop-blur-md sm:px-8 xl:px-10">
           <div className="flex items-center gap-3">
             <button onClick={() => setShowMobileSidebar(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white lg:hidden" aria-label="Open menu"><Menu size={17} /></button>
             <img src="/favicon.svg" alt="Routino" className="hidden h-8 w-8 rounded-[11px] sm:block lg:hidden" />
             <div className="text-[12px] text-muted">Workspace <span className="mx-2 text-[#c4cbc3]">/</span><span className="font-semibold text-ink">{activeNav}</span></div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <UndoHistory entries={undoHistory} account={verifiedWorkspaceAccount}/>
+            <RemindersInbox today={notificationDay} items={unifiedReminders(tasks,subscriptions,trackerWorkspace.airtel,trackerWorkspace.assetRecords||{},notificationDay)} onOpen={item=>{if(item.target==='tasks'){setActiveNav('Tasks');if(item.taskId)setTimeout(()=>document.getElementById(`task-row-${item.taskId}`)?.scrollIntoView({block:'center',behavior:workspaceScrollBehavior()}),150);}else handleOpenTrackersTab(item.target);}}/>
             <SyncCenter trackerStatus={trackerWorkspace.status} trackerSavedAt={trackerWorkspace.savedAt} coreError={workspaceSaveError} syncing={isSyncing} email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
             <Link
               href="/"
@@ -2231,10 +2258,10 @@ export default function Home() {
           ) : activeNav === "Trackers" ? (
             <TrackersView
               assetRecords={trackerWorkspace.assetRecords}
-              onAssetRecordsChange={assetRecords => { trackerWorkspace.update({ assetRecords }); }}
+              onAssetRecordsChange={assetRecords => {const before=trackerWorkspace.assetRecords||{};const account=currentAccount.current;if(trackerWorkspace.update({assetRecords}))toast("Asset updated","info",{label:"Undo",onClick:()=>{if(currentAccount.current===account&&!trackerWorkspace.undo({assetRecords:before},{assetRecords}))toast("Asset changed; Undo skipped.","info");}});}}
               onAssetWarrantyReminder={(key, name, date) => { const source = `Warranty: ${key} · ${date}`; if (tasks.some(task => task.meta === source)) { toast("Warranty reminder already exists"); return; } addTask({ title: `Review warranty: ${name}`, meta: source, dueDate: date, category: "personal", priority: true }); }}
               assetDocuments={trackerWorkspace.assetDocuments}
-              onAssetDocumentsChange={assetDocuments => { trackerWorkspace.update({ assetDocuments }); }}
+              onAssetDocumentsChange={assetDocuments => {const before=trackerWorkspace.assetDocuments||{};const account=currentAccount.current;if(trackerWorkspace.update({assetDocuments}))toast("Asset documents updated","info",{label:"Undo",onClick:()=>{if(currentAccount.current===account&&!trackerWorkspace.undo({assetDocuments:before},{assetDocuments}))toast("Documents changed; Undo skipped.","info");}});}}
               onRenewalTask={(subscription, date) => addTask({ title: `Review renewal: ${subscription.name}`, meta: `Review billing before ${date}`, dueDate: date, category: "personal", priority: true })}
               onJournalSubscriptions={trackerWorkspace.importSubscriptions}
               subscriptions={subscriptions}
@@ -2249,7 +2276,7 @@ export default function Home() {
               onSubscriptionsChange={(next) => {
                 const before = subscriptions;
                 const account = currentAccount.current;
-                const undoable = before.some(item => !next.some(row => row.id === item.id) || (item.status !== "completed" && next.some(row => row.id === item.id && row.status === "completed")));
+                const undoable = JSON.stringify(before)!==JSON.stringify(next);
                 if (trackerWorkspace.update({ subscriptions: next }) && undoable) toast("Subscription updated", "info", { label: "Undo", onClick: () => { if (currentAccount.current !== account) { toast("Undo belongs to a different account. No changes made.", "info"); return; } if (!trackerWorkspace.undo({ subscriptions: before }, { subscriptions: next })) toast("Undo unavailable: records changed or sync needs review.", "info"); } });
               }}
               trackerSyncStatus={trackerWorkspace.status}
@@ -2473,12 +2500,12 @@ export default function Home() {
                       &ldquo;{currentIntention.quote}&rdquo;
                     </p>
                   </div>
-                  <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-[10px] text-white/60">
-                    <span className="font-medium text-white/80">— {currentIntention.author}</span>
-                    <span className="text-accent font-semibold">{currentIntention.focusHint}</span>
+                  <div className="mt-5 flex flex-wrap items-start justify-between gap-x-3 gap-y-2 border-t border-white/10 pt-3 text-[10px] text-white/60">
+                    <span className="shrink-0 font-medium text-white/80">— {currentIntention.author}</span>
+                    <span className="min-w-0 flex-1 basis-32 font-semibold text-accent">{currentIntention.focusHint}</span>
                   </div>
                 </div>)},
-{id:"meeting-count",content:(<button onClick={() => handleSelectNav("Calendar")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-forest/20 transition-all group">
+{id:"meeting-count",content:(<button onClick={() => handleSelectNav("Calendar")} className="flex h-full w-full min-w-0 flex-col rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-forest/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">On your calendar</span><CalendarDays size={16} className="text-[#809184] group-hover:text-forest transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{isConnected ? todayEvents.length : displaySchedule.length}</span><span className="text-[11px] text-muted">events today</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]">
@@ -2488,12 +2515,12 @@ export default function Home() {
                       : <>Connect Google to see your schedule</>}
                   </div>
                 </button>)},
-{id:"mail-count",content:(<button onClick={() => handleSelectNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
+{id:"mail-count",content:(<button onClick={() => handleSelectNav("Inbox")} className="flex h-full w-full min-w-0 flex-col rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">Needs a response</span><Inbox size={16} className="text-[#bd8054] group-hover:text-[#a0622e] transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{unreadPreviewCount}</span><span className="text-[11px] text-muted">{is48hEstimateAvailable ? "unread est. (48h)" : "unread est."}</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? (is48hEstimateAvailable ? "Estimated messages in last 48h (Gmail query)" : "Estimated total unread messages") : "Connect Google to load your inbox"}</div>
                 </button>)},
-{id:"focus-count",content:(<button onClick={() => setShowFocusTimer(true)} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#819a65]/20 transition-all group">
+{id:"focus-count",content:(<button onClick={() => setShowFocusTimer(true)} className="flex h-full w-full min-w-0 flex-col rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#819a65]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">A good pace</span><Timer size={16} className="text-[#819a65] group-hover:text-forest transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{focusMinutes}</span><span className="text-[11px] text-muted">min focus planned</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#87ac6c] animate-pulse" />Click to start a focus session</div>
@@ -3194,14 +3221,10 @@ export default function Home() {
                 </section>)},
 {id:"reading",content:(<ReadLaterPanel links={quickLinks} onAdd={() => {setAddingReadingLink(true);setShowQuickLinkModal(true);}} onDelete={id => {
                   const next = quickLinks.filter(item => item.id !== id);
-                  setQuickLinks(next);
-                  try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
-                  syncToDatabase({ quickLinks: next });
+                  updateQuickLinks(next);
                 }} onUpdate={link => {
                   const next = quickLinks.map(item => item.id === link.id ? link : item);
-                  setQuickLinks(next);
-                  try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
-                  syncToDatabase({ quickLinks: next });
+                  updateQuickLinks(next);
                 }} />)},
 {id:"follow-ups",content:(<MeetingFollowUps notes={notes} tasks={tasks} onOpenNote={note => { setSearchNote({ id: note.id }); setActiveNav("Notes"); }} onOpenTask={task => { setHighlightedTaskId(task.id); setActiveNav("Tasks"); }} onCreateTask={(note, text, id) => {
                   if (hasMeetingAction(tasks, note.id, id)) return;
@@ -3467,7 +3490,7 @@ export default function Home() {
         onOpenTask={handleOpenExistingTask}
         onOpenNote={id => { setSearchNote({ id }); handleSelectNav("Notes"); }}
       />
-      <BrowserReminders email={workspaceSyncReady && trackerWorkspace.ready ? liveData?.user?.email : null} tasks={tasks} subscriptions={subscriptions} airtel={trackerWorkspace.airtel} onOpenNotification={handleNotificationClick} />
+      <BrowserReminders assets={trackerWorkspace.assetRecords} email={workspaceSyncReady && trackerWorkspace.ready ? liveData?.user?.email : null} tasks={tasks} subscriptions={subscriptions} airtel={trackerWorkspace.airtel} onOpenNotification={handleNotificationClick} />
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <GoogleSetupModal isOpen={showGoogleSetup} onClose={() => setShowGoogleSetup(false)} />
       <PreferencesModal

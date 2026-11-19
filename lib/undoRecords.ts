@@ -19,3 +19,9 @@ export function undoMembership(current: string[], before: string[], after: strin
   for (const id of touched) { if (beforeSet.has(id)) currentSet.add(id); else currentSet.delete(id); }
   return Array.from(currentSet);
 }
+/** Keyed tracker sections use the same newer-edit guard as ID-based core records. */
+export function undoKeyedRecords<T>(current:Record<string,T>,before:Record<string,T>,after:Record<string,T>):Record<string,T>|null{
+ const touched=Array.from(new Set([...Object.keys(before),...Object.keys(after)])).filter(key=>!equal(before[key],after[key]));
+ if(touched.some(key=>!equal(current[key],after[key])))return null;
+ const result={...current};for(const key of touched){if(Object.hasOwn(before,key))result[key]=before[key];else delete result[key];}return result;
+}

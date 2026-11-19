@@ -11,7 +11,8 @@ export async function GET(request: Request) {
   try {
     const created = await backupAllWorkspaces();
     const external = await backupExternalWorkspaces();
-    return Response.json({ success: external.failed === 0, created, external }, { status: external.failed ? 503 : 200 });
+    const failed=external.failed+(external.attachmentFailures||0);
+    return Response.json({ success: failed === 0, created, external }, { status: failed ? 503 : 200 });
   }
   catch { console.error("Scheduled workspace backup failed."); return Response.json({ error: "Backup failed." }, { status: 503 }); }
 }

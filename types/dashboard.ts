@@ -159,7 +159,7 @@ export type NotificationItem = {
   read: boolean;
   actionText?: string;
   openPreferences?: boolean;
-  trackerTab?: "airtel" | "subscriptions";
+  trackerTab?: "airtel" | "subscriptions" | "purchases";
   taskId?: string;
   navTarget?: "Overview" | "Calendar" | "Inbox" | "Tasks" | "Notes" | "Time Audit" | "Trackers";
 };

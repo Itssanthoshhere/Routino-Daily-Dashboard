@@ -231,3 +231,7 @@ html[data-routino-motion="reduced"] *, html[data-routino-motion="reduced"] *::be
 .overview-widget-grid > [data-overview-widget]:empty { display: none; }
 .overview-widget-grid > [data-overview-widget] > :first-child { height: 100%; }
 @media print { html[data-routino-text] { zoom: 1; } }
+
+/* Reminder rows use one foreground on the brand background, including nested metadata. */
+.reminder-row:enabled:is(:hover, :focus-visible) { background-color: var(--brand-red); color: #fff; }
+.reminder-row:enabled:is(:hover, :focus-visible) :is(strong, p, span, svg) { color: #fff !important; }

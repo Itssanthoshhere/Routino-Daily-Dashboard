@@ -1,3 +1,4 @@
+import {readAttachmentBackup} from "@/lib/attachmentBackups";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { put, get } from "@vercel/blob";
@@ -25,10 +26,17 @@ export async function GET(request: Request) {
   const path = new URL(request.url).searchParams.get("path") || "";
   if (!ownsDocument(email, path)) return json({ error: "Document not found." }, 404);
   try {
-    const result = await get(path, { access: "private" });
-    if (!result || result.statusCode !== 200) return json({ error: "Document not found." }, 404);
-    const preview = new URL(request.url).searchParams.get("preview") === "1" && ["application/pdf", "image/png", "image/jpeg"].includes(result.blob.contentType);
+    const original = await get(path, { access: "private" });
+    let stream: ReadableStream<Uint8Array>;
+    let contentType: string;
+    if (original?.statusCode===200) {stream=original.stream;contentType=original.blob.contentType;}
+    else {
+      const backup=await readAttachmentBackup(email,path);
+      if(!backup)return json({error:"Document not found. No verified attachment backup is available."},404);
+      stream=new Blob([new Uint8Array(backup.bytes)]).stream();contentType=backup.contentType;
+    }
+    const preview = new URL(request.url).searchParams.get("preview") === "1" && ["application/pdf", "image/png", "image/jpeg"].includes(contentType);
     const name = (new URL(request.url).searchParams.get("name") || "document").replace(/[\r\n]/g, "").slice(0, 180);
-    return new Response(result.stream, { headers: { "X-Frame-Options": preview ? "SAMEORIGIN" : "DENY", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'", "Content-Type": preview ? result.blob.contentType : "application/octet-stream", "Content-Disposition": `${preview ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(name)}`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+    return new Response(stream, { headers: { "X-Frame-Options": preview ? "SAMEORIGIN" : "DENY", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'self'", "Content-Type": preview ? contentType : "application/octet-stream", "Content-Disposition": `${preview ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(name)}`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
   } catch { return json({ error: "Document download unavailable." }, 503); }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getUserWorkspace } from "@/lib/db";
 import { createExternalBackup, externalBackupConfigured, listExternalBackups, readExternalBackup } from "@/lib/externalBackups";
+export const maxDuration = 90;
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
 export async function GET(request: NextRequest) {
   const email = (await auth())?.user?.email;
