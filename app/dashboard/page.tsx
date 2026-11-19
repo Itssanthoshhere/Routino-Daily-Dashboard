@@ -37,7 +37,8 @@ import { queueWorkspacePatch } from "@/lib/workspacePatch";
 import { completeRepeatingTask, editTaskOccurrences, skipTaskOccurrence, setSeriesPaused } from "@/lib/taskRecurrence";
 import { isSubscriptionList } from "@/lib/subscriptionValidation";
 import {RemindersInbox} from "@/components/RemindersInbox";
-import {unifiedReminders} from "@/lib/unifiedReminders";
+import {reminderSnoozes} from "@/lib/reminderSnooze";
+import {unifiedReminders,type UnifiedReminder} from "@/lib/unifiedReminders";
 import { ExpiryReminders } from "@/components/ExpiryReminders";
 import { useTrackerWorkspace } from "@/hooks/useTrackerWorkspace";
 import { isAirtelData } from "@/lib/airtelValidation";
@@ -374,6 +375,10 @@ let globalToastSeq = 0;
 
 export default function Home() {
   /* ── Core state ── */
+  const [reminderTarget,setReminderTarget]=useState<UnifiedReminder|null>(null);
+  const consumeReminder=useCallback(()=>setReminderTarget(null),[]);
+  const [reminderClock,setReminderClock]=useState(Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setReminderClock(Date.now()),30000);return()=>clearInterval(timer);},[]);
   const [workspacePreferences,setWorkspacePreferences]=useState<WorkspacePreference[]>([]);
   const shortcutHandled=useRef(false);
   const [subscriptionBudgets, setSubscriptionBudgets] = useState<SubscriptionBudget[]>([]);
@@ -422,7 +427,7 @@ export default function Home() {
     };
   }>({ connected: false, events: [], unread: [] });
   const [undoHistory,setUndoHistory]=useState<UndoEntry[]>([]);
-  useEffect(()=>{setUndoHistory([]);},[verifiedWorkspaceAccount]);
+  useEffect(()=>{setUndoHistory([]);setReminderTarget(null);},[verifiedWorkspaceAccount]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [focusMinutes, setFocusMinutes] = useState(appConfig.defaults.focusMinutes);
   const [hydrated, setHydrated] = useState(false);
@@ -950,7 +955,7 @@ export default function Home() {
     const isGoogle = Boolean(liveData?.connected);
     const isOutlook = Boolean(outlookData?.connected);
 
-    const realNotifications: NotificationItem[] = [...workspaceNotifications(tasks, subscriptions, trackerWorkspace.airtel, notificationDay, trackerWorkspace.assetRecords), ...backupAlerts.map(item => ({ id: item.id, title: item.title, time: item.detail, type: "system" as const, read: false, openPreferences: true }))];
+    const realNotifications: NotificationItem[] = [...workspaceNotifications(tasks, subscriptions, trackerWorkspace.airtel, notificationDay, trackerWorkspace.assetRecords,reminderSnoozes(workspacePreferences),reminderClock), ...backupAlerts.map(item => ({ id: item.id, title: item.title, time: item.detail, type: "system" as const, read: false, openPreferences: true }))];
 
     if (isGoogle && googleMail.length > 0) {
       realNotifications.push({
@@ -999,7 +1004,7 @@ export default function Home() {
     }
 
     setNotifications(realNotifications.filter(item => !dismissedNotifications.includes(item.id)));
-  }, [liveData, googleMail, outlookData, tasks, subscriptions, trackerWorkspace.airtel, trackerWorkspace.assetRecords, notificationDay, dismissedNotifications, backupAlertKey]);
+  }, [liveData, googleMail, outlookData, tasks, subscriptions, trackerWorkspace.airtel, trackerWorkspace.assetRecords, notificationDay, dismissedNotifications, backupAlertKey, workspacePreferences, reminderClock]);
 
   useEffect(() => {
     if (liveData?.connected || outlookData?.connected) setNotice(false);
@@ -2161,7 +2166,7 @@ export default function Home() {
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <UndoHistory entries={undoHistory} account={verifiedWorkspaceAccount}/>
-            <RemindersInbox today={notificationDay} items={unifiedReminders(tasks,subscriptions,trackerWorkspace.airtel,trackerWorkspace.assetRecords||{},notificationDay)} onOpen={item=>{if(item.target==='tasks'){setActiveNav('Tasks');if(item.taskId)setTimeout(()=>document.getElementById(`task-row-${item.taskId}`)?.scrollIntoView({block:'center',behavior:workspaceScrollBehavior()}),150);}else handleOpenTrackersTab(item.target);}}/>
+            <RemindersInbox today={notificationDay} items={unifiedReminders(tasks,subscriptions,trackerWorkspace.airtel,trackerWorkspace.assetRecords||{},notificationDay)} onOpen={item=>{if(item.target==='tasks'){const task=tasks.find(t=>t.id===item.taskId);if(task){setReminderTarget(null);handleSelectNav('Tasks');editTask(task);}else toast('This task is no longer available.','info');}else{setReminderTarget({...item});handleOpenTrackersTab(item.target);}}}/>
             <SyncCenter trackerStatus={trackerWorkspace.status} trackerSavedAt={trackerWorkspace.savedAt} coreError={workspaceSaveError} syncing={isSyncing} email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
             <Link
               href="/"
@@ -2257,6 +2262,7 @@ export default function Home() {
             />
           ) : activeNav === "Trackers" ? (
             <TrackersView
+              reminderTarget={reminderTarget} onReminderHandled={consumeReminder}
               assetRecords={trackerWorkspace.assetRecords}
               onAssetRecordsChange={assetRecords => {const before=trackerWorkspace.assetRecords||{};const account=currentAccount.current;if(trackerWorkspace.update({assetRecords}))toast("Asset updated","info",{label:"Undo",onClick:()=>{if(currentAccount.current===account&&!trackerWorkspace.undo({assetRecords:before},{assetRecords}))toast("Asset changed; Undo skipped.","info");}});}}
               onAssetWarrantyReminder={(key, name, date) => { const source = `Warranty: ${key} · ${date}`; if (tasks.some(task => task.meta === source)) { toast("Warranty reminder already exists"); return; } addTask({ title: `Review warranty: ${name}`, meta: source, dueDate: date, category: "personal", priority: true }); }}
@@ -3490,7 +3496,7 @@ export default function Home() {
         onOpenTask={handleOpenExistingTask}
         onOpenNote={id => { setSearchNote({ id }); handleSelectNav("Notes"); }}
       />
-      <BrowserReminders assets={trackerWorkspace.assetRecords} email={workspaceSyncReady && trackerWorkspace.ready ? liveData?.user?.email : null} tasks={tasks} subscriptions={subscriptions} airtel={trackerWorkspace.airtel} onOpenNotification={handleNotificationClick} />
+      <BrowserReminders snoozes={reminderSnoozes(workspacePreferences)} assets={trackerWorkspace.assetRecords} email={workspaceSyncReady && trackerWorkspace.ready ? liveData?.user?.email : null} tasks={tasks} subscriptions={subscriptions} airtel={trackerWorkspace.airtel} onOpenNotification={handleNotificationClick} />
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <GoogleSetupModal isOpen={showGoogleSetup} onClose={() => setShowGoogleSetup(false)} />
       <PreferencesModal

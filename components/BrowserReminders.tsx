@@ -1,4 +1,5 @@
 "use client";
+import type {ReminderSnooze} from "@/lib/reminderSnooze";
 import type {AssetRecords} from "@/types/assets";
 
 import { useEffect, useRef, useState } from "react";
@@ -46,10 +47,10 @@ export function BrowserReminderSettings({ email }: { email?: string | null }) {
   </section>;
 }
 
-export function BrowserReminders({ email, tasks, subscriptions, airtel, assets, onOpenNotification }: { assets?: AssetRecords; email?: string | null; tasks: Task[]; subscriptions: Subscription[]; airtel: AirtelData; onOpenNotification: (item: NotificationItem) => void }) {
+export function BrowserReminders({ email, tasks, subscriptions, airtel, assets, snoozes, onOpenNotification }: { snoozes?:ReminderSnooze[]; assets?: AssetRecords; email?: string | null; tasks: Task[]; subscriptions: Subscription[]; airtel: AirtelData; onOpenNotification: (item: NotificationItem) => void }) {
   const sent = useRef(new Set<string>());
-  const latest = useRef({ tasks, subscriptions, airtel, assets, onOpenNotification });
-  useEffect(() => { latest.current = { tasks, subscriptions, airtel, assets, onOpenNotification }; }, [tasks, subscriptions, airtel, assets, onOpenNotification]);
+  const latest = useRef({ tasks, subscriptions, airtel, assets, snoozes, onOpenNotification });
+  useEffect(() => { latest.current = { tasks, subscriptions, airtel, assets, snoozes, onOpenNotification }; }, [tasks, subscriptions, airtel, assets, snoozes, onOpenNotification]);
   useEffect(() => {
     if (!email || !supported()) return;
     sent.current = new Set();
@@ -63,8 +64,8 @@ export function BrowserReminders({ email, tasks, subscriptions, airtel, assets, 
         const storageKey = `${key(email)}:sent:${today}`;
         const saved: unknown = JSON.parse(localStorage.getItem(storageKey) || "[]");
         const delivered = new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : []);
-        const { tasks, subscriptions, airtel, assets } = latest.current;
-        const items = browserReminderCandidates(tasks, subscriptions, airtel, today, Date.now(), assets);
+        const { tasks, subscriptions, airtel, assets, snoozes } = latest.current;
+        const items = browserReminderCandidates(tasks, subscriptions, airtel, today, Date.now(), assets, snoozes);
         const item = items.find(item => !delivered.has(item.id) && !sent.current.has(`${today}:${item.id}`));
         if (!item) return;
         // Persist before delivery to avoid repeated alerts across refreshes/tabs.

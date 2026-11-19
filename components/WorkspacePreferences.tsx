@@ -96,3 +96,5 @@ export function OverviewLayout({ widgets }: {
         <OverviewSettings />
         </section>}<div className="overview-widget-grid grid grid-cols-12 gap-4">{order.map(id => { const widget = widgets.find(w => w.id === id); return widget ? <div key={id} data-overview-widget={id} hidden={preference?.hidden.includes(id)} className={span(id) + ' min-w-0'}>{widget.content}</div> : null; })}</div>{order.every(id => preference?.hidden.includes(id)) && <p className="rounded-xl border border-dashed border-line p-6 text-sm text-muted">All Overview widgets are hidden. Use Customise Overview to show them again.</p>}</>;
 }
+
+export const useWorkspacePreferences = () => useContext(Context);

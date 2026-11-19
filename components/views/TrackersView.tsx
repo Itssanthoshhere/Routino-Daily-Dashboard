@@ -1,4 +1,6 @@
 "use client";
+import {workspaceScrollBehavior} from "@/lib/workspacePreferences";
+import type {UnifiedReminder} from "@/lib/unifiedReminders";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
@@ -66,6 +68,7 @@ export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "pla
 type TabKey = TrackersTabKey;
 
 export type TrackersViewProps = {
+  reminderTarget?:UnifiedReminder|null; onReminderHandled?:()=>void;
   assetRecords?: AssetRecords;
   onAssetRecordsChange?: (records: AssetRecords) => void;
   onAssetWarrantyReminder?: (key: string, name: string, date: string) => void;
@@ -317,7 +320,7 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   };
 }
 
-export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetWarrantyReminder, assetDocuments = {}, onAssetDocumentsChange, onRenewalTask, initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, onRechargeRenewal, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
+export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {}, onAssetRecordsChange, onAssetWarrantyReminder, assetDocuments = {}, onAssetDocumentsChange, onRenewalTask, initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, onRechargeRenewal, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab || "eb");
 
   useEffect(() => {
@@ -408,8 +411,11 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
   const [selectedAssetKey,setSelectedAssetKey]=useState<string|null>(null);
   const [assetLinkError,setAssetLinkError]=useState("");
   const assetNavigation=useRef(0);
+  const [reminderError,setReminderError]=useState("");
+  const [assetFocus,setAssetFocus]=useState<UnifiedReminder|null>(null);
+  useEffect(()=>{if(!reminderTarget)return;setReminderError("");if(reminderTarget.target==="purchases"&&reminderTarget.assetKey){setActiveTab("purchases");const asset=data.purchases.find(p=>assetDocumentKey(p)===reminderTarget.assetKey);if(asset){void openAssetDetail(asset);setSelectedAssetKey(reminderTarget.assetKey);setAssetFocus(reminderTarget);setAssetLinkError("");setPurchaseSearch("");setPurchaseBrandFilter("all");onReminderHandled?.();}else{setSelectedAssetKey(null);setAssetFocus(null);setAssetLinkError("This asset is not available in the current sheet. Saved care records remain preserved.");if(data.isLive)onReminderHandled?.();}}else if(reminderTarget.target==="airtel"){setActiveTab("airtel");if(reminderTarget.planId&&reminderTarget.planId!==airtel?.plan?.id){setReminderError("The recharge plan changed since this reminder was created. Review recorded history for the original plan.");onReminderHandled?.();return;}requestAnimationFrame(()=>document.getElementById("airtel-current-plan")?.scrollIntoView({block:"center",behavior:workspaceScrollBehavior()}));onReminderHandled?.();}},[reminderTarget,data.purchases,data.isLive,airtel?.plan?.id,onReminderHandled]);
   const openAssetDetail=async(asset:TrackerPurchase)=>{const sequence=++assetNavigation.current;try{const key=assetDocumentKey(asset);const hash=await assetLinkId(key);if(sequence!==assetNavigation.current)return;const url=new URL(window.location.href);url.searchParams.set("tab","trackers");url.searchParams.set("sub","purchases");url.searchParams.set("asset",hash);window.history.pushState({},"",url.pathname+url.search);setSelectedAssetKey(key);setAssetLinkError("");}catch{setAssetLinkError("Could not open this private asset link.");}};
-  const closeAssetDetail=()=>{assetNavigation.current++;setSelectedAssetKey(null);setAssetLinkError("");const url=new URL(window.location.href);url.searchParams.delete("asset");window.history.pushState({},"",url.pathname+url.search);};
+  const closeAssetDetail=()=>{setAssetFocus(null);assetNavigation.current++;setSelectedAssetKey(null);setAssetLinkError("");const url=new URL(window.location.href);url.searchParams.delete("asset");window.history.pushState({},"",url.pathname+url.search);};
   useEffect(()=>{let active=true;const resolve=async()=>{const hash=new URLSearchParams(window.location.search).get("asset");if(!hash){setSelectedAssetKey(null);return;}const matches=await Promise.all(data.purchases.map(async asset=>({asset,hash:await assetLinkId(assetDocumentKey(asset))})));if(!active)return;const found=matches.filter(item=>item.hash===hash);if(found.length===1){setSelectedAssetKey(assetDocumentKey(found[0].asset));setActiveTab("purchases");setAssetLinkError("");}else{setSelectedAssetKey(null);setAssetLinkError("This asset link is not available in the current workspace. Sign in to the same account and refresh your assets.");}};void resolve().catch(()=>{if(active)setAssetLinkError("Could not read this asset link.");});window.addEventListener("popstate",resolve);return()=>{active=false;window.removeEventListener("popstate",resolve);};},[data.purchases]);
   const selectedAsset=data.purchases.find(asset=>assetDocumentKey(asset)===selectedAssetKey);
   const [purchaseSearch, setPurchaseSearch] = useState("");
@@ -1014,6 +1020,7 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
+      {reminderError&&<p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">{reminderError}</p>}
       {/* ─── Header & Sync Controls ─── */}
       <div className="flex flex-col justify-between gap-4 border-b border-line pb-5 sm:flex-row sm:items-center">
         <div>
@@ -1132,10 +1139,10 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
       {/* ═══════════════════════════════════════════════════════════
           TAB 1: PG ELECTRICITY (EB) METER TRACKER
       ═══════════════════════════════════════════════════════════ */}
-      {activeTab === "subscriptions" && onSubscriptionsChange && <SubscriptionManager onRenewalTask={onRenewalTask} airtel={airtel} subscriptions={subscriptions} onChange={onSubscriptionsChange} disabled={subscriptionsDisabled} />}
+      {activeTab === "subscriptions" && onSubscriptionsChange && <SubscriptionManager reminderTarget={reminderTarget} onReminderHandled={onReminderHandled} onRenewalTask={onRenewalTask} airtel={airtel} subscriptions={subscriptions} onChange={onSubscriptionsChange} disabled={subscriptionsDisabled} />}
 
       {activeTab === "airtel" && airtel && onRechargeRenewal && <AirtelRenewal airtel={airtel} subscriptions={subscriptions} disabled={!!subscriptionsDisabled} onSave={onRechargeRenewal} />}
-      {activeTab === "airtel" && <AirtelRechargeTracker journals={data.journals || {}} isLive={data.isLive} saved={airtel || emptyAirtelData()} onChange={onAirtelChange} disabled={subscriptionsDisabled} />}
+      {activeTab === "airtel" && <div id="airtel-plan-view"><AirtelRechargeTracker journals={data.journals || {}} isLive={data.isLive} saved={airtel || emptyAirtelData()} onChange={onAirtelChange} disabled={subscriptionsDisabled} /></div>}
 
       {activeTab === "eb" && (
         <div className="space-y-6">
@@ -2652,7 +2659,7 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
       {/* ═══════════════════════════════════════════════════════════
           TAB 5: GADGETS & PURCHASES TRACKER
       ═══════════════════════════════════════════════════════════ */}
-      {activeTab === "purchases" && selectedAsset && <AssetDetail asset={selectedAsset} referenceId={assetDocumentKey(selectedAsset)} record={assetRecords[assetDocumentKey(selectedAsset)]||{}} documents={assetDocuments[assetDocumentKey(selectedAsset)]||[]} disabled={!!subscriptionsDisabled||!onAssetRecordsChange||!onAssetDocumentsChange} onChange={record=>onAssetRecordsChange?.({...assetRecords,[assetDocumentKey(selectedAsset)]:record})} onDocumentsChange={documents=>onAssetDocumentsChange?.({...assetDocuments,[assetDocumentKey(selectedAsset)]:documents})} onReminder={onAssetWarrantyReminder?date=>onAssetWarrantyReminder(assetDocumentKey(selectedAsset),selectedAsset.product,date):undefined} onBack={closeAssetDetail}/>}
+      {activeTab === "purchases" && selectedAsset && <AssetDetail focus={assetFocus} asset={selectedAsset} referenceId={assetDocumentKey(selectedAsset)} record={assetRecords[assetDocumentKey(selectedAsset)]||{}} documents={assetDocuments[assetDocumentKey(selectedAsset)]||[]} disabled={!!subscriptionsDisabled||!onAssetRecordsChange||!onAssetDocumentsChange} onChange={record=>onAssetRecordsChange?.({...assetRecords,[assetDocumentKey(selectedAsset)]:record})} onDocumentsChange={documents=>onAssetDocumentsChange?.({...assetDocuments,[assetDocumentKey(selectedAsset)]:documents})} onReminder={onAssetWarrantyReminder?date=>onAssetWarrantyReminder(assetDocumentKey(selectedAsset),selectedAsset.product,date):undefined} onBack={closeAssetDetail}/>}
       {activeTab === "purchases" && !selectedAsset && (
         <div className="space-y-6">
           {/* Top KPI Cards */}

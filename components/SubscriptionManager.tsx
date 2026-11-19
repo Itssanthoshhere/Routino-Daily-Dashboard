@@ -1,4 +1,5 @@
 "use client";
+import type {UnifiedReminder} from "@/lib/unifiedReminders";
 import { workspaceScrollBehavior } from "@/lib/workspacePreferences";
 
 import { RelatedNotes, useNoteConnections } from "@/components/NoteConnections";
@@ -13,6 +14,7 @@ import { renewalReminderStart } from "@/lib/reminderTiming";
 import {SubscriptionFollowUp,DuplicateServiceReview} from "@/components/SubscriptionFollowUp";
 import { CancellationChecklist } from "@/components/CancellationChecklist";
 import { saveSubscriptionPrice } from "@/lib/subscriptionPriceHistory";
+import {SpendingForecast} from "@/components/SpendingForecast";
 import { PaymentCalendar } from "@/components/PaymentCalendar";
 import { MonthlySpending } from "@/components/MonthlySpending";
 import { useRef, useState } from "react";
@@ -28,8 +30,10 @@ const localToday = () => { const now = new Date(); return `${now.getFullYear()}-
 const blank = (): Subscription => ({ id: "", name: "", amount: 0, currency: "INR", cycle: "monthly", renewalDate: localToday(), status: "active", category: "Other", notes: "" });
 const inputClass = "w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink";
 
-export function SubscriptionManager({ subscriptions: storedSubscriptions, onChange, disabled = false, airtel, onRenewalTask }: { airtel?: AirtelData; subscriptions: Subscription[]; onChange: (next: Subscription[]) => void; disabled?: boolean; onRenewalTask?: (subscription: Subscription, date: string) => void }) {
+export function SubscriptionManager({ reminderTarget,onReminderHandled,subscriptions: storedSubscriptions, onChange, disabled = false, airtel, onRenewalTask }: { reminderTarget?:UnifiedReminder|null;onReminderHandled?:()=>void;airtel?: AirtelData; subscriptions: Subscription[]; onChange: (next: Subscription[]) => void; disabled?: boolean; onRenewalTask?: (subscription: Subscription, date: string) => void }) {
   const {target,consume}=useNoteConnections();
+  const [expiryFocus,setExpiryFocus]=useState<{subscriptionId:string;expiryId:string}|null>(null);
+  useEffect(()=>{if(reminderTarget?.target!=="subscriptions"||!reminderTarget.subscriptionId)return;setSearch("");setStatus("all");const id=reminderTarget.subscriptionId;const source=storedSubscriptions.find(s=>s.id===id);if(!source||(reminderTarget.expiryId&&!source.expiryRecords?.some(e=>e.id===reminderTarget.expiryId))){setAlertMessage("This reminder source is no longer available. Saved records were not changed.");onReminderHandled?.();return;}if(reminderTarget.expiryId)setExpiryFocus({subscriptionId:id,expiryId:reminderTarget.expiryId});else setExpiryFocus(null);const timer=setTimeout(()=>{if(!reminderTarget.expiryId)document.getElementById(`subscription-${id}`)?.scrollIntoView({block:"center",behavior:workspaceScrollBehavior()});onReminderHandled?.();},150);return()=>clearTimeout(timer);},[reminderTarget,onReminderHandled,storedSubscriptions]);
   useEffect(()=>{if(target?.kind!=="subscription")return;setSearch("");setStatus("all");requestAnimationFrame(()=>document.getElementById(`subscription-${target.id}`)?.scrollIntoView({block:"center",behavior:workspaceScrollBehavior()}));consume(target);},[target,consume]);
   const [alertMessage, setAlertMessage] = useState("");
   const [creatingAlert, setCreatingAlert] = useState(false);
@@ -82,7 +86,7 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
     <div className="flex flex-wrap gap-2">{Array.from(new Set(active.map(item => `${item.category}|${item.currency}`))).map(key => { const [category, currency] = key.split("|"); const total = active.filter(item => item.category === category && item.currency === currency).reduce((sum, item) => sum + monthlyCost(item), 0); return <span key={key} className="rounded-xl border border-line bg-white px-3 py-2 text-xs">{category}: {money(total, currency)} / month</span>; })}</div>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h3 className="text-xl font-bold text-ink">Subscription Manager</h3><p className="mt-1 text-xs text-muted">Keep recurring costs and renewal dates in one place. Saved with your workspace.</p></div>
-      <div className="flex flex-wrap gap-2"><PaymentCalendar subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} /><MonthlySpending subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} /><button onClick={() => expenseDialog.current?.showModal()} className="btn-theme rounded-xl border border-line bg-white px-4 py-2 text-sm font-semibold text-ink">Total expense</button>
+      <div className="flex flex-wrap gap-2"><SpendingForecast subscriptions={storedSubscriptions} airtel={airtel||emptyAirtelData()}/><PaymentCalendar subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} /><MonthlySpending subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} /><button onClick={() => expenseDialog.current?.showModal()} className="btn-theme rounded-xl border border-line bg-white px-4 py-2 text-sm font-semibold text-ink">Total expense</button>
       <button disabled={disabled} onClick={() => setDraft(blank())} className="btn-theme-primary inline-flex items-center gap-2 rounded-xl bg-forest px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"><Plus size={16} />Add subscription</button></div>
     </div>
     <div className="grid gap-3 sm:grid-cols-3">
@@ -99,7 +103,7 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
       <RelatedNotes kind="subscription" id={s.id} />
       <SubscriptionPriceHistory subscription={s} />
       <SharedSubscriptionExpenses subscription={storedSubscriptions.find(item=>item.id===s.id)!} disabled={disabled} onChange={updated=>onChange(storedSubscriptions.map(item=>item.id===updated.id?updated:item))} />
-      <SubscriptionFollowUp subscription={storedSubscriptions.find(item=>item.id===s.id)!} today={today} disabled={disabled} onChange={updated=>onChange(storedSubscriptions.map(item=>item.id===updated.id?updated:item))}/>
+      <SubscriptionFollowUp focusExpiryId={expiryFocus?.subscriptionId===s.id?expiryFocus.expiryId:undefined} subscription={storedSubscriptions.find(item=>item.id===s.id)!} today={today} disabled={disabled} onChange={updated=>onChange(storedSubscriptions.map(item=>item.id===updated.id?updated:item))}/>
       <CancellationChecklist subscription={s} disabled={disabled} onChange={next => onChange(subscriptions.map(item => item.id === next.id ? next : item))} />
       {s.bundlePlan && <p className="mt-2 text-xs text-muted">{s.bundlePlan.provider} recharge · {money(s.bundlePlan.amount, s.currency)} paid · {s.bundlePlan.validityDays} days · {s.bundlePlan.startDate}–{s.bundlePlan.endDate}. Shared recharge cost; not an additional subscription payment.</p>}
       {s.billingHistory && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">Netflix invoices · {s.billingHistory.length} payments · {money(s.billingHistory.reduce((sum, invoice) => sum + invoice.amount, 0), s.currency)} total (same payments as journal)</summary><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{s.billingHistory.map(invoice => <li key={invoice.date}>{invoice.date} · {money(invoice.amount, s.currency)} · Membership {invoice.periodStart}–{invoice.periodEnd} · {money(invoice.subtotal, s.currency)} + {money(invoice.tax, s.currency)} IGST</li>)}</ul></details>}

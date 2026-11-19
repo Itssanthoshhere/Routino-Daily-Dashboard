@@ -82,7 +82,7 @@ export function AssetCare({ record, onChange, disabled, receipts, assetName, sec
     <p className="mt-2 text-muted">Plan servicing, cleaning, or replacements. Recurring schedules advance from the date you mark done. Dates appear here; no automatic calendar bookings or notifications are created.</p>
     <ul className="mt-2 divide-y divide-line">{[...schedules].sort((a, b) => a.nextDue.localeCompare(b.nextDue)).map(m => {
             const finished = !m.repeatDays && !!m.completed;
-            return <li key={m.id} className="space-y-2 py-3">
+            return <li data-maintenance-id={m.id} key={m.id} className="space-y-2 py-3">
             <p className="font-semibold">{m.title}</p>
             <p className={finished ? 'text-muted' : m.nextDue < today ? 'font-semibold text-amber-800' : 'text-muted'}>{finished ? 'Completed' : m.nextDue < today ? 'Overdue' : m.nextDue === today ? 'Due today' : 'Next due'} · {m.nextDue}{m.repeatDays ? ` · Every ${m.repeatDays} days` : ''}</p>{m.notes && <p className="whitespace-pre-wrap break-words text-muted">{m.notes}</p>}<div className="flex flex-wrap gap-2">
             <button type="button" disabled={disabled || finished || m.completedDates.includes(today) || maintenance?.id === m.id} className={action} onClick={() => onChange({ ...record, maintenance: schedules.map(item => item.id === m.id ? completeMaintenance(item, today) : item) })}>{m.completedDates.includes(today) ? 'Done today' : 'Mark done'}</button>
