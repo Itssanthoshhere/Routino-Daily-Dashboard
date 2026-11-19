@@ -1,4 +1,6 @@
 "use client";
+import { ReceiptLinks } from "@/components/ReceiptLinks";
+import { PaymentPriceChanges } from "@/components/PaymentPriceChanges";
 import { GmailReceiptReview } from "@/components/GmailReceiptReview";
 import { receiptSubscription } from "@/lib/receiptPayments";
 import type {UnifiedReminder} from "@/lib/unifiedReminders";
@@ -79,6 +81,7 @@ export function SubscriptionManager({ reminderTarget,onReminderHandled,subscript
     setDraft(null);
   };
   return <section className="space-y-5">
+    <PaymentPriceChanges subscriptions={storedSubscriptions}/>
     <GmailReceiptReview kind="subscription" subscriptions={storedSubscriptions} disabled={disabled} onConfirm={review=>onChange(receiptSubscription(review,storedSubscriptions))}/>
     <RenewalDecisionQueue subscriptions={storedSubscriptions} onChange={onChange} disabled={disabled} today={today} />
     <DuplicateServiceReview subscriptions={storedSubscriptions}/>
@@ -109,8 +112,9 @@ export function SubscriptionManager({ reminderTarget,onReminderHandled,subscript
       <SubscriptionFollowUp focusExpiryId={expiryFocus?.subscriptionId===s.id?expiryFocus.expiryId:undefined} subscription={storedSubscriptions.find(item=>item.id===s.id)!} today={today} disabled={disabled} onChange={updated=>onChange(storedSubscriptions.map(item=>item.id===updated.id?updated:item))}/>
       <CancellationChecklist subscription={s} disabled={disabled} onChange={next => onChange(subscriptions.map(item => item.id === next.id ? next : item))} />
       {s.bundlePlan && <p className="mt-2 text-xs text-muted">{s.bundlePlan.provider} recharge · {money(s.bundlePlan.amount, s.currency)} paid · {s.bundlePlan.validityDays} days · {s.bundlePlan.startDate}–{s.bundlePlan.endDate}. Shared recharge cost; not an additional subscription payment.</p>}
-      {s.billingHistory && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">Netflix invoices · {s.billingHistory.length} payments · {money(s.billingHistory.reduce((sum, invoice) => sum + invoice.amount, 0), s.currency)} total (same payments as journal)</summary><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{s.billingHistory.map(invoice => <li key={invoice.date}>{invoice.date} · {money(invoice.amount, s.currency)} · Membership {invoice.periodStart}–{invoice.periodEnd} · {money(invoice.subtotal, s.currency)} + {money(invoice.tax, s.currency)} IGST</li>)}</ul></details>}
-      {s.payments && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">{s.payments.length} recorded payments · {money(s.payments.reduce((sum, payment) => sum + payment.amount, 0), s.currency)} paid</summary><ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">{s.payments.map(payment => <li key={`${payment.journal}-${payment.rowId}`}>{payment.date} · {money(payment.amount, s.currency)} · {payment.journal} journal{payment.notes ? ` · ${payment.notes}` : ""}</li>)}</ul></details>}
+      <ReceiptLinks text={s.notes}/>
+      {s.billingHistory && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">Netflix invoices · {s.billingHistory.length} payments · {money(s.billingHistory.reduce((sum, invoice) => sum + invoice.amount, 0), s.currency)} total (same payments as journal)</summary><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{s.billingHistory.map(invoice => <li key={invoice.date}>{invoice.date} · {money(invoice.amount, s.currency)} · Membership {invoice.periodStart}–{invoice.periodEnd} · {money(invoice.subtotal, s.currency)} + {money(invoice.tax, s.currency)} IGST<ReceiptLinks text={invoice.source}/></li>)}</ul></details>}
+      {s.payments && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">{s.payments.length} recorded payments · {money(s.payments.reduce((sum, payment) => sum + payment.amount, 0), s.currency)} paid</summary><ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">{s.payments.map(payment => <li key={`${payment.journal}-${payment.rowId}`}>{payment.date} · {money(payment.amount, s.currency)} · {payment.journal === "gmail" ? "Gmail receipt" : payment.journal === "preserved-history" ? "Recorded history" : `${payment.journal} journal`}{payment.notes ? ` · ${payment.notes}` : ""}<ReceiptLinks text={payment.notes}/></li>)}</ul></details>}
       {s.notes && <p className="mt-2 max-w-xl whitespace-pre-wrap break-words text-xs text-muted">{s.notes}</p>}
       <SubscriptionDocuments subscription={s} disabled={disabled} onChange={updated => onChange(storedSubscriptions.map(item => item.id === updated.id ? updated : item))} />
       {s.renewalDate && <p className="mt-2 text-xs text-muted">Renews {countdown(s.renewalDate)}</p>}

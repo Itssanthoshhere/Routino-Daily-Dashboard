@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { receiptQuery } from "@/lib/receiptSearch";
 import { googleFetch } from "@/lib/google";
 
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
@@ -11,9 +12,9 @@ export async function GET(request: Request) {
   if (kind !== "recharge" && kind !== "subscription") return json({ error: "Choose recharges or subscriptions." }, 400);
   const pageToken = params.get("pageToken") || "";
   if (pageToken.length > 2000) return json({ error: "Invalid page token." }, 400);
-  const q = kind === "recharge"
-    ? 'newer_than:1y airtel {receipt invoice "recharge successful" "payment successful"}'
-    : 'newer_than:1y {subscription membership netflix spotify apple google microsoft adobe hotstar} {receipt invoice "payment received" "payment successful"}';
+  let q: string;
+  try { q = receiptQuery(kind, { service: params.get("service") || "", from: params.get("from") || "", to: params.get("to") || "", offset: Number(params.get("offset") || 0) }); }
+  catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid search filters." }, 400); }
   const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
   url.searchParams.set("q", q);
   url.searchParams.set("maxResults", "15");
