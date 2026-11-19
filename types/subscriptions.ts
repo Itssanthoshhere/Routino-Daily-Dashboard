@@ -1,5 +1,7 @@
 import type { SavedDocument } from "@/types/documents";
 export type Subscription = {
+  cancellationFollowUp?: import("@/lib/subscriptionFollowUp").CancellationEntry[];
+  expiryRecords?: import("@/lib/subscriptionFollowUp").SubscriptionExpiry[];
   sharedExpenses?: import("@/lib/subscriptionPlanning").SharedExpense[];
   renewalDecisionDate?: string;
   documents?: SavedDocument[];

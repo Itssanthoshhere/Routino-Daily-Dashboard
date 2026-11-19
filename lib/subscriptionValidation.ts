@@ -1,3 +1,4 @@
+import {validSubscriptionFollowUp} from "@/lib/subscriptionFollowUp";
 import type { Subscription } from "@/types/subscriptions";
 
 type RecordValue = Record<string, unknown>;
@@ -18,7 +19,7 @@ export function validSharedExpense(value: unknown): value is import("@/lib/subsc
 }
 
 export function isSubscription(value: unknown): value is Subscription {
-  if (!record(value)) return false;
+  if (!record(value) || !validSubscriptionFollowUp(value)) return false;
   if (value.sharedExpenses !== undefined && (!Array.isArray(value.sharedExpenses) || value.sharedExpenses.length > 500 || !value.sharedExpenses.every(validSharedExpense) || new Set(value.sharedExpenses.map(x=>x.id)).size !== value.sharedExpenses.length)) return false;
   if (!optionalDate(value.renewalDecisionDate)) return false;
   if (value.documents !== undefined && (!Array.isArray(value.documents) || value.documents.length > 50 || !value.documents.every(doc => record(doc) && text(doc.id) && text(doc.name) && doc.name.length <= 180 && text(doc.uploadedAt) && Number.isFinite(Date.parse(doc.uploadedAt)) && ((text(doc.pathname) && /^subscription-documents\/[0-9a-f]{64}\/[0-9a-f-]{36}$/.test(doc.pathname)) || (text(doc.url) && /^https?:\/\//.test(doc.url)))))) return false;

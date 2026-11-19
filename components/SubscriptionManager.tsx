@@ -10,6 +10,7 @@ import { SubscriptionPriceHistory } from "@/components/SubscriptionPriceHistory"
 import { SubscriptionInsights } from "@/components/SubscriptionInsights";
 import { SubscriptionDocuments } from "@/components/SubscriptionDocuments";
 import { renewalReminderStart } from "@/lib/reminderTiming";
+import {SubscriptionFollowUp,DuplicateServiceReview} from "@/components/SubscriptionFollowUp";
 import { CancellationChecklist } from "@/components/CancellationChecklist";
 import { saveSubscriptionPrice } from "@/lib/subscriptionPriceHistory";
 import { PaymentCalendar } from "@/components/PaymentCalendar";
@@ -73,6 +74,7 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
   };
   return <section className="space-y-5">
     <RenewalDecisionQueue subscriptions={storedSubscriptions} onChange={onChange} disabled={disabled} today={today} />
+    <DuplicateServiceReview subscriptions={storedSubscriptions}/>
     <SubscriptionBudgets subscriptions={subscriptions} disabled={disabled} />
     <PaymentReconciliation subscriptions={storedSubscriptions} onChange={onChange} disabled={disabled} />
     <SubscriptionInsights subscriptions={storedSubscriptions} airtel={airtel || emptyAirtelData()} onChange={onChange} disabled={disabled} />
@@ -97,6 +99,7 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
       <RelatedNotes kind="subscription" id={s.id} />
       <SubscriptionPriceHistory subscription={s} />
       <SharedSubscriptionExpenses subscription={storedSubscriptions.find(item=>item.id===s.id)!} disabled={disabled} onChange={updated=>onChange(storedSubscriptions.map(item=>item.id===updated.id?updated:item))} />
+      <SubscriptionFollowUp subscription={storedSubscriptions.find(item=>item.id===s.id)!} today={today} disabled={disabled} onChange={updated=>onChange(storedSubscriptions.map(item=>item.id===updated.id?updated:item))}/>
       <CancellationChecklist subscription={s} disabled={disabled} onChange={next => onChange(subscriptions.map(item => item.id === next.id ? next : item))} />
       {s.bundlePlan && <p className="mt-2 text-xs text-muted">{s.bundlePlan.provider} recharge · {money(s.bundlePlan.amount, s.currency)} paid · {s.bundlePlan.validityDays} days · {s.bundlePlan.startDate}–{s.bundlePlan.endDate}. Shared recharge cost; not an additional subscription payment.</p>}
       {s.billingHistory && <details className="mt-2 text-xs text-muted"><summary className="cursor-pointer">Netflix invoices · {s.billingHistory.length} payments · {money(s.billingHistory.reduce((sum, invoice) => sum + invoice.amount, 0), s.currency)} total (same payments as journal)</summary><ul className="mt-2 max-h-48 space-y-2 overflow-y-auto">{s.billingHistory.map(invoice => <li key={invoice.date}>{invoice.date} · {money(invoice.amount, s.currency)} · Membership {invoice.periodStart}–{invoice.periodEnd} · {money(invoice.subtotal, s.currency)} + {money(invoice.tax, s.currency)} IGST</li>)}</ul></details>}
