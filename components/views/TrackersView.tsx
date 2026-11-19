@@ -49,6 +49,7 @@ import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 
 import { subscriptionsFromJournals } from "@/lib/subscriptionJournal";
 import { AirtelRenewal } from "@/components/AirtelRenewal";
+import { JournalSummaries } from "@/components/JournalSummaries";
 import { MonthlySpending } from "@/components/MonthlySpending";
 import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
 import { SubscriptionManager } from "@/components/SubscriptionManager";
@@ -1090,6 +1091,15 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
         </div>
       )}
 
+      <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={key=>{
+        setSelectedJournalKey(key);
+        setExpenseSearch("");
+        setExpenseCategoryFilter("all");
+        setExpenseVisibleCount(50);
+        handleTabSelect("expenses");
+        requestAnimationFrame(()=>document.getElementById("expense-journal-view")?.scrollIntoView({block:"start",behavior:workspaceScrollBehavior()}));
+      }}/>
+
       {/* ─── Navigation Tabs ─── */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-line pb-3">
         {[
@@ -1381,7 +1391,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
           TAB 2: EXPENSES & BUDGET TRACKER
       ═══════════════════════════════════════════════════════════ */}
       {activeTab === "expenses" && (
-        <div className="space-y-6">
+        <div id="expense-journal-view" className="scroll-mt-24 space-y-6">
           <MonthlySpending embedded subscriptions={subscriptions} airtel={airtel||emptyAirtelData()} journals={data.isLive?data.journals:{}}/>
           {/* Sub-Section Journal Selector */}
           <div className="rounded-2xl border border-line bg-white p-4 shadow-card">

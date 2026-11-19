@@ -1,4 +1,5 @@
 import "server-only";
+import { parseJournalSummaryRows } from "@/lib/journalSummary";
 import { SEED_TRACKERS_DATA, SEED_ANTIGRAVITY_TOKENS } from "@/lib/trackersSeed";
 import type {
   TrackersData,
@@ -259,6 +260,16 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       "2023": makeJournal("2023", "2023 Journal", 2023, j2023),
       "pg": makeJournal("pg", "PG Expenses", 2026, jPg, { isPG: true }),
     };
+
+    const summarySheets: Record<string,string> = {
+      "2023":"2023 Summary", "2024":"2024 Summary", "2025":"2025 Summary", "2026":"2026 Summary",
+      "2024-fampay":"2024 Fam Pay Summary ", "2025-fampay":"2025 Fam Pay Summary ", "2026-fampay":"2026 Fam Pay Summary ",
+    };
+    await Promise.all(Object.entries(summarySheets).map(async ([key,sheet])=>{
+      const pivot = await fetchGVizSheet(sheet,"A1:Z900");
+      const summary = parseJournalSummaryRows(pivot?.table?.rows,sheet);
+      if(summary)journals[key].sheetSummary=summary;
+    }));
 
     const expenses = journals["2026"].expenses;
 

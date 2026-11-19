@@ -137,7 +137,15 @@ export type TrackerInvestmentJournal = {
   contributors: InvestmentContributor[];
 };
 
+export type TrackerJournalSummary = {
+  sheetName: string;
+  totalSpent: number;
+  months: {month:number;amount:number}[];
+  categoryTotals: {category:string;amount:number}[];
+};
+
 export type TrackerExpenseJournal = {
+  sheetSummary?: TrackerJournalSummary;
   key: string;
   title: string;
   year: number;
