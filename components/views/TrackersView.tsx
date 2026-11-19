@@ -49,6 +49,7 @@ import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 
 import { subscriptionsFromJournals } from "@/lib/subscriptionJournal";
 import { AirtelRenewal } from "@/components/AirtelRenewal";
+import { journalMonth } from "@/lib/journalMonth";
 import { JournalSummaries } from "@/components/JournalSummaries";
 import { MonthlySpending } from "@/components/MonthlySpending";
 import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
@@ -369,6 +370,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
   // Filtering states
   const [selectedJournalKey, setSelectedJournalKey] = useState<string>("2026");
   const [expenseSearch, setExpenseSearch] = useState("");
+  const [expenseMonthFilter, setExpenseMonthFilter] = useState("all");
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState("all");
   const [expenseVisibleCount, setExpenseVisibleCount] = useState<number>(50);
   const [ebCycleFilter, setEbCycleFilter] = useState("all");
@@ -664,6 +666,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
         exp.category.toLowerCase().includes(expenseSearch.toLowerCase()) ||
         (exp.notes && exp.notes.toLowerCase().includes(expenseSearch.toLowerCase()));
       if (!matchesSearch) return false;
+      if (expenseMonthFilter!=="all" && journalMonth(exp)!==Number(expenseMonthFilter)) return false;
 
       if (expenseCategoryFilter !== "all") {
         if (exp.category.trim().toLowerCase() !== expenseCategoryFilter.trim().toLowerCase()) return false;
@@ -686,7 +689,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
       }
       return 0;
     });
-  }, [activeJournal.expenses, expenseSearch, expenseCategoryFilter]);
+  }, [activeJournal.expenses, expenseSearch, expenseCategoryFilter, expenseMonthFilter]);
 
   // Category Budgets sorted (active & highest budget on top)
   const sortedCategoryBudgets = useMemo(() => {
@@ -1091,13 +1094,14 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
         </div>
       )}
 
-      <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={(key,category)=>{
+      <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={(key,category,month)=>{
+        setExpenseMonthFilter(month?String(month):"all");
         setSelectedJournalKey(key);
         setExpenseSearch("");
         setExpenseCategoryFilter(category ? data.journals?.[key]?.expenses.find(row=>row.category.trim().toLowerCase()===category.trim().toLowerCase())?.category || category : "all");
         setExpenseVisibleCount(50);
         handleTabSelect("expenses");
-        requestAnimationFrame(()=>document.getElementById(category?"expense-transactions":"expense-journal-view")?.scrollIntoView({block:"start",behavior:workspaceScrollBehavior()}));
+        requestAnimationFrame(()=>document.getElementById(category||month?"expense-transactions":"expense-journal-view")?.scrollIntoView({block:"start",behavior:workspaceScrollBehavior()}));
       }}/>
 
       {/* ─── Navigation Tabs ─── */}
@@ -1411,6 +1415,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
                   key={j.key}
                   onClick={() => {
                     setSelectedJournalKey(j.key);
+                    setExpenseMonthFilter("all");
                     setExpenseVisibleCount(50);
                     setExpenseCategoryFilter("all");
                   }}
@@ -1583,8 +1588,9 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
                   </span>
                 </div>
                 <p className="text-[11px] text-muted">
-                  Showing {Math.min(expenseVisibleCount, filteredExpenses.length)} of {filteredExpenses.length} transactions{expenseCategoryFilter!=="all"?` · ${expenseCategoryFilter} · ₹${filteredExpenses.reduce((sum,row)=>sum+(row.amount||0),0).toLocaleString("en-IN")} recorded debits`:""}
+                  Showing {Math.min(expenseVisibleCount, filteredExpenses.length)} of {filteredExpenses.length} transactions{expenseMonthFilter!=="all"?` · Month ${expenseMonthFilter}`:""}{expenseCategoryFilter!=="all"||expenseMonthFilter!=="all"||expenseSearch?` · ${expenseCategoryFilter!=="all"?expenseCategoryFilter+" · ":""}₹${filteredExpenses.reduce((sum,row)=>sum+(row.amount||0),0).toLocaleString("en-IN")} recorded debits`:""}
                 </p>
+                {expenseMonthFilter!=="all"&&activeJournal.sheetSummary&&<p className="mt-1 text-[11px] text-muted">Summary sheet for this month: {activeJournal.sheetSummary.months.some(m=>m.month===Number(expenseMonthFilter))?`₹${activeJournal.sheetSummary.months.find(m=>m.month===Number(expenseMonthFilter))!.amount.toLocaleString("en-IN")}`:"Not available"}. Transactions show the full journal; Summary filters may exclude some entries.</p>}
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1600,6 +1606,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
                   />
                 </div>
 
+                <select aria-label="Journal transaction month" value={expenseMonthFilter} onChange={e=>{setExpenseMonthFilter(e.target.value);setExpenseVisibleCount(50);}} className="h-8 rounded-xl border border-line bg-white px-2.5 text-[11px] font-medium text-ink"><option value="all">All months</option>{Array.from({length:12},(_,i)=><option key={i+1} value={String(i+1)}>{new Intl.DateTimeFormat("en",{month:"long",timeZone:"UTC"}).format(new Date(Date.UTC(2026,i,1)))}</option>)}</select>
                 <select
                   aria-label="Journal transaction category"
                   value={expenseCategoryFilter}
