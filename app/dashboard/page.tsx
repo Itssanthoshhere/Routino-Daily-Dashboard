@@ -1,4 +1,6 @@
 "use client";
+import { DeviceSyncReporter } from "@/components/DeviceSyncActivity";
+import { recordDeviceSave } from "@/lib/deviceSync";
 import { NoteConnectionsProvider } from "@/components/NoteConnections";
 import { meetingReferenceId, type NoteReference } from "@/lib/noteOrganization";
 import { assetDocumentKey } from "@/lib/assetDocuments";
@@ -1216,6 +1218,7 @@ export default function Home() {
           if (currentAccount.current !== account) return false;
           coreSyncVersion.current += 1;
           if (!res.ok || !json.success) { if (res.status === 409) { conflictBlocked.current = true; setCoreConflict(true); } setWorkspaceSaveError(true); return false; }
+          recordDeviceSave(account,"core",json.savedAt || new Date().toISOString());
           coreRevision.current = json.revision;
           localStorage.setItem(`routino_core_revision:${account}`, String(json.revision));
           const savedPatch = JSON.parse(snapshot);
@@ -1982,6 +1985,7 @@ export default function Home() {
       else if(reference.kind==="meeting"){const event=allEvents.find(item=>meetingReferenceId(item)===reference.id);if(event){setViewingEvent(event);setShowEventModal(true);}}
       else handleOpenTrackersTab(reference.kind==="asset"?"purchases":"subscriptions");
     }}><SubscriptionBudgetProvider budgets={subscriptionBudgets} onChange={budgets => { browserStore.setItem("routino_subscription_budgets", JSON.stringify(budgets)); setSubscriptionBudgets(budgets); void syncToDatabase({ subscriptionBudgets: budgets }); }}><FocusWorkspaceProvider records={focusRecords} onChange={records => { browserStore.setItem("routino_focus_records", JSON.stringify(records)); setFocusRecords(records); void syncToDatabase({ focusRecords: records }); }}><div className="min-h-screen" key={currentAccount.current || "guest"}>
+      <DeviceSyncReporter email={verifiedWorkspaceAccount} signal={`${workspaceSaveError}:${isSyncing}:${trackerWorkspace.status}:${lastSyncedAt}`} />
       {coreConflict && currentAccount.current && <WorkspaceConflict account={currentAccount.current} onResolve={async (revision, useCloud, snapshot) => {
         const account = currentAccount.current;
         const key = `routino_workspace_pending:${account}`;

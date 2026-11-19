@@ -1,5 +1,6 @@
 "use client";
 
+import { recordDeviceSave } from "@/lib/deviceSync";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { undoRecords, undoMembership } from "@/lib/undoRecords";
 import { emptyAirtelData, type AirtelData } from "@/types/airtel";
@@ -48,6 +49,7 @@ export function useTrackerWorkspace(email?: string | null) {
           setMessage(result.error || "Saved locally; database sync failed.");
           return false;
         }
+        recordDeviceSave(email,"tracker",result.savedAt || new Date().toISOString());
         current.revision = result.revision;
         current.pending = current.data !== snapshot;
         cache();
