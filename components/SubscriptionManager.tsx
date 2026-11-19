@@ -1,4 +1,6 @@
 "use client";
+import { GmailReceiptReview } from "@/components/GmailReceiptReview";
+import { receiptSubscription } from "@/lib/receiptPayments";
 import type {UnifiedReminder} from "@/lib/unifiedReminders";
 import { workspaceScrollBehavior } from "@/lib/workspacePreferences";
 
@@ -77,6 +79,7 @@ export function SubscriptionManager({ reminderTarget,onReminderHandled,subscript
     setDraft(null);
   };
   return <section className="space-y-5">
+    <GmailReceiptReview kind="subscription" subscriptions={storedSubscriptions} disabled={disabled} onConfirm={review=>onChange(receiptSubscription(review,storedSubscriptions))}/>
     <RenewalDecisionQueue subscriptions={storedSubscriptions} onChange={onChange} disabled={disabled} today={today} />
     <DuplicateServiceReview subscriptions={storedSubscriptions}/>
     <SubscriptionBudgets subscriptions={subscriptions} disabled={disabled} />

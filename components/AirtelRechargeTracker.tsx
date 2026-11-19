@@ -1,5 +1,7 @@
 "use client";
 
+import { GmailReceiptReview } from "@/components/GmailReceiptReview";
+import { receiptRecharge } from "@/lib/receiptPayments";
 import {AirtelFamily} from "@/components/AirtelFamily";
 import { AirtelImport } from "@/components/AirtelImport";
 import { useState } from "react";
@@ -63,6 +65,7 @@ export function AirtelRechargeTracker({ observedPlan,ownerLabel,includeFamily=tr
       <div className="flex gap-2"><button disabled={disabled} className={button} onClick={() => { setDraft({ id: "", date: today, amount: 0, kind: "topup", notes: "", source: "Saved recharge", paidByOther: false, status: "success" }); setPlanDraft(null); }}>Add recharge</button><button disabled={disabled} className={button} onClick={() => { setPlanDraft({ id: "", provider: "Airtel", amount: 0, paymentDate: today, startDate: today, endDate: today, validityDays: 1 }); setDraft(null); }}>New plan</button></div>
     </div>
     {includeFamily&&<AirtelImport existing={rows} deletedIds={saved.deletedIds} disabled={disabled} onImport={records => persist({ ...saved, records: [...rows, ...records] })} />}
+    {includeFamily&&<GmailReceiptReview kind="recharge" disabled={disabled||!onChange} onConfirm={review=>{const record=receiptRecharge(review,rows,saved.deletedIds);if(!persist({...saved,records:[...rows,record]}))throw new Error("Payment could not be saved. Check tracker sync.");}}/>}
     {!isLive && <p className="text-xs text-muted">{includeFamily?"Showing saved records. Journal history will join them when the connected sheet is available.":"Only payments recorded for this family member are included. Your personal journals are not imported here."}</p>}
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {draft && <form onSubmit={saveRecord} className="rounded-2xl border border-line bg-white p-5"><h4 className="mb-4 font-semibold">{draft.id ? "Edit recharge" : "Add recharge"}</h4><div className="grid gap-3 sm:grid-cols-2">
