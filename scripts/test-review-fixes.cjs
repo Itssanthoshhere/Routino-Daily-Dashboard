@@ -1,11 +1,10 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
-function load(file) {
-  const module = { exports: {} };
-  new Function('module', 'exports', ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(module, module.exports);
-  return module.exports;
-}
+const loaded = {};
+function load(file) { if(loaded[file])return loaded[file].exports;const module={exports:{}};loaded[file]=module;
+new Function('require','module','exports',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(name=>name.startsWith('@/')?load(name.slice(2)+'.ts'):require(name),module,module.exports);return module.exports; }
+
 const { focusStartAllowed, renewalReminderStart } = load('lib/reminderTiming.ts');
 const { meetingActionKey, hasMeetingAction } = load('lib/meetingActions.ts');
 const { habitCounter } = load('lib/habitCounter.ts');

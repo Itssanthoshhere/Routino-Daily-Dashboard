@@ -1,4 +1,6 @@
 "use client";
+import { HabitQuickContext, type HabitPlanning } from "@/components/HabitPlanning";
+import { habitPaused } from "@/lib/habitTargets";
 import { habitCounter } from "@/lib/habitCounter";
 import { useLocalDay } from "@/hooks/useLocalDay";
 
@@ -42,7 +44,7 @@ export const HABIT_ICON_MAP: Record<string, React.ElementType> = {
 type HabitTrackerProps = {
   habits: Habit[];
   onToggleHabit: (id: string) => void;
-  onAddHabit: (name: string, icon?: string) => void;
+  onAddHabit: (name: string, icon?: string, planning?: HabitPlanning) => void;
   onUpdateHabit?: (id: string, updates: Partial<Habit>) => void;
   onDeleteHabit: (id: string) => void;
 };
@@ -91,7 +93,7 @@ export function HabitTracker({
     setShowHabitModal(true);
   };
 
-  const handleSaveHabit = (data: {
+  const handleSaveHabit = (data: HabitPlanning & {
     id?: string;
     name: string;
     icon?: string;
@@ -100,13 +102,14 @@ export function HabitTracker({
   }) => {
     if (data.id && onUpdateHabit) {
       onUpdateHabit(data.id, {
+        target:data.target, pauses:data.pauses,completionNotes:data.completionNotes,
         name: data.name,
         icon: data.icon,
         streak: data.streak,
         ...(data.completedDates ? { completedDates: data.completedDates } : {}),
       });
     } else {
-      onAddHabit(data.name, data.icon);
+      onAddHabit(data.name, data.icon,{target:data.target,pauses:data.pauses,completionNotes:data.completionNotes});
     }
     setShowHabitModal(false);
     setEditingHabit(null);
@@ -126,7 +129,7 @@ export function HabitTracker({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-[14px] font-semibold text-ink leading-tight">
-                Daily Micro-Habits
+                Habits & targets
               </h2>
               <span className="rounded-full bg-[#fdf2f2] px-2 py-0.5 text-[9px] font-bold text-forest">
                 {completedTodayCount}/{habits.length} Done Today
@@ -200,7 +203,8 @@ export function HabitTracker({
               <div className="flex items-start gap-2.5">
                 <button
                   type="button"
-                  onClick={() => onToggleHabit(habit.id)}
+                  disabled={habitPaused(habit,todayStr)&&!habit.completedDates.includes(todayStr)}
+                    onClick={() => onToggleHabit(habit.id)}
                   aria-label={`Toggle habit ${habit.name}`}
                   className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-all ${
                     isDoneToday
@@ -262,6 +266,7 @@ export function HabitTracker({
                 </div>
               </div>
 
+              {onUpdateHabit&&<HabitQuickContext key={`${habit.id}:${todayStr}`} habit={habit} today={todayStr} onChange={updates=>onUpdateHabit(habit.id,updates)}/>}
               {/* Bottom row: Weekly 7-day mini progress dots */}
               <div className="mt-3 flex items-center justify-between border-t border-[#f1f3ed] pt-2">
                 <span className="text-[9px] font-medium text-[#929c93]">Past 7 days</span>

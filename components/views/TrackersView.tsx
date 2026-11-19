@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Zap,
   Wallet,
@@ -50,7 +50,10 @@ import { AirtelRenewal } from "@/components/AirtelRenewal";
 import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
 import { SubscriptionManager } from "@/components/SubscriptionManager";
 import type { AssetRecords } from "@/types/assets";
+import type { TrackerPurchase } from "@/types/trackers";
 import { useNoteConnections } from "@/components/NoteConnections";
+import { AssetDetail } from "@/components/AssetDetail";
+import { assetLinkId } from "@/lib/assetPlanning";
 import { AssetManagement } from "@/components/AssetManagement";
 import { DocumentLibrary } from "@/components/DocumentLibrary";
 import { documentLibrary } from "@/lib/documentLibrary";
@@ -402,6 +405,13 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
   // Purchases filters
   const {target:noteTarget}=useNoteConnections();
   useEffect(()=>{if(noteTarget?.kind==="asset"){setPurchaseSearch("");setPurchaseBrandFilter("all");}},[noteTarget]);
+  const [selectedAssetKey,setSelectedAssetKey]=useState<string|null>(null);
+  const [assetLinkError,setAssetLinkError]=useState("");
+  const assetNavigation=useRef(0);
+  const openAssetDetail=async(asset:TrackerPurchase)=>{const sequence=++assetNavigation.current;try{const key=assetDocumentKey(asset);const hash=await assetLinkId(key);if(sequence!==assetNavigation.current)return;const url=new URL(window.location.href);url.searchParams.set("tab","trackers");url.searchParams.set("sub","purchases");url.searchParams.set("asset",hash);window.history.pushState({},"",url.pathname+url.search);setSelectedAssetKey(key);setAssetLinkError("");}catch{setAssetLinkError("Could not open this private asset link.");}};
+  const closeAssetDetail=()=>{assetNavigation.current++;setSelectedAssetKey(null);setAssetLinkError("");const url=new URL(window.location.href);url.searchParams.delete("asset");window.history.pushState({},"",url.pathname+url.search);};
+  useEffect(()=>{let active=true;const resolve=async()=>{const hash=new URLSearchParams(window.location.search).get("asset");if(!hash){setSelectedAssetKey(null);return;}const matches=await Promise.all(data.purchases.map(async asset=>({asset,hash:await assetLinkId(assetDocumentKey(asset))})));if(!active)return;const found=matches.filter(item=>item.hash===hash);if(found.length===1){setSelectedAssetKey(assetDocumentKey(found[0].asset));setActiveTab("purchases");setAssetLinkError("");}else{setSelectedAssetKey(null);setAssetLinkError("This asset link is not available in the current workspace. Sign in to the same account and refresh your assets.");}};void resolve().catch(()=>{if(active)setAssetLinkError("Could not read this asset link.");});window.addEventListener("popstate",resolve);return()=>{active=false;window.removeEventListener("popstate",resolve);};},[data.purchases]);
+  const selectedAsset=data.purchases.find(asset=>assetDocumentKey(asset)===selectedAssetKey);
   const [purchaseSearch, setPurchaseSearch] = useState("");
   const [purchaseBrandFilter, setPurchaseBrandFilter] = useState("all");
   const [purchaseSort, setPurchaseSort] = useState<"price-desc" | "price-asc" | "date-desc" | "date-asc">("price-desc");
@@ -2642,7 +2652,8 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
       {/* ═══════════════════════════════════════════════════════════
           TAB 5: GADGETS & PURCHASES TRACKER
       ═══════════════════════════════════════════════════════════ */}
-      {activeTab === "purchases" && (
+      {activeTab === "purchases" && selectedAsset && <AssetDetail asset={selectedAsset} referenceId={assetDocumentKey(selectedAsset)} record={assetRecords[assetDocumentKey(selectedAsset)]||{}} documents={assetDocuments[assetDocumentKey(selectedAsset)]||[]} disabled={!!subscriptionsDisabled||!onAssetRecordsChange||!onAssetDocumentsChange} onChange={record=>onAssetRecordsChange?.({...assetRecords,[assetDocumentKey(selectedAsset)]:record})} onDocumentsChange={documents=>onAssetDocumentsChange?.({...assetDocuments,[assetDocumentKey(selectedAsset)]:documents})} onReminder={onAssetWarrantyReminder?date=>onAssetWarrantyReminder(assetDocumentKey(selectedAsset),selectedAsset.product,date):undefined} onBack={closeAssetDetail}/>}
+      {activeTab === "purchases" && !selectedAsset && (
         <div className="space-y-6">
           {/* Top KPI Cards */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -2674,6 +2685,7 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
             </div>
           </div>
 
+          {assetLinkError&&<p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">{assetLinkError}</p>}
           <DocumentLibrary documents={documentLibrary(data.purchases, assetDocuments, assetRecords, subscriptions)} />
 
           {/* Search, Brand Filter Chips & Sort Controls */}
@@ -2776,7 +2788,7 @@ export function TrackersView({ assetRecords = {}, onAssetRecordsChange, onAssetW
                         </span>
                       </div>
 
-                      <AssetManagement referenceId={assetDocumentKey(p)} name={p.product} model={p.model} documents={assetDocuments[assetDocumentKey(p)] || []} record={assetRecords[assetDocumentKey(p)] || {}} disabled={!!subscriptionsDisabled} onDocumentsChange={onAssetDocumentsChange ? documents => onAssetDocumentsChange({ ...assetDocuments, [assetDocumentKey(p)]: documents }) : undefined} onRecordChange={onAssetRecordsChange ? record => onAssetRecordsChange({ ...assetRecords, [assetDocumentKey(p)]: record }) : undefined} onReminder={onAssetWarrantyReminder ? date => onAssetWarrantyReminder(assetDocumentKey(p), p.product, date) : undefined} />
+                      <AssetManagement onOpenDetail={()=>void openAssetDetail(p)} referenceId={assetDocumentKey(p)} name={p.product} model={p.model} documents={assetDocuments[assetDocumentKey(p)] || []} record={assetRecords[assetDocumentKey(p)] || {}} disabled={!!subscriptionsDisabled} onDocumentsChange={onAssetDocumentsChange ? documents => onAssetDocumentsChange({ ...assetDocuments, [assetDocumentKey(p)]: documents }) : undefined} onRecordChange={onAssetRecordsChange ? record => onAssetRecordsChange({ ...assetRecords, [assetDocumentKey(p)]: record }) : undefined} onReminder={onAssetWarrantyReminder ? date => onAssetWarrantyReminder(assetDocumentKey(p), p.product, date) : undefined} />
 
                       {/* Warranty & Lifecycle Badge */}
                       <div className="mt-3">

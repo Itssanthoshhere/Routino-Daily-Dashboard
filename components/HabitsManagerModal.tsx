@@ -1,4 +1,5 @@
 "use client";
+import { habitPaused } from "@/lib/habitTargets";
 import { habitCounter } from "@/lib/habitCounter";
 import { useLocalDay } from "@/hooks/useLocalDay";
 
@@ -210,6 +211,7 @@ export function HabitsManagerModal({
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <button
                       type="button"
+                      disabled={habitPaused(habit,todayStr)&&!habit.completedDates.includes(todayStr)}
                       onClick={() => onToggleHabit(habit.id)}
                       className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border transition-all ${
                         isDoneToday
@@ -241,7 +243,7 @@ export function HabitsManagerModal({
                           }`}
                         >
                           <Flame size={10} className={`mt-0.5 shrink-0 ${habit.streak > 0 ? "fill-orange-500 text-orange-500" : ""}`} />
-                          <span className="min-w-0 leading-relaxed">{habitCounter(habit, counterDate)}</span>
+                          <span className="min-w-0 leading-relaxed">{habitCounter(habit, counterDate)}{habitPaused(habit,todayStr)?" · Paused today":""}</span>
                         </span>
                         <span className="text-[10px] text-muted">
                           {habit.completedDates.length} total logged

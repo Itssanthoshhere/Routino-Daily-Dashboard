@@ -1,5 +1,6 @@
 "use client";
 
+import { habitPaused, pauseAwareStreak } from "@/lib/habitTargets";
 import { useMemo } from "react";
 import { TrendingUp, Flame, CheckCircle2, Award, Calendar } from "lucide-react";
 import type { Habit } from "@/types/dashboard";
@@ -45,9 +46,10 @@ export function WeeklyInsightsPanel({ habits }: WeeklyInsightsPanelProps) {
     });
 
     const totalCheckins = days.reduce((acc, d) => acc + d.completedCount, 0);
-    const maxPossibleCheckins = habits.length * 7;
+    const expected=habits.map(h=>{const active=days.filter(day=>!habitPaused(h,day.dateStr));const target=h.target?.frequency==="weekly"?Math.min(h.target.count,active.length):active.length;const actual=active.filter(day=>h.completedDates.includes(day.dateStr)).length;return {target,met:Math.min(target,actual)};});
+    const maxPossibleCheckins = expected.reduce((sum,item)=>sum+item.target,0);
     const overallPercentage =
-      maxPossibleCheckins > 0 ? Math.round((totalCheckins / maxPossibleCheckins) * 100) : 0;
+      maxPossibleCheckins > 0 ? Math.round((expected.reduce((sum,item)=>sum+item.met,0) / maxPossibleCheckins) * 100) : 0;
 
     // Find habit with highest completions in last 7 days
     let topHabit: Habit | null = null;
@@ -60,9 +62,8 @@ export function WeeklyInsightsPanel({ habits }: WeeklyInsightsPanelProps) {
         maxCompletions = countInLast7;
         topHabit = h;
       }
-      if (h.streak > bestStreak) {
-        bestStreak = h.streak;
-      }
+      const daily=h.target?.frequency==="weekly"?0:h.pauses?.length?pauseAwareStreak(h,getLocalDateString()):h.streak;
+      if (daily > bestStreak) bestStreak = daily;
     });
 
     return {
@@ -85,7 +86,7 @@ export function WeeklyInsightsPanel({ habits }: WeeklyInsightsPanelProps) {
           </span>
           <div>
             <h4 className="text-[12px] font-bold text-ink">7-Day Consistency Insights</h4>
-            <p className="text-[10px] text-muted">Weekly habit completion performance</p>
+            <p className="text-[10px] text-muted">Target-aware score · paused days excluded</p>
           </div>
         </div>
 
@@ -101,7 +102,7 @@ export function WeeklyInsightsPanel({ habits }: WeeklyInsightsPanelProps) {
               <Flame size={13} className="text-[#ea580c]" />
               {stats.bestStreak}d
             </span>
-            <span className="block text-[9px] font-medium text-muted">Top Streak</span>
+            <span className="block text-[9px] font-medium text-muted">Top daily streak</span>
           </div>
         </div>
       </div>

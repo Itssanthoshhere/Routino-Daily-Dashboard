@@ -18,6 +18,8 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Habit } from "@/types/dashboard";
+import { HabitPlanningEditor, type HabitPlanning } from "@/components/HabitPlanning";
+import { validHabitPlanning } from "@/lib/habitTargets";
 import { HabitHistoryEditor } from "@/components/HabitHistoryEditor";
 
 export const HABIT_ICONS = [
@@ -46,7 +48,7 @@ type HabitModalProps = {
   isOpen: boolean;
   onClose: () => void;
   habit?: Habit | null; // null/undefined for create mode, Habit for edit mode
-  onSaveHabit: (data: { id?: string; name: string; icon?: string; streak?: number; completedDates?: string[] }) => void;
+  onSaveHabit: (data: HabitPlanning & { id?: string; name: string; icon?: string; streak?: number; completedDates?: string[] }) => void;
   onDeleteHabit?: (id: string) => void;
 };
 
@@ -57,6 +59,8 @@ export function HabitModal({
   onSaveHabit,
   onDeleteHabit,
 }: HabitModalProps) {
+  const [planning,setPlanning]=useState<HabitPlanning>({});
+  const [planningError,setPlanningError]=useState("");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState<string>("flame");
   const [streak, setStreak] = useState<number>(0);
@@ -66,6 +70,8 @@ export function HabitModal({
   const isEditMode = Boolean(habit);
 
   useEffect(() => {
+    setPlanning(structuredClone({target:habit?.target,pauses:habit?.pauses,completionNotes:habit?.completionNotes}));
+    setPlanningError("");
     if (habit) {
       setName(habit.name);
       setIcon(habit.icon || "flame");
@@ -86,7 +92,9 @@ export function HabitModal({
     e.preventDefault();
     if (!name.trim()) return;
 
+    if(!validHabitPlanning(planning)){setPlanningError("Check weekly target (1–7), pause dates, and note lengths.");return;}
     onSaveHabit({
+      ...planning,
       id: habit?.id,
       name: name.trim(),
       icon,
@@ -162,7 +170,7 @@ export function HabitModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          {habit && <HabitHistoryEditor dates={dates} onChange={(next, currentStreak) => { setDates(next); setStreak(currentStreak); }} />}
+          <HabitPlanningEditor value={planning} onChange={setPlanning} dates={dates} />{planningError&&<p role="alert" className="text-xs text-red-700">{planningError}</p>}{habit && <HabitHistoryEditor planning={planning} dates={dates} onChange={(next, currentStreak) => { setDates(next); setStreak(currentStreak); }} />}
           <div>
             <label className="block text-[11px] font-semibold text-ink">
               Habit Name <span className="text-[#c05746]">*</span>

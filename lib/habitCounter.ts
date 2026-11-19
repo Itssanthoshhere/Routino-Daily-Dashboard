@@ -1,6 +1,10 @@
+import {habitWeek,weeklyHabitStreak,pauseAwareStreak} from "@/lib/habitTargets";
 import type { Habit } from "@/types/dashboard";
 export function habitCounter(habit: Habit, now = new Date()): string {
-  const streak = `${habit.streak} ${habit.streak === 1 ? "day" : "days"} streak`;
+  const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+  if(habit.target?.frequency==="weekly"){const week=habitWeek(habit,today);return `${week.excused?"Week paused":`${week.count}/${week.required} this week`} · ${weeklyHabitStreak(habit,today)} week streak`;}
+  const value=habit.pauses?.length?pauseAwareStreak(habit,today):habit.streak;
+  const streak = `${value} ${value === 1 ? "day" : "days"} streak`;
   if (habit.trackingMode !== "days-since" && !habit.counterStartDate) return streak;
   const date = habit.counterStartDate || [...habit.completedDates].filter(value => /^\d{4}-\d{2}-\d{2}$/.test(value)).sort().pop();
   if (!date) return "Not recorded yet";

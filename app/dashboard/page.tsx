@@ -1,4 +1,6 @@
 "use client";
+import { habitPaused, pauseAwareStreak } from "@/lib/habitTargets";
+import type { HabitPlanning } from "@/components/HabitPlanning";
 import { WorkspacePreferencesProvider, OverviewLayout } from "@/components/WorkspacePreferences";
 import { launchShortcut, validWorkspacePreference, type WorkspacePreference } from "@/lib/workspacePreferences";
 import { DeviceSyncReporter } from "@/components/DeviceSyncActivity";
@@ -1464,6 +1466,7 @@ export default function Home() {
       const next = prev.map(h => {
         if (h.id !== id) return h;
         const isDone = h.completedDates.includes(todayStr);
+        if(habitPaused(h,todayStr)&&!isDone)return h;
         let nextDates: string[];
         let nextStreak: number;
 
@@ -1477,7 +1480,7 @@ export default function Home() {
           playTick();
           toast(`Habit "${h.name}" completed for today! 🔥`);
         }
-        return { ...h, completedDates: nextDates, streak: nextStreak };
+        return { ...h, completedDates: nextDates, streak: h.pauses?.length?pauseAwareStreak({...h,completedDates:nextDates},todayStr):nextStreak };
       });
       try { browserStore.setItem("routino_habits", JSON.stringify(next)); } catch {}
       syncToDatabase({ habits: next, replaceHabitIds: [id] });
@@ -1485,9 +1488,10 @@ export default function Home() {
     });
   };
 
-  const addHabit = (name: string, icon?: string) => {
+  const addHabit = (name: string, icon?: string, planning?: HabitPlanning) => {
     const newHabit: Habit = {
-      id: "h-" + Date.now(),
+      ...planning,
+      id: "h-" + crypto.randomUUID(),
       name,
       streak: 0,
       completedDates: [],
@@ -3528,13 +3532,14 @@ export default function Home() {
         onSaveHabit={(data) => {
           if (data.id) {
             updateHabit(data.id, {
+              target:data.target,pauses:data.pauses,completionNotes:data.completionNotes,
               name: data.name,
               icon: data.icon,
               streak: data.streak,
               ...(data.completedDates ? { completedDates: data.completedDates } : {}),
             });
           } else {
-            addHabit(data.name, data.icon);
+            addHabit(data.name, data.icon,{target:data.target,pauses:data.pauses,completionNotes:data.completionNotes});
           }
           setShowIndividualHabitModal(false);
           setEditingHabitInModal(null);

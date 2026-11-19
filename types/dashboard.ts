@@ -35,6 +35,9 @@ export type Task = {
 };
 
 export type Habit = {
+  target?: import("@/lib/habitTargets").HabitTarget;
+  pauses?: import("@/lib/habitTargets").HabitPause[];
+  completionNotes?: Record<string,string>;
   counterStartDate?: string;
   trackingMode?: "daily" | "days-since";
   id: string;

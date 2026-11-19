@@ -1,3 +1,4 @@
+import { validHabitPlanning } from "@/lib/habitTargets";
 import { validWorkspacePreference } from "@/lib/workspacePreferences";
 import { validNoteReferences, readingTags } from "@/lib/noteOrganization";
 import { validSubscriptionBudget } from "@/lib/subscriptionPlanning";
@@ -41,7 +42,7 @@ export function validNote(v: unknown): boolean {
     && optional(v.checklist, x => Array.isArray(x) && x.every(y => record(y) && nonempty(y.id) && text(y.text) && typeof y.done === "boolean"));
 }
 export function validHabit(v: unknown): boolean {
-  return record(v) && nonempty(v.id) && nonempty(v.name) && timestamp(v.streak) && Array.isArray(v.completedDates) && v.completedDates.every(isSubscriptionDate)
+  return record(v) && validHabitPlanning(v) && nonempty(v.id) && nonempty(v.name) && timestamp(v.streak) && Array.isArray(v.completedDates) && v.completedDates.every(isSubscriptionDate)
     && optional(v.counterStartDate, isSubscriptionDate) && optional(v.trackingMode, x => x === "daily" || x === "days-since") && optional(v.icon, text);
 }
 export function validEvent(v: unknown): boolean {

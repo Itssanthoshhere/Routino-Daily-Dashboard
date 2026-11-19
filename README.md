@@ -117,6 +117,8 @@ Preferences → General includes **Accessible display**: Standard, Large (112.5%
 
 Read Later supports normalized custom tags, independent favourites, title/tag search, and Unread/Reading/Read filters. Existing read flags remain compatible, and newly saved reading links are explicitly included regardless of URL/title keywords. Status, tags, and favourites save with Quick links through existing account sync, offline queue, conflict handling, and export/import. Reading-time estimates still use optional article text. Existing notes and links are not migrated or rewritten automatically.
 
+**Asset detail & planning:** Use **View details** on an asset for a private, account-protected page with its documents, warranty, service history, claims, maintenance, and linked notes. Copy its private link to reopen it on another signed-in device. Optional straight-line or declining-balance estimates use your saved cost, residual value, and dates; purchase prices remain unchanged. Serial numbers and other identifiers can be masked on screen (masking is not encryption).
+
 **Documents & asset care:** Trackers → Gadgets & Assets includes a **Document library** that searches filenames, subscription names, gadgets, service providers, and warranty claim references. Filter by asset, service, claim, or subscription; preview private PDFs/images and open other attachments through the existing document access controls. The library indexes saved references and keeps documents searchable even if a sheet asset disappears. Rename/remove attachments on their original records.
 
 Each asset card keeps compact, clickable summaries and opens **Manage asset**, with Documents, Warranty, Service history, Claims, and Maintenance tabs. The modal fits its content on desktop and fills the screen on small devices. Keyboard arrow/Home/End navigation is supported, tab switching preserves unfinished edits, and existing private previews, uploads, and nested service editors remain available.
@@ -142,6 +144,8 @@ Select an unfinished task to create a focus event in your primary Google Calenda
 Open **Q → microphone** to dictate into Task, Note, or Scratchpad, then review/edit the transcript before saving. Native browser speech recognition requires microphone permission and browser support. It may process audio through an online browser speech service; offline or entirely local recognition is not guaranteed. No separate speech API key is configured.
 
 **Tech radar · Read later** complements Quick Links with a developer-link reading list, read/unread state, title/URL editing, and confirmed deletion. Removing an item also removes its shared Quick Link. Reading-time estimates use optional article text supplied through Edit (200 words/minute); the app does not fetch article contents. Read-state updates use the existing workspace sync path.
+
+Habits support optional Monday–Sunday targets of 1–7 days per week, inclusive pause periods, and dated completion notes. Paused days retain existing history but do not earn streak credit; fully paused weeks preserve weekly streak continuity. Notes never create completions. Resume tracking from the habit card or edit pause dates in the habit editor.
 
 Daily habits retain their completion history and streaks. Optional elapsed-day counters use a saved start date or last completion date and refresh at local midnight and when the tab resumes. Elapsed days do not fabricate daily completions or increase the streak; tick each day to extend a daily streak.
 

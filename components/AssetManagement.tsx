@@ -16,7 +16,8 @@ const tabs = [
     { id: "maintenance", label: "Maintenance", icon: CalendarClock },
 ] as const;
 type Tab = typeof tabs[number]["id"];
-export function AssetManagement({ referenceId, name, model, record, documents, disabled, onRecordChange, onDocumentsChange, onReminder }: {
+export function AssetManagement({ onOpenDetail, referenceId, name, model, record, documents, disabled, onRecordChange, onDocumentsChange, onReminder }: {
+    onOpenDetail?:()=>void;
     referenceId?: string;
     name: string;
     model: string;
@@ -45,7 +46,7 @@ export function AssetManagement({ referenceId, name, model, record, documents, d
     return <div className="mt-3">
     <div className="flex flex-wrap items-center gap-2">
     <button type="button" className="btn-theme inline-flex items-center gap-2 rounded-xl border border-forest/20 bg-[#fff7f7] px-3 py-2 text-xs font-semibold text-forest" onClick={() => show('documents')}>
-    <Settings2 size={14}/>Manage asset</button>{tabs.map(tab => <button type="button" key={tab.id} className={action} onClick={() => show(tab.id)} aria-label={`Open ${tab.label} for ${name}`}>
+    <Settings2 size={14}/>Manage asset</button>{onOpenDetail&&<button type="button" className={action} onClick={onOpenDetail}>View details</button>}{tabs.map(tab => <button type="button" key={tab.id} className={action} onClick={() => show(tab.id)} aria-label={`Open ${tab.label} for ${name}`}>
         <tab.icon size={12}/>
         <span>{tab.label}{tab.id === 'warranty' ? record.warrantyEnd ? ` · ${record.warrantyEnd}` : ' · Set expiry' : ` · ${count(tab.id)}`}</span>
         </button>)}</div>
