@@ -420,3 +420,5 @@ public/               Static assets
 Please use fictional data in screenshots, issues, and pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Routino is distributed under the [MIT License](LICENSE).
 
 Pull-request and main-branch CI runs TypeScript, the local regression suites in two timezones, a production build, and the production PWA check. Live provider scheduling and actual permanent file deletion are not performed by CI.
+
+**Advanced workspace search:** Open universal search and choose **Filters** to combine record type, inclusive date range, tag/category, exact status, and attachment/reference presence. Dates use task due dates, event starts, note updates, subscription renewals, or recharge payments. Locked notes remain excluded. Filters do not edit saved records.

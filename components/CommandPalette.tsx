@@ -25,6 +25,7 @@ import {
   Wallet,
   Briefcase,
 } from "lucide-react";
+import { emptySearchFilters,hasSearchFilters,matchesSearchFilters,type SearchFilters } from "@/lib/searchFilters";
 import { searchWorkspace } from "@/lib/workspaceSearch";
 import type { Subscription } from "@/types/subscriptions";
 import type { AirtelRecharge } from "@/types/airtel";
@@ -72,6 +73,8 @@ export function CommandPalette({
   onOpenNote,
   events,
 }: CommandPaletteProps) {
+  const [filters,setFilters]=useState<SearchFilters>(emptySearchFilters);
+  const [filtersOpen,setFiltersOpen]=useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -89,17 +92,18 @@ export function CommandPalette({
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
-      setQuery("");
+      setQuery(""); setFilters(emptySearchFilters);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const filteredTasks = tasks.filter((t) =>
+  const filtering=hasSearchFilters(filters);
+  const filteredTasks = tasks.filter((t) => matchesSearchFilters({kind:"task",date:t.dueDate,tags:taskTags(t),status:t.skipped?"skipped":t.checked?"completed":"open",attachment:!!t.documents?.length||!!t.link},filters) &&
     `${t.title} ${t.meta} ${t.dueDate || ""} ${t.category || ""} ${taskTags(t).join(" ")} ${t.projectName || ""} ${t.milestone || ""} ${(t.documents || []).map(doc=>doc.name).join(" ")} ${(t.subtasks || []).map(item => item.title).join(" ")}`.toLowerCase().includes(query.toLowerCase())
   );
-  const workspaceResults = searchWorkspace(query, notes, subscriptions, recharges);
-  const filteredEvents = events.filter((e) =>
+  const workspaceResults = searchWorkspace(query, notes, subscriptions, recharges, filters);
+  const filteredEvents = events.filter((e) => matchesSearchFilters({kind:"event",date:(e.start?.date||e.start?.dateTime||"").slice(0,10),tags:e.tag?[e.tag]:[],status:e.source||"google"},filters) &&
     (e.summary || "").toLowerCase().includes(query.toLowerCase())
   );
 
@@ -265,7 +269,7 @@ export function CommandPalette({
   ];
 
   const q = query.trim().toLowerCase();
-  const filteredActions = q
+  const filteredActions = filtering ? [] : q
     ? navActions.filter(
         (a) =>
           a.label.toLowerCase().includes(q) ||
@@ -292,6 +296,7 @@ export function CommandPalette({
           </kbd>
         </div>
 
+        <div className="px-3 pb-2"><button type="button" className="btn-theme rounded-lg border border-line px-3 py-1.5 text-xs" aria-expanded={filtersOpen} onClick={()=>setFiltersOpen(!filtersOpen)}>Filters{filtering?" · active":""}</button>{filtersOpen&&<div className="mt-2 grid grid-cols-2 gap-2 rounded-xl border border-line bg-white p-3 text-xs"><label>Record type<select className="mt-1 w-full rounded border border-line p-2" value={filters.kind} onChange={e=>setFilters({...filters,kind:e.target.value})}>{['all','task','note','event','subscription','recharge'].map(kind=><option key={kind} value={kind}>{kind}</option>)}</select></label><label>Attachment<select className="mt-1 w-full rounded border border-line p-2" value={filters.attachment} onChange={e=>setFilters({...filters,attachment:e.target.value})}><option value="all">Any</option><option value="yes">Has attachment / reference</option><option value="no">No attachment</option></select></label><label>From date<input type="date" className="mt-1 w-full rounded border border-line p-2" value={filters.from} onChange={e=>setFilters({...filters,from:e.target.value})}/></label><label>Through date<input type="date" min={filters.from||undefined} className="mt-1 w-full rounded border border-line p-2" value={filters.to} onChange={e=>setFilters({...filters,to:e.target.value})}/></label><label>Tag / category<input className="mt-1 w-full rounded border border-line p-2" value={filters.tag} onChange={e=>setFilters({...filters,tag:e.target.value})}/></label><label>Status<input placeholder="e.g. open, active, pinned" className="mt-1 w-full rounded border border-line p-2" value={filters.status} onChange={e=>setFilters({...filters,status:e.target.value})}/></label><p className="col-span-2 text-[10px] text-muted">Dates: task due date, event start, note update, subscription renewal, recharge payment. Undated records are excluded when dates are set. Locked notes stay excluded.</p><button type="button" className="btn-theme rounded border border-line p-2" onClick={()=>setFilters(emptySearchFilters)}>Clear filters</button></div>}</div>
         <div className="max-h-80 overflow-y-auto p-2">
           {/* Quick Actions */}
           {filteredActions.length > 0 && (
@@ -340,7 +345,7 @@ export function CommandPalette({
             </div>
           )}
 
-          {query.trim() && <div className="mt-3"><p className="px-2 py-1 text-[10px] text-muted">Workspace results ({workspaceResults.length}) · Locked notes are excluded</p><div className="space-y-1">{workspaceResults.slice(0, 30).map(item => <button key={`${item.kind}:${item.id}`} className="btn-theme flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-xs" onClick={() => handleAction(() => {
+          {(query.trim() || filtering) && <div className="mt-3"><p className="px-2 py-1 text-[10px] text-muted">Workspace results ({workspaceResults.length}) · Locked notes are excluded</p><div className="space-y-1">{workspaceResults.slice(0, 30).map(item => <button key={`${item.kind}:${item.id}`} className="btn-theme flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-xs" onClick={() => handleAction(() => {
             if (item.kind === "note") { if (onOpenNote) onOpenNote(item.id); else onNavigate("Notes"); }
             else { onOpenTrackerTab?.(item.kind === "subscription" ? "subscriptions" : "airtel"); window.setTimeout(() => document.getElementById(`${item.kind}-${item.id}`)?.scrollIntoView({ block: "center", behavior: workspaceScrollBehavior() }), 150); }
           })}><span className="min-w-0"><span className="block font-semibold">{item.title}</span><span className="mt-1 block truncate text-muted">{item.detail.replace(/<[^>]*>/g, " ").slice(0, 120)}</span></span><span className="shrink-0 text-muted">{item.kind}</span></button>)}</div>{workspaceResults.length > 30 && <p className="px-2 text-xs text-muted">Showing first 30 results. Refine your search to find more.</p>}</div>}
