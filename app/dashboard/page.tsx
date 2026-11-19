@@ -2240,7 +2240,7 @@ export default function Home() {
             </div>
           )}
 
-          {(activeNav === "Overview" || activeNav === "Trackers") && trackerWorkspace.ready && <ExpiryReminders subscriptions={subscriptions} airtel={trackerWorkspace.airtel} onOpen={handleOpenTrackersTab} />}
+          {(activeNav === "Overview" || activeNav === "Trackers") && trackerWorkspace.ready && <ExpiryReminders subscriptions={subscriptions} airtel={trackerWorkspace.airtel} assets={trackerWorkspace.assetRecords} snoozes={reminderSnoozes(workspacePreferences)} onOpen={item=>{setReminderTarget(item);handleOpenTrackersTab(item.target as "airtel" | "subscriptions" | "purchases");}} />}
 
 
           {/* ─── CONDITIONAL VIEWS BASED ON ACTIVE NAV ─── */}

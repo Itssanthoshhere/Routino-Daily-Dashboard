@@ -314,3 +314,24 @@ recentUnreadPagination().catch(error => { console.error(error); process.exitCode
 
 const endedPausedSeries = [{ ...originalTask, checked: true, recurrence: { frequency: 'daily', interval: 1, paused: true, until: '2026-11-17' } }];
 assert.equal(setSeriesPaused(endedPausedSeries, originalTask.id, false, '2026-11-20', 11), endedPausedSeries);
+
+// Monthly recharge reporting merges journal rows with saved edits and deletion markers.
+const rechargeJournals = { '2026': { expenses: [
+  { id: 'phone', item: 'Airtel', amount: 199, year: 2026, month: 11, day: 19, dateStr: '2026-11-19', category: 'Recharge' },
+  { id: 'removed', item: 'Airtel', amount: 49, year: 2026, month: 11, day: 18, dateStr: '2026-11-18', category: 'Recharge' },
+] } };
+const rechargeReportData = { plan: null, deletedIds: ['2026:removed'], records: [
+  { id: '2026:phone', date: '2026-11-20', amount: 299, kind: 'plan', status: 'success', paidByOther: false, notes: '', source: 'Saved edit' },
+  { id: 'failed', date: '2026-11-20', amount: 199, kind: 'plan', status: 'failed', paidByOther: false, notes: '', source: 'Manual' },
+  { id: 'other-payer', date: '2026-11-20', amount: 49, kind: 'topup', paidByOther: true, notes: '', source: 'Manual' },
+], familyMembers: [{ recharge: { records: [{ id: 'family-payment', date: '2026-11-20', amount: 2249 }] } }] };
+const rechargeSnapshot = JSON.stringify({ rechargeJournals, rechargeReportData });
+const mergedMonthly = recordedPayments([], rechargeReportData, rechargeJournals);
+assert.equal(mergedMonthly.length, 1);
+assert.equal(mergedMonthly[0].amount, 299);
+assert.equal(mergedMonthly[0].date, '2026-11-20');
+assert.equal(monthlySpending(mergedMonthly, '2026-11').totals[0].amount, 299);
+assert.equal(monthlySpending(mergedMonthly, '2026-10').rows.length, 0);
+assert.equal(JSON.stringify({ rechargeJournals, rechargeReportData }), rechargeSnapshot);
+assert.equal(recordedPayments([], { ...rechargeReportData, records: [] }, rechargeJournals)[0].amount, 199);
+console.log('Passed: monthly recharge journal merging, saved-date/amount precedence, deleted/failed/other-payer/family exclusions, month boundaries and source preservation.');

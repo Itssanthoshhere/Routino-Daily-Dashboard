@@ -1,8 +1,10 @@
+import { airtelRecharges } from "@/lib/airtelRecharges";
+import type { TrackerExpenseJournal } from "@/types/dashboard";
 import type { Subscription } from "@/types/subscriptions";
 import type { AirtelData } from "@/types/airtel";
 export type SpendingPayment = { id: string; name: string; date: string; amount: number; currency: string };
 /** Only recorded payments; bundles are represented by their actual recharge payment. */
-export function recordedPayments(subscriptions: Subscription[], airtel: AirtelData): SpendingPayment[] {
+export function recordedPayments(subscriptions: Subscription[], airtel: AirtelData, journals: Record<string, TrackerExpenseJournal> = {}): SpendingPayment[] {
   const rows: SpendingPayment[] = [];
   const seen = new Set<string>();
   for (const service of subscriptions) {
@@ -13,7 +15,7 @@ export function recordedPayments(subscriptions: Subscription[], airtel: AirtelDa
       seen.add(id); rows.push({ id, name: service.name, date: payment.date, amount: payment.amount, currency: service.currency });
     }
   }
-  for (const recharge of airtel.records) {
+  for (const recharge of airtelRecharges(journals, airtel)) {
     if (recharge.status === "failed" || recharge.paidByOther) continue;
     const id = `airtel:${recharge.id}`;
     if (seen.has(id)) continue;

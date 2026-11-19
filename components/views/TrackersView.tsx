@@ -49,6 +49,7 @@ import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 
 import { subscriptionsFromJournals } from "@/lib/subscriptionJournal";
 import { AirtelRenewal } from "@/components/AirtelRenewal";
+import { MonthlySpending } from "@/components/MonthlySpending";
 import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
 import { SubscriptionManager } from "@/components/SubscriptionManager";
 import type { AssetRecords } from "@/types/assets";
@@ -1381,6 +1382,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
       ═══════════════════════════════════════════════════════════ */}
       {activeTab === "expenses" && (
         <div className="space-y-6">
+          <MonthlySpending embedded subscriptions={subscriptions} airtel={airtel||emptyAirtelData()} journals={data.isLive?data.journals:{}}/>
           {/* Sub-Section Journal Selector */}
           <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
