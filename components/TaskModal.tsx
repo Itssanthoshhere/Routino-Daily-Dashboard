@@ -1,5 +1,6 @@
 "use client";
 
+import { RelatedNotes } from "@/components/NoteConnections";
 import { useState, useEffect } from "react";
 import { Plus, X, AlertCircle, CheckSquare, Trash2, Plane, Sparkles, Calendar } from "lucide-react";
 import { Task, SubTask } from "@/types/dashboard";
@@ -12,6 +13,7 @@ import type { SavedDocument } from "@/types/documents";
 import { inferTaskCategory } from "@/lib/meeting";
 
 type TaskModalProps = {
+  relatedTaskId?: string;
   templates?: TaskTemplate[];
   onTemplatesChange?: (templates: TaskTemplate[]) => void;
   editing?: boolean;
@@ -22,7 +24,7 @@ type TaskModalProps = {
   availableTasks?: Task[];
 };
 
-export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = false, availableTasks = [], templates = [], onTemplatesChange }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, onAddTask, initialTask, relatedTaskId, editing = false, availableTasks = [], templates = [], onTemplatesChange }: TaskModalProps) {
   const [organizationError, setOrganizationError] = useState("");
   const [documentSession, setDocumentSession] = useState(0);
   const [uploading, setUploading] = useState(false);
@@ -259,6 +261,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, editing = f
             </div>
           </div>
 
+          {relatedTaskId && <RelatedNotes kind="task" id={relatedTaskId} />}
           {editing && (initialTask?.recurrence || initialTask?.recurrenceTemplate) && <label className="block text-xs font-semibold">Apply changes to<select className="mt-1 w-full rounded-lg border border-line px-3 py-2" value={editScope} onChange={event => setEditScope(event.target.value as typeof editScope)}><option value="future">This and future occurrences</option><option value="occurrence">Only this occurrence</option></select><span className="mt-1 block font-normal text-muted">Completed history is preserved. Existing future dates and checklist progress stay intact.</span></label>}
           {availableTasks.filter(task => !task.checked).length > 0 && <label className="block text-xs font-semibold">Blocked until these tasks are complete<select multiple className="mt-1 h-20 w-full rounded-lg border border-line px-3 py-2" value={dependsOn} onChange={event => setDependsOn(Array.from(event.target.selectedOptions, option => option.value))}>{availableTasks.filter(task => !task.checked).map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</select><span className="mt-1 block font-normal text-muted">Dependencies stay attached to the task and are preserved across devices.</span></label>}
           <div className="rounded-xl border border-line bg-white p-3 space-y-3">

@@ -93,6 +93,10 @@ export type DashboardMail = {
 };
 
 export type QuickLink = {
+  readLater?: boolean;
+  readingTags?: string[];
+  readingFavourite?: boolean;
+  readingStatus?: "unread" | "reading" | "read";
   pinned?: boolean;
   read?: boolean;
   readingText?: string;
@@ -113,6 +117,7 @@ export type KeepNoteChecklistItem = {
 export type KeepNotePriority = "high" | "medium" | "low" | "none";
 
 export type KeepNote = {
+  references?: import("@/lib/noteOrganization").NoteReference[];
   meetingEventId?: string;
   id: string;
   title: string;

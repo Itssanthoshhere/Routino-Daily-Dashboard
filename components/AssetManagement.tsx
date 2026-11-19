@@ -1,4 +1,5 @@
 "use client";
+import { RelatedNotes, useNoteConnections } from "@/components/NoteConnections";
 import { useEffect, useId, useRef, useState } from "react";
 import { FileText, ShieldCheck, Wrench, ClipboardCheck, CalendarClock, X, Settings2 } from "lucide-react";
 import { RecordDocuments } from "@/components/SubscriptionDocuments";
@@ -15,7 +16,8 @@ const tabs = [
     { id: "maintenance", label: "Maintenance", icon: CalendarClock },
 ] as const;
 type Tab = typeof tabs[number]["id"];
-export function AssetManagement({ name, model, record, documents, disabled, onRecordChange, onDocumentsChange, onReminder }: {
+export function AssetManagement({ referenceId, name, model, record, documents, disabled, onRecordChange, onDocumentsChange, onReminder }: {
+    referenceId?: string;
     name: string;
     model: string;
     record: AssetRecord;
@@ -25,6 +27,8 @@ export function AssetManagement({ name, model, record, documents, disabled, onRe
     onDocumentsChange?: (documents: SavedDocument[]) => void;
     onReminder?: (date: string) => void;
 }) {
+    const {target,consume}=useNoteConnections();
+    useEffect(()=>{if(target?.kind==="asset"&&target.id===referenceId){setActive("documents");setInitialized(true);setOpen(true);consume(target);}},[target,referenceId,consume]);
     const id = useId();
     const dialog = useRef<HTMLDialogElement>(null);
     const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -69,7 +73,7 @@ export function AssetManagement({ name, model, record, documents, disabled, onRe
         else
             return; event.preventDefault(); setActive(tabs[next].id); buttons.current[next]?.focus(); }} className={`flex shrink-0 items-center gap-2 border-b-2 px-2.5 py-3 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-forest ${active === tab.id ? 'border-forest text-forest' : 'border-transparent text-muted hover:bg-stone-50 hover:text-ink'}`}>
         <tab.icon size={14}/>{tab.label}{count(tab.id) !== undefined && <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${active === tab.id ? "bg-red-50 text-forest" : "bg-stone-100 text-muted"}`}>{count(tab.id)}</span>}</button>)}</div>
-    <div className="asset-manager-body min-h-0 overflow-y-auto px-6 py-5">{disabled && <p role="status" className="mb-3 text-xs text-muted">Changes are temporarily disabled while tracker data loads or sync is resolved.</p>}{initialized && tabs.map(tab => <section key={tab.id} role="tabpanel" id={`${id}-${tab.id}-panel`} aria-labelledby={`${id}-${tab.id}-tab`} hidden={active !== tab.id} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-forest">{tab.id !== "documents" && <h4 className="mb-3 text-sm font-semibold">{tab.label}</h4>}{tab.id === 'documents' && (onDocumentsChange ? <RecordDocuments embedded recordName={`${name} ${model}`} documents={documents} disabled={disabled} onChange={onDocumentsChange}/> : <p className="text-xs text-muted">Document editing is unavailable.</p>)}{tab.id === 'warranty' && onRecordChange && <AssetWarranty embedded record={record} disabled={disabled} onChange={onRecordChange} onReminder={onReminder}/>} {tab.id === 'services' && onRecordChange && <AssetServiceHistory embedded record={record} disabled={disabled} onChange={onRecordChange}/>} {(tab.id === 'claims' || tab.id === 'maintenance') && onRecordChange && <AssetCare embedded section={tab.id} assetName={name} receipts={documents.length} record={record} disabled={disabled} onChange={onRecordChange}/>}</section>)}</div>
+    <div className="asset-manager-body min-h-0 overflow-y-auto px-6 py-5">{referenceId && <RelatedNotes kind="asset" id={referenceId} />}{disabled && <p role="status" className="mb-3 text-xs text-muted">Changes are temporarily disabled while tracker data loads or sync is resolved.</p>}{initialized && tabs.map(tab => <section key={tab.id} role="tabpanel" id={`${id}-${tab.id}-panel`} aria-labelledby={`${id}-${tab.id}-tab`} hidden={active !== tab.id} tabIndex={0} className="outline-none focus-visible:ring-2 focus-visible:ring-forest">{tab.id !== "documents" && <h4 className="mb-3 text-sm font-semibold">{tab.label}</h4>}{tab.id === 'documents' && (onDocumentsChange ? <RecordDocuments embedded recordName={`${name} ${model}`} documents={documents} disabled={disabled} onChange={onDocumentsChange}/> : <p className="text-xs text-muted">Document editing is unavailable.</p>)}{tab.id === 'warranty' && onRecordChange && <AssetWarranty embedded record={record} disabled={disabled} onChange={onRecordChange} onReminder={onReminder}/>} {tab.id === 'services' && onRecordChange && <AssetServiceHistory embedded record={record} disabled={disabled} onChange={onRecordChange}/>} {(tab.id === 'claims' || tab.id === 'maintenance') && onRecordChange && <AssetCare embedded section={tab.id} assetName={name} receipts={documents.length} record={record} disabled={disabled} onChange={onRecordChange}/>}</section>)}</div>
     </div>
     </dialog>
     </div>;

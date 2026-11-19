@@ -1,5 +1,7 @@
 "use client";
 
+import { RelatedNotes } from "@/components/NoteConnections";
+import { meetingReferenceId } from "@/lib/noteOrganization";
 import { useState } from "react";
 import { CalendarDays, Clock, Video, Users, ExternalLink, X, Plus, MapPin, Calendar, Plane } from "lucide-react";
 import { DashboardEvent } from "@/types/dashboard";
@@ -65,6 +67,7 @@ export function EventModal({ isOpen, onClose, eventToView, onAddEvent, onFocusCh
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl">
+        {eventToView && <RelatedNotes kind="meeting" id={meetingReferenceId(eventToView)} legacyMeetingId={eventToView.id} />}
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#edf0ff] text-[#6088d1]">

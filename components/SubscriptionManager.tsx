@@ -1,5 +1,7 @@
 "use client";
 
+import { RelatedNotes, useNoteConnections } from "@/components/NoteConnections";
+import { useEffect } from "react";
 import { SubscriptionBudgets } from "@/components/SubscriptionBudgets";
 import { RenewalDecisionQueue, PaymentReconciliation } from "@/components/SubscriptionPlanning";
 import { SharedSubscriptionExpenses } from "@/components/SharedSubscriptionExpenses";
@@ -25,6 +27,8 @@ const blank = (): Subscription => ({ id: "", name: "", amount: 0, currency: "INR
 const inputClass = "w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink";
 
 export function SubscriptionManager({ subscriptions: storedSubscriptions, onChange, disabled = false, airtel, onRenewalTask }: { airtel?: AirtelData; subscriptions: Subscription[]; onChange: (next: Subscription[]) => void; disabled?: boolean; onRenewalTask?: (subscription: Subscription, date: string) => void }) {
+  const {target,consume}=useNoteConnections();
+  useEffect(()=>{if(target?.kind!=="subscription")return;setSearch("");setStatus("all");requestAnimationFrame(()=>document.getElementById(`subscription-${target.id}`)?.scrollIntoView({block:"center",behavior:"smooth"}));consume(target);},[target,consume]);
   const [alertMessage, setAlertMessage] = useState("");
   const [creatingAlert, setCreatingAlert] = useState(false);
   const countdown = (date: string) => { const days = Math.round((new Date(`${date}T12:00:00`).getTime() - new Date(`${localToday()}T12:00:00`).getTime()) / 86400000); return days < 0 ? `${-days} days overdue` : days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`; };
@@ -89,6 +93,7 @@ export function SubscriptionManager({ subscriptions: storedSubscriptions, onChan
       <div className="min-w-0"><h4 className="font-semibold text-ink">{s.name}{s.planName ? ` · ${s.planName}` : ""} <span className="ml-2 rounded-full bg-[#f0f2eb] px-2 py-1 text-xs font-medium capitalize">{s.status === "unconfirmed" ? "Needs review" : s.status}</span></h4><p className="mt-2 text-xs text-muted">{s.category} · {s.cycle === "bundled" ? "Included with Airtel recharge" : s.cycle === "one-time" ? "One-time upgrade · not recurring" : s.cycle === "unknown" ? "Billing cycle unconfirmed" : `${s.cycle === "yearly" ? "Annual" : s.cycle === "quarterly" ? "Quarterly" : "Monthly"} billing`}</p>{s.startDate && <p className="mt-2 text-xs text-muted">First recorded payment · {s.startDate} {s.lastPaidDate ? `· Last paid ${s.lastPaidDate}` : ""}</p>}
       {s.cycle === "bundled" && <p className="mt-2 text-xs text-muted">Included since {s.bundledSince || "date unconfirmed"} · {s.bundleEndDate ? `Recharge ends ${s.bundleEndDate}${s.bundleEndDate < today ? " · Bundle expired; review access" : ""}` : "Valid only until current recharge ends · End date needed"}</p>}
       <p className="mt-2 text-xs text-muted">Renewal decision · {s.renewalDecision === "keep" ? "Keep" : s.renewalDecision === "cancel" ? "Cancel before renewal (provider action still required)" : "Decide later"}</p>
+      <RelatedNotes kind="subscription" id={s.id} />
       <SubscriptionPriceHistory subscription={s} />
       <SharedSubscriptionExpenses subscription={storedSubscriptions.find(item=>item.id===s.id)!} disabled={disabled} onChange={updated=>onChange(storedSubscriptions.map(item=>item.id===updated.id?updated:item))} />
       <CancellationChecklist subscription={s} disabled={disabled} onChange={next => onChange(subscriptions.map(item => item.id === next.id ? next : item))} />

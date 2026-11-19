@@ -1,3 +1,4 @@
+import { validNoteReferences, readingTags } from "@/lib/noteOrganization";
 import { validSubscriptionBudget } from "@/lib/subscriptionPlanning";
 import { validFocusRecord } from "@/lib/focusWorkspace";
 import { isDocumentList } from "@/lib/assetDocuments";
@@ -33,7 +34,7 @@ export function validTask(v: unknown, template = false): boolean {
     && optional(v.subtasks, x => Array.isArray(x) && x.every(y => record(y) && nonempty(y.id) && text(y.title) && typeof y.completed === "boolean" && optional(y.link, safeUrl)));
 }
 export function validNote(v: unknown): boolean {
-  return record(v) && nonempty(v.id) && text(v.title) && text(v.content) && timestamp(v.updatedAt) && optional(v.createdAt, timestamp)
+  return record(v) && optional(v.references, validNoteReferences) && nonempty(v.id) && text(v.title) && text(v.content) && timestamp(v.updatedAt) && optional(v.createdAt, timestamp)
     && optionalBool(v.pinned) && optionalBool(v.isEncrypted) && optional(v.color, text) && optional(v.priority, text)
     && optional(v.images, strings) && optional(v.imageUrl, text)
     && optional(v.checklist, x => Array.isArray(x) && x.every(y => record(y) && nonempty(y.id) && text(y.text) && typeof y.done === "boolean"));
@@ -47,7 +48,7 @@ export function validEvent(v: unknown): boolean {
   return record(v) && nonempty(v.id) && optional(v.summary, text) && optional(v.description, text) && optional(v.start, time) && optional(v.end, time) && optional(v.attendees, strings) && optional(v.source, text) && optionalBool(v.isCustom);
 }
 export function validLink(v: unknown): boolean {
-  return record(v) && nonempty(v.id) && nonempty(v.title) && text(v.subtitle) && safeUrl(v.url) && text(v.iconName) && typeof v.available === "boolean" && optionalBool(v.read) && optionalBool(v.pinned) && optional(v.readingText, text);
+  return record(v) && nonempty(v.id) && nonempty(v.title) && text(v.subtitle) && safeUrl(v.url) && text(v.iconName) && typeof v.available === "boolean" && optionalBool(v.read) && optionalBool(v.readLater) && optionalBool(v.readingFavourite) && optional(v.readingStatus,x=>["unread","reading","read"].includes(String(x))) && optional(v.readingTags,x=>Array.isArray(x)&&x.length<=20&&x.every(text)&&JSON.stringify(readingTags(x))===JSON.stringify(x)) && optionalBool(v.pinned) && optional(v.readingText, text);
 }
 export function workspaceValidationError(value: unknown): string | null {
   if (!record(value)) return "Workspace update must be an object.";

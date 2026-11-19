@@ -1,4 +1,7 @@
 "use client";
+import { NoteConnectionsProvider } from "@/components/NoteConnections";
+import { meetingReferenceId, type NoteReference } from "@/lib/noteOrganization";
+import { assetDocumentKey } from "@/lib/assetDocuments";
 import { SubscriptionBudgetProvider } from "@/components/SubscriptionBudgets";
 import type { SubscriptionBudget } from "@/lib/subscriptionPlanning";
 import { FocusWorkspaceProvider } from "@/components/FocusWorkspace";
@@ -423,6 +426,7 @@ export default function Home() {
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [addingReadingLink,setAddingReadingLink]=useState(false);
   const [showQuickLinkModal, setShowQuickLinkModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -1968,7 +1972,16 @@ export default function Home() {
 
   /* ── Render ── */
   return (
-    <AccountStorageContext.Provider value={currentAccount.current}><SubscriptionBudgetProvider budgets={subscriptionBudgets} onChange={budgets => { browserStore.setItem("routino_subscription_budgets", JSON.stringify(budgets)); setSubscriptionBudgets(budgets); void syncToDatabase({ subscriptionBudgets: budgets }); }}><FocusWorkspaceProvider records={focusRecords} onChange={records => { browserStore.setItem("routino_focus_records", JSON.stringify(records)); setFocusRecords(records); void syncToDatabase({ focusRecords: records }); }}><div className="min-h-screen" key={currentAccount.current || "guest"}>
+    <AccountStorageContext.Provider value={currentAccount.current}><NoteConnectionsProvider key={currentAccount.current || "guest"} notes={notes} entities={[
+      ...tasks.map(task=>({kind:"task" as const,id:task.id,label:task.title})),
+      ...Array.from(new Map(allEvents.map(event=>[meetingReferenceId(event),event])).values()).map(event=>({kind:"meeting" as const,id:meetingReferenceId(event),label:event.summary||"Untitled meeting"})),
+      ...subscriptions.map(plan=>({kind:"subscription" as const,id:plan.id,label:plan.name})),
+      ...trackersData.purchases.map(asset=>({kind:"asset" as const,id:assetDocumentKey(asset),label:asset.product}))
+    ]} onOpenNote={id=>{setShowTaskModal(false);setShowEventModal(false);setActiveNav("Notes");setSearchNote({id});}} onOpenReference={(reference:NoteReference)=>{
+      if(reference.kind==="task")handleOpenExistingTask(reference.id);
+      else if(reference.kind==="meeting"){const event=allEvents.find(item=>meetingReferenceId(item)===reference.id);if(event){setViewingEvent(event);setShowEventModal(true);}}
+      else handleOpenTrackersTab(reference.kind==="asset"?"purchases":"subscriptions");
+    }}><SubscriptionBudgetProvider budgets={subscriptionBudgets} onChange={budgets => { browserStore.setItem("routino_subscription_budgets", JSON.stringify(budgets)); setSubscriptionBudgets(budgets); void syncToDatabase({ subscriptionBudgets: budgets }); }}><FocusWorkspaceProvider records={focusRecords} onChange={records => { browserStore.setItem("routino_focus_records", JSON.stringify(records)); setFocusRecords(records); void syncToDatabase({ focusRecords: records }); }}><div className="min-h-screen" key={currentAccount.current || "guest"}>
       {coreConflict && currentAccount.current && <WorkspaceConflict account={currentAccount.current} onResolve={async (revision, useCloud, snapshot) => {
         const account = currentAccount.current;
         const key = `routino_workspace_pending:${account}`;
@@ -3182,7 +3195,7 @@ export default function Home() {
                   </button>
                 </section>
 
-                <ReadLaterPanel links={quickLinks} onAdd={() => setShowQuickLinkModal(true)} onDelete={id => {
+                <ReadLaterPanel links={quickLinks} onAdd={() => {setAddingReadingLink(true);setShowQuickLinkModal(true);}} onDelete={id => {
                   const next = quickLinks.filter(item => item.id !== id);
                   setQuickLinks(next);
                   try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
@@ -3205,7 +3218,7 @@ export default function Home() {
                     icon={Link2}
                     title="Quick links"
                     sub="Your frequently used places"
-                    right={<div className="flex items-center gap-2"><QuickLinkManager links={quickLinks} onChange={updateQuickLinks} /><button onClick={() => setShowQuickLinkModal(true)} aria-label="Add link" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition"><Plus size={14} /></button></div>}
+                    right={<div className="flex items-center gap-2"><QuickLinkManager links={quickLinks} onChange={updateQuickLinks} /><button onClick={() => {setAddingReadingLink(false);setShowQuickLinkModal(true);}} aria-label="Add link" className="grid h-7 w-7 place-items-center rounded-lg border border-line text-[#7c887e] hover:bg-[#fdf2f2] hover:text-forest transition"><Plus size={14} /></button></div>}
                   />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {[...quickLinks].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned)).map((link, index) => {
@@ -3364,6 +3377,7 @@ export default function Home() {
         onSessionComplete={handleFocusComplete}
       />
       <TaskModal
+        relatedTaskId={editingTaskId || undefined}
         templates={taskTemplates}
         onTemplatesChange={templates => { try { browserStore.setItem("routino_task_templates", JSON.stringify(templates)); setTaskTemplates(templates); void syncToDatabase({ taskTemplates: templates }); } catch { toast("Browser storage is unavailable. The template was not saved."); } }}
         isOpen={showTaskModal}
@@ -3440,8 +3454,8 @@ export default function Home() {
       />
       <QuickLinkModal
         isOpen={showQuickLinkModal}
-        onClose={() => setShowQuickLinkModal(false)}
-        onAddLink={addQuickLink}
+        onClose={() => {setShowQuickLinkModal(false);setAddingReadingLink(false);}}
+        onAddLink={link=>{addQuickLink(addingReadingLink?{...link,readLater:true,readingStatus:"unread"}:link);setAddingReadingLink(false);}}
       />
       <CommandPalette
         isOpen={showCommandPalette}
@@ -3540,6 +3554,6 @@ export default function Home() {
         }}
         onDeleteHabit={deleteHabit}
       />
-    </div></FocusWorkspaceProvider></SubscriptionBudgetProvider></AccountStorageContext.Provider>
+    </div></FocusWorkspaceProvider></SubscriptionBudgetProvider></NoteConnectionsProvider></AccountStorageContext.Provider>
   );
 }

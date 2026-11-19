@@ -1,4 +1,6 @@
 "use client";
+import { NoteReferenceEditor, NoteReferenceChips } from "@/components/NoteConnections";
+import { noteTemplate, type NoteReference } from "@/lib/noteOrganization";
 import { useAccountStorage } from "@/components/AccountStorage";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -366,6 +368,7 @@ export function NotesView({
 
   // Composer State
   const [isComposing, setIsComposing] = useState(false);
+  const [composeReferences,setComposeReferences]=useState<NoteReference[]>([]);
   const [composeTitle, setComposeTitle] = useState("");
   const [composeContent, setComposeContent] = useState("");
   const [composeColor, setComposeColor] = useState<NonNullable<KeepNote["color"]>>("default");
@@ -758,6 +761,7 @@ export function NotesView({
       if (isComposing && composeEncrypted) {
         const draft = await encryptPayload(JSON.stringify({ title: composeTitle, content: composeContent, checklist: composeChecklist, images: composeImages, color: composeColor, priority: composePriority }), sessionPin);
         browserStore.setItem("routino_vault_draft", draft);
+        setComposeReferences([]);
         setComposeTitle(""); setComposeContent(""); setComposeChecklist([]); setComposeImages([]); setIsComposing(false);
       }
     } catch { lockingVault.current = false; setVaultStatus("Auto-lock could not preserve the open draft. Save it, then lock the vault."); return; }
@@ -904,6 +908,7 @@ export function NotesView({
     }
 
     onAddNote({
+      references: composeEncrypted ? undefined : composeReferences,
       title: composeTitle.trim(),
       content: finalContent,
       color: composeColor,
@@ -916,6 +921,7 @@ export function NotesView({
     });
 
     if (composeEncrypted) browserStore.removeItem("routino_vault_draft");
+    setComposeReferences([]);
     setComposeTitle("");
     setComposeContent("");
     setComposeColor("default");
@@ -1163,6 +1169,7 @@ export function NotesView({
     }
 
     onUpdateNote(note.id, {
+      references: isEncrypted ? undefined : note.references,
       title: note.title.trim(),
       content: finalContent,
       color: note.color,
@@ -1211,6 +1218,7 @@ export function NotesView({
     editingNote?.title,
     editingNote?.color,
     editingNote?.pinned,
+    editingNote?.references,
     editPriority,
     editImages,
     editDecryptedChecklist,
@@ -1447,6 +1455,7 @@ export function NotesView({
         }
       />
 
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white p-3 text-xs"><span className="font-semibold">New from template</span>{(["meeting","journal","project"] as const).map(kind=><button type="button" key={kind} className="btn-theme rounded-lg border border-line px-3 py-2 capitalize" onClick={()=>{const now=new Date();const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;onAddNote(noteTemplate(kind,today,()=>crypto.randomUUID()));}}>{kind}</button>)}<span className="text-muted">Creates a separate note; your open draft is preserved.</span></div>
       {/* View Header with Filters and Security Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-line pb-5">
         <div>
@@ -1700,6 +1709,7 @@ export function NotesView({
                 </div>
               )}
 
+              {!composeEncrypted && <NoteReferenceEditor value={composeReferences} onChange={setComposeReferences} />}
               {/* Title & Pin & Lock Toggle & Priority */}
               <div className="flex items-center justify-between gap-2">
                 <input
@@ -1853,6 +1863,7 @@ export function NotesView({
                     type="button"
                     onClick={() => {
                       setIsComposing(false);
+                      setComposeReferences([]);
                       setComposeTitle("");
                       setComposeContent("");
                       setComposeChecklist([]);
@@ -2365,6 +2376,7 @@ export function NotesView({
                   {note.title}
                 </h3>
               )}
+              {!isNoteEncrypted && <NoteReferenceChips references={note.references} />}
             </div>
 
             <button
@@ -2698,6 +2710,7 @@ export function NotesView({
 
           {/* Modal Body */}
           <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-4 flex flex-col sidebar-scroll">
+            {!editIsEncrypted && <NoteReferenceEditor value={editingNote.references || []} onChange={references=>setEditingNote({...editingNote,references})} />}
             {/* Attached Images Gallery in Edit Modal */}
             {editImages.length > 0 && (
               <div className="mb-4 space-y-2 shrink-0">
