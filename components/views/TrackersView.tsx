@@ -666,7 +666,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
       if (!matchesSearch) return false;
 
       if (expenseCategoryFilter !== "all") {
-        if (exp.category.toLowerCase() !== expenseCategoryFilter.toLowerCase()) return false;
+        if (exp.category.trim().toLowerCase() !== expenseCategoryFilter.trim().toLowerCase()) return false;
       }
       return true;
     });
@@ -703,7 +703,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
     (activeJournal.expenses || []).forEach((e) => {
       if (e.category) set.add(e.category);
     });
-    return Array.from(set).slice(0, 12);
+    return Array.from(set).sort((a,b)=>a.localeCompare(b));
   }, [activeJournal.expenses]);
 
   // Total expenses recorded in active journal
@@ -1091,13 +1091,13 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
         </div>
       )}
 
-      <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={key=>{
+      <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={(key,category)=>{
         setSelectedJournalKey(key);
         setExpenseSearch("");
-        setExpenseCategoryFilter("all");
+        setExpenseCategoryFilter(category ? data.journals?.[key]?.expenses.find(row=>row.category.trim().toLowerCase()===category.trim().toLowerCase())?.category || category : "all");
         setExpenseVisibleCount(50);
         handleTabSelect("expenses");
-        requestAnimationFrame(()=>document.getElementById("expense-journal-view")?.scrollIntoView({block:"start",behavior:workspaceScrollBehavior()}));
+        requestAnimationFrame(()=>document.getElementById(category?"expense-transactions":"expense-journal-view")?.scrollIntoView({block:"start",behavior:workspaceScrollBehavior()}));
       }}/>
 
       {/* ─── Navigation Tabs ─── */}
@@ -1577,13 +1577,13 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
             <div className="p-4 border-b border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-[#fbfcf8]">
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-[13px] font-bold text-ink">{activeJournal.title}</h4>
+                  <h4 id="expense-transactions" className="scroll-mt-24 text-[13px] font-bold text-ink">{activeJournal.title}</h4>
                   <span className="rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 text-[9.5px] font-bold text-[#047857]">
                     Latest on top
                   </span>
                 </div>
                 <p className="text-[11px] text-muted">
-                  Showing {Math.min(expenseVisibleCount, filteredExpenses.length)} of {filteredExpenses.length} transactions
+                  Showing {Math.min(expenseVisibleCount, filteredExpenses.length)} of {filteredExpenses.length} transactions{expenseCategoryFilter!=="all"?` · ${expenseCategoryFilter} · ₹${filteredExpenses.reduce((sum,row)=>sum+(row.amount||0),0).toLocaleString("en-IN")} recorded debits`:""}
                 </p>
               </div>
 
@@ -1594,17 +1594,20 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
                     type="text"
                     value={expenseSearch}
                     onChange={(e) => setExpenseSearch(e.target.value)}
+                    aria-label="Search journal transactions"
                     placeholder="Search expenses..."
                     className="h-8 w-44 rounded-xl border border-line bg-white pl-8 pr-3 text-[11px] text-ink placeholder:text-muted focus:border-forest focus:outline-none"
                   />
                 </div>
 
                 <select
+                  aria-label="Journal transaction category"
                   value={expenseCategoryFilter}
                   onChange={(e) => setExpenseCategoryFilter(e.target.value)}
                   className="h-8 rounded-xl border border-line bg-white px-2.5 text-[11px] font-medium text-ink focus:border-forest focus:outline-none"
                 >
                   <option value="all">All Categories</option>
+                  {expenseCategoryFilter!=="all"&&!expenseCategories.includes(expenseCategoryFilter)&&<option value={expenseCategoryFilter}>{expenseCategoryFilter}</option>}
                   {expenseCategories.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
