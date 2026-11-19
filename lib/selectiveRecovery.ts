@@ -3,7 +3,7 @@ import { isSubscriptionList } from "@/lib/subscriptionValidation";
 import { isAssetRecords } from "@/lib/assetRecords";
 import { isAssetDocuments } from "@/lib/assetDocuments";
 import { isAirtelData } from "@/lib/airtelValidation";
-export const recoveryFields = ['tasks', 'notes', 'habits', 'customEvents', 'quickLinks', 'taskTemplates', 'focusRecords', 'subscriptionBudgets', 'subscriptions', 'assetRecords', 'assetDocuments', 'airtel'] as const;
+export const recoveryFields = ['tasks', 'notes', 'habits', 'customEvents', 'quickLinks', 'taskTemplates', 'focusRecords', 'workspacePreferences', 'subscriptionBudgets', 'subscriptions', 'assetRecords', 'assetDocuments', 'airtel'] as const;
 export type RecoveryField = typeof recoveryFields[number];
 export type RecoverySelection = {
     field: RecoveryField;

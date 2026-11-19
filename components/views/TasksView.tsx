@@ -1,4 +1,5 @@
 "use client";
+import { workspaceScrollBehavior } from "@/lib/workspacePreferences";
 import { inTaskInbox, normalizeTaskTags, taskTags, taskProjectGroups, type TaskBulkAction } from "@/lib/taskOrganization";
 import { TaskBulkToolbar } from "@/components/TaskBulkToolbar";
 import { TaskProjectsPanel } from "@/components/TaskProjectsPanel";
@@ -100,7 +101,7 @@ export function TasksView({
       setExpandedTasks((prev) => ({ ...prev, [highlightedTaskId]: true }));
       const timer = setTimeout(() => {
         const el = document.getElementById("task-row-" + highlightedTaskId);
-        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.scrollIntoView({ behavior: workspaceScrollBehavior(), block: "center" });
         el?.focus({ preventScroll: true });
       }, 120);
       return () => clearTimeout(timer);

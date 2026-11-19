@@ -1,4 +1,5 @@
 "use client";
+import { workspaceScrollBehavior } from "@/lib/workspacePreferences";
 import { taskTags } from "@/lib/taskOrganization";
 
 import { useEffect, useState, useRef } from "react";
@@ -341,7 +342,7 @@ export function CommandPalette({
 
           {query.trim() && <div className="mt-3"><p className="px-2 py-1 text-[10px] text-muted">Workspace results ({workspaceResults.length}) · Locked notes are excluded</p><div className="space-y-1">{workspaceResults.slice(0, 30).map(item => <button key={`${item.kind}:${item.id}`} className="btn-theme flex w-full items-start justify-between gap-3 rounded-xl px-3 py-2 text-left text-xs" onClick={() => handleAction(() => {
             if (item.kind === "note") { if (onOpenNote) onOpenNote(item.id); else onNavigate("Notes"); }
-            else { onOpenTrackerTab?.(item.kind === "subscription" ? "subscriptions" : "airtel"); window.setTimeout(() => document.getElementById(`${item.kind}-${item.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 150); }
+            else { onOpenTrackerTab?.(item.kind === "subscription" ? "subscriptions" : "airtel"); window.setTimeout(() => document.getElementById(`${item.kind}-${item.id}`)?.scrollIntoView({ block: "center", behavior: workspaceScrollBehavior() }), 150); }
           })}><span className="min-w-0"><span className="block font-semibold">{item.title}</span><span className="mt-1 block truncate text-muted">{item.detail.replace(/<[^>]*>/g, " ").slice(0, 120)}</span></span><span className="shrink-0 text-muted">{item.kind}</span></button>)}</div>{workspaceResults.length > 30 && <p className="px-2 text-xs text-muted">Showing first 30 results. Refine your search to find more.</p>}</div>}
           {/* Matched Events */}
           {filteredEvents.length > 0 && (

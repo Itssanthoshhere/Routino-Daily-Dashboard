@@ -1,3 +1,4 @@
+import { validWorkspacePreference } from "@/lib/workspacePreferences";
 import { validNoteReferences, readingTags } from "@/lib/noteOrganization";
 import { validSubscriptionBudget } from "@/lib/subscriptionPlanning";
 import { validFocusRecord } from "@/lib/focusWorkspace";
@@ -54,6 +55,7 @@ export function workspaceValidationError(value: unknown): string | null {
   if (!record(value)) return "Workspace update must be an object.";
   const checks: Record<string, (v: unknown) => boolean> = {
     collectionChanges: v => record(v) && Object.entries(v).every(([key,change]) => coreCollections.includes(key as typeof coreCollections[number]) && record(change) && strings(change.replaceIds) && strings(change.deletedIds) && optional(change.orderIds, strings)),
+    workspacePreferences: v => list(v, validWorkspacePreference),
     subscriptionBudgets: v => list(v, validSubscriptionBudget),
     focusRecords: v => list(v, validFocusRecord),
     taskTemplates: validTaskTemplates,

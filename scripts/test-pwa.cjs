@@ -6,6 +6,7 @@ async function main() {
   const manifest = await (await fetch(`${base}/manifest.webmanifest`)).json();
   assert.equal(manifest.display, 'standalone');
   assert.equal(manifest.start_url, '/dashboard');
+  assert.deepEqual(manifest.shortcuts.map(shortcut => shortcut.url), ['/dashboard?action=capture', '/dashboard?tab=tasks', '/dashboard?action=focus']);
   for (const icon of manifest.icons) {
     const response = await fetch(base + icon.src);
     assert.equal(response.status, 200);
@@ -36,6 +37,7 @@ async function main() {
   assert.equal((await result).status, 200);
   handlers.fetch({ request: { method: 'GET', url: `${base}/`, mode: 'navigate' }, respondWith: promise => { result = promise; } });
   assert.equal((await result).status, 200, 'Root navigation must fall back to dashboard');
+  for (const action of ['capture', 'focus']) { handlers.fetch({ request: { method: 'GET', url: `${base}/dashboard?action=${action}`, mode: 'navigate' }, respondWith: promise => { result = promise; } }); assert.equal((await result).status, 200, 'Shortcut must retain offline dashboard fallback'); }
   let intercepted = false;
   handlers.fetch({ request: { method: 'GET', url: `${base}/api/user-data` }, respondWith: () => { intercepted = true; } });
   assert.equal(intercepted, false, 'Private API responses must not be cached');

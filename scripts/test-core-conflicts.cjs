@@ -24,6 +24,9 @@ async function main(){
  const referencedNote={...original.notes[0],references:[{kind:'task',id:'task-1',label:'Task title'}]};
  result=await post({expectedCoreRevision:6,notes:[referencedNote]});assert.equal(result.status,200);assert.deepEqual(stored.notes,[referencedNote]);
  for(const field of Object.keys(beforeLinks).filter(k=>!['notes','updatedAt','coreRevision'].includes(k)))assert.deepEqual(stored[field],beforeLinks[field],`Note link save preserved ${field}`);
+ const beforePreferences=structuredClone(stored);
+ result=await post({expectedCoreRevision:7,workspacePreferences:[{id:'display',textSize:'large',reduceMotion:true,contrast:'strong'}]});assert.equal(result.status,200);assert.equal(stored.workspacePreferences[0].textSize,'large');
+ for(const field of Object.keys(beforePreferences).filter(k=>!['updatedAt','coreRevision'].includes(k)))assert.deepEqual(stored[field],beforePreferences[field],`Display save preserved ${field}`);
  assert.equal(original.notes[0].content,'Keep me');
  console.log('Passed: stale-device rejection, write-time race rejection, legacy-client protection, complete validation, explicit empty-array intent, authenticated ownership, and unrelated-field preservation.');
 }

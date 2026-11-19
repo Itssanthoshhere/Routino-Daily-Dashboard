@@ -1,4 +1,6 @@
 "use client";
+import { WorkspacePreferencesProvider, OverviewLayout } from "@/components/WorkspacePreferences";
+import { launchShortcut, validWorkspacePreference, type WorkspacePreference } from "@/lib/workspacePreferences";
 import { DeviceSyncReporter } from "@/components/DeviceSyncActivity";
 import { recordDeviceSave } from "@/lib/deviceSync";
 import { NoteConnectionsProvider } from "@/components/NoteConnections";
@@ -367,6 +369,8 @@ let globalToastSeq = 0;
 
 export default function Home() {
   /* ── Core state ── */
+  const [workspacePreferences,setWorkspacePreferences]=useState<WorkspacePreference[]>([]);
+  const shortcutHandled=useRef(false);
   const [subscriptionBudgets, setSubscriptionBudgets] = useState<SubscriptionBudget[]>([]);
   const [focusRecords, setFocusRecords] = useState<FocusRecord[]>([]);
   const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
@@ -576,7 +580,7 @@ export default function Home() {
   const today = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
 
   useEffect(() => {
-    setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]); setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks);
+    setWorkspacePreferences([]); setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]); setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks);
     setShowQuickCapture(false); setShowTaskModal(false);
     setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false); coreRevision.current = 0; coreSnapshot.current = {}; conflictBlocked.current = false; setCoreConflict(false);
   }, [liveData?.user?.email]);
@@ -588,9 +592,11 @@ export default function Home() {
       if (currentAccount.current) {
         const revision = Number(localStorage.getItem(`routino_core_revision:${currentAccount.current}`) || "0");
         if (Number.isInteger(revision) && revision >= 0) coreRevision.current = revision;
-        const keys = { notes: "routino_notes", habits: "routino_habits", customEvents: "routino_events", quickLinks: "routino_links", subscriptionBudgets: "routino_subscription_budgets", focusRecords: "routino_focus_records", taskTemplates: "routino_task_templates" };
+        const keys = { notes: "routino_notes", habits: "routino_habits", customEvents: "routino_events", quickLinks: "routino_links", workspacePreferences: "routino_workspace_preferences", subscriptionBudgets: "routino_subscription_budgets", focusRecords: "routino_focus_records", taskTemplates: "routino_task_templates" };
         for (const field of coreCollections) { try { coreSnapshot.current[field] = JSON.parse(browserStore.getItem(keys[field]) || "[]"); } catch {} }
       }
+      const savedPreferences=JSON.parse(browserStore.getItem("routino_workspace_preferences") || "[]");
+      if(Array.isArray(savedPreferences)&&savedPreferences.every(validWorkspacePreference))setWorkspacePreferences(savedPreferences);
       setSubscriptionBudgets(JSON.parse(browserStore.getItem("routino_subscription_budgets") || "[]"));
       setFocusRecords(JSON.parse(browserStore.getItem("routino_focus_records") || "[]"));
       const storedTasks = browserStore.getItem("routino_tasks");
@@ -678,6 +684,15 @@ export default function Home() {
     }
     setHydrated(true);
   }, []);
+
+  useEffect(()=>{
+    if(shortcutHandled.current)return;
+    const action=launchShortcut(window.location.search);
+    if(!action||(!workspaceSyncReady&&liveData?.connected!==false&&navigator.onLine))return;
+    shortcutHandled.current=true;
+    if(action==="capture")setShowQuickCapture(true);else setShowFocusTimer(true);
+    const url=new URL(window.location.href);url.searchParams.delete("action");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);
+  },[workspaceSyncReady,liveData?.connected]);
 
   /* ── Browser Back / Forward URL Sync ── */
   useEffect(() => {
@@ -1172,6 +1187,7 @@ export default function Home() {
   /* ── Database persistence & synchronization ── */
   const syncToDatabase = useCallback(
     async (overrideData?: {
+      workspacePreferences?: WorkspacePreference[];
       subscriptionBudgets?: SubscriptionBudget[];
       focusRecords?: FocusRecord[];
       taskTemplates?: TaskTemplate[];
@@ -1263,7 +1279,7 @@ export default function Home() {
       .then(async (r) => {
         if (r.status === 401 && active) {
           setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false); currentAccount.current = null;
-          setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks); setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]);
+          setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks); setWorkspacePreferences([]); setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]);
           try { localStorage.removeItem("routino_verified_workspace_account"); } catch {}
         }
         if (!r.ok) return null;
@@ -1290,13 +1306,14 @@ export default function Home() {
         }
         if (res.exists && res.data) {
           coreSnapshot.current = res.data;
-          let d = { tasks: readCache("routino_tasks", []), notes: readCache("routino_notes", []), habits: readCache("routino_habits", []), customEvents: readCache("routino_events", []), quickLinks: readCache("routino_links", seedLinks), subscriptionBudgets: readCache("routino_subscription_budgets", []), focusRecords: readCache("routino_focus_records", []), taskTemplates: readCache("routino_task_templates", []), ...res.data };
+          let d = { tasks: readCache("routino_tasks", []), notes: readCache("routino_notes", []), habits: readCache("routino_habits", []), customEvents: readCache("routino_events", []), quickLinks: readCache("routino_links", seedLinks), workspacePreferences: readCache("routino_workspace_preferences", []), subscriptionBudgets: readCache("routino_subscription_budgets", []), focusRecords: readCache("routino_focus_records", []), taskTemplates: readCache("routino_task_templates", []), ...res.data };
           try {
             const pending = JSON.parse(localStorage.getItem(`routino_workspace_pending:${res.email.toLowerCase()}`) || "{}");
             if (Object.keys(pending).length && pending.expectedCoreRevision === undefined) { conflictBlocked.current = true; setCoreConflict(true); }
             d = { ...d, ...pending, ...(Array.isArray(pending.tasks) && Array.isArray(pending.replaceTaskIds) && Array.isArray(pending.deletedTaskIds) ? { tasks: mergeTaskRecords(d.tasks || [], pending.tasks, pending.replaceTaskIds, pending.deletedTaskIds) } : {}) };
             for (const field of coreCollections) if (pending.collectionChanges?.[field] && Array.isArray(pending[field])) d[field] = mergeCollection((res.data[field] || []) as {id:string}[], pending[field], pending.collectionChanges[field]);
           } catch { setWorkspaceSaveError(true); }
+          if (Array.isArray(d.workspacePreferences)) { setWorkspacePreferences(d.workspacePreferences); try { browserStore.setItem("routino_workspace_preferences", JSON.stringify(d.workspacePreferences)); } catch {} }
           if (Array.isArray(d.subscriptionBudgets)) { setSubscriptionBudgets(d.subscriptionBudgets); try { browserStore.setItem("routino_subscription_budgets", JSON.stringify(d.subscriptionBudgets)); } catch {} }
           if (Array.isArray(d.focusRecords)) { setFocusRecords(d.focusRecords); try { browserStore.setItem("routino_focus_records", JSON.stringify(d.focusRecords)); } catch {} }
           if (Array.isArray(d.taskTemplates)) { setTaskTemplates(d.taskTemplates); try { browserStore.setItem("routino_task_templates", JSON.stringify(d.taskTemplates)); } catch {} }
@@ -1899,6 +1916,7 @@ export default function Home() {
   };
 
   const handleImportData = (imported: {
+    workspacePreferences?: WorkspacePreference[];
     subscriptionBudgets?: SubscriptionBudget[];
     focusRecords?: FocusRecord[];
     taskTemplates?: TaskTemplate[];
@@ -1926,6 +1944,7 @@ export default function Home() {
         toast("Trackers are not ready to restore. No workspace changes were made."); return;
       }
     }
+    if (imported.workspacePreferences) { setWorkspacePreferences(imported.workspacePreferences); browserStore.setItem("routino_workspace_preferences", JSON.stringify(imported.workspacePreferences)); }
     if (imported.subscriptionBudgets) { setSubscriptionBudgets(imported.subscriptionBudgets); browserStore.setItem("routino_subscription_budgets", JSON.stringify(imported.subscriptionBudgets)); }
     if (imported.focusRecords) { setFocusRecords(imported.focusRecords); browserStore.setItem("routino_focus_records", JSON.stringify(imported.focusRecords)); }
     if (imported.taskTemplates) { setTaskTemplates(imported.taskTemplates); browserStore.setItem("routino_task_templates", JSON.stringify(imported.taskTemplates)); }
@@ -1958,6 +1977,7 @@ export default function Home() {
       try { browserStore.setItem("routino_focus", String(imported.focusMinutes)); } catch {}
     }
     syncToDatabase({
+      workspacePreferences: imported.workspacePreferences,
       subscriptionBudgets: imported.subscriptionBudgets,
       focusRecords: imported.focusRecords,
       taskTemplates: imported.taskTemplates,
@@ -1975,7 +1995,7 @@ export default function Home() {
 
   /* ── Render ── */
   return (
-    <AccountStorageContext.Provider value={currentAccount.current}><NoteConnectionsProvider key={currentAccount.current || "guest"} notes={notes} entities={[
+    <AccountStorageContext.Provider value={currentAccount.current}><WorkspacePreferencesProvider records={workspacePreferences} onChange={records=>{browserStore.setItem("routino_workspace_preferences",JSON.stringify(records));setWorkspacePreferences(records);void syncToDatabase({workspacePreferences:records});}}><NoteConnectionsProvider key={currentAccount.current || "guest"} notes={notes} entities={[
       ...tasks.map(task=>({kind:"task" as const,id:task.id,label:task.title})),
       ...Array.from(new Map(allEvents.map(event=>[meetingReferenceId(event),event])).values()).map(event=>({kind:"meeting" as const,id:meetingReferenceId(event),label:event.summary||"Untitled meeting"})),
       ...subscriptions.map(plan=>({kind:"subscription" as const,id:plan.id,label:plan.name})),
@@ -2428,9 +2448,8 @@ export default function Home() {
               )}
 
               {/* ─── Summary cards ─── */}
-              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Intention card */}
-                <div className="rounded-2xl bg-forest p-5 text-white shadow-card hover:shadow-lg transition-shadow flex flex-col justify-between">
+              <OverviewLayout widgets={[
+{id:"intention",content:(<div className="rounded-2xl bg-forest p-5 text-white shadow-card hover:shadow-lg transition-shadow flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-medium text-white/65">A note for today</span>
@@ -2454,10 +2473,8 @@ export default function Home() {
                     <span className="font-medium text-white/80">— {currentIntention.author}</span>
                     <span className="text-accent font-semibold">{currentIntention.focusHint}</span>
                   </div>
-                </div>
-
-                {/* Calendar summary */}
-                <button onClick={() => handleSelectNav("Calendar")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-forest/20 transition-all group">
+                </div>)},
+{id:"meeting-count",content:(<button onClick={() => handleSelectNav("Calendar")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-forest/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">On your calendar</span><CalendarDays size={16} className="text-[#809184] group-hover:text-forest transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{isConnected ? todayEvents.length : displaySchedule.length}</span><span className="text-[11px] text-muted">events today</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]">
@@ -2466,25 +2483,18 @@ export default function Home() {
                       ? (todayEvents[0] ? <>Next at <strong className="text-ink">{formatTime(todayEvents[0].start?.dateTime)}</strong></> : "No more events today")
                       : <>Connect Google to see your schedule</>}
                   </div>
-                </button>
-
-                {/* Inbox summary */}
-                <button onClick={() => handleSelectNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
+                </button>)},
+{id:"mail-count",content:(<button onClick={() => handleSelectNav("Inbox")} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#bd8054]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">Needs a response</span><Inbox size={16} className="text-[#bd8054] group-hover:text-[#a0622e] transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{unreadPreviewCount}</span><span className="text-[11px] text-muted">{is48hEstimateAvailable ? "unread est. (48h)" : "unread est."}</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#d79257]" />{isConnected ? (is48hEstimateAvailable ? "Estimated messages in last 48h (Gmail query)" : "Estimated total unread messages") : "Connect Google to load your inbox"}</div>
-                </button>
-
-                {/* Focus summary */}
-                <button onClick={() => setShowFocusTimer(true)} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#819a65]/20 transition-all group">
+                </button>)},
+{id:"focus-count",content:(<button onClick={() => setShowFocusTimer(true)} className="rounded-2xl border border-line bg-white p-5 shadow-card text-left hover:shadow-lg hover:border-[#819a65]/20 transition-all group">
                   <div className="flex items-center justify-between"><span className="text-[11px] font-medium text-muted">A good pace</span><Timer size={16} className="text-[#819a65] group-hover:text-forest transition" /></div>
                   <div className="mt-4 flex items-baseline gap-2"><span className="text-[30px] font-semibold tracking-[-.05em]">{focusMinutes}</span><span className="text-[11px] text-muted">min focus planned</span></div>
                   <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[10px] text-[#6e7c72]"><span className="h-1.5 w-1.5 rounded-full bg-[#87ac6c] animate-pulse" />Click to start a focus session</div>
-                </button>
-              </div>
-
-              {/* ─── Trackers Quick Snapshot Widget ─── */}
-              <div className="mt-6 rounded-2xl border border-line bg-white p-5 sm:p-6 shadow-card">
+                </button>)},
+{id:"tracker-snapshot",content:(<div className="rounded-2xl border border-line bg-white p-5 sm:p-6 shadow-card">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-line/60 pb-4">
                   <div className="flex items-center gap-3">
                     <div className="grid h-9 w-9 place-items-center rounded-xl bg-forest/10 text-forest">
@@ -2685,10 +2695,8 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* ─── Micro-Habits & Streak Tracker ─── */}
-              <div className="mt-6">
+              </div>)},
+{id:"habits",content:(<div className="h-full">
                 <HabitTracker
                   habits={habits}
                   onToggleHabit={toggleHabit}
@@ -2696,12 +2704,8 @@ export default function Home() {
                   onUpdateHabit={updateHabit}
                   onDeleteHabit={deleteHabit}
                 />
-              </div>
-
-              {/* ─── Schedule + Tasks row ─── */}
-              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1.12fr_.88fr]">
-                {/* Today's schedule */}
-                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
+              </div>)},
+{id:"schedule",content:(<section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
                   <SectionHeading
                     icon={CalendarDays}
                     title="Today's schedule"
@@ -2794,10 +2798,8 @@ export default function Home() {
                     <span>{isConnected ? todayEvents.length + " events today · From Google Calendar" : displaySchedule.length + " sample events · Connect Google for real data"}</span>
                     <button onClick={() => handleSelectNav("Calendar")} className="font-semibold text-[#648170] hover:text-forest">Full 7-day view <ArrowDownRight size={12} className="ml-1 inline" /></button>
                   </div>
-                </section>
-
-                {/* Priorities / Tasks */}
-                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6 flex flex-col justify-between">
+                </section>)},
+{id:"tasks",content:(<section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6 flex flex-col justify-between">
                   <div>
                     <SectionHeading
                       icon={ListTodo}
@@ -3057,13 +3059,8 @@ export default function Home() {
                       <ArrowRight size={11} />
                     </button>
                   </div>
-                </section>
-              </div>
-
-              {/* ─── Week + Inbox row ─── */}
-              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)]">
-                {/* Week ahead */}
-                <section className="min-w-0 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6 overflow-hidden">
+                </section>)},
+{id:"week",content:(<section className="min-w-0 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6 overflow-hidden">
                   <SectionHeading
                     icon={CalendarDays}
                     title="The week ahead"
@@ -3099,10 +3096,8 @@ export default function Home() {
                     <span><i className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#dca779]" />Deadline</span>
                     <span><i className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#85b08c]" />Personal</span>
                   </div>
-                </section>
-
-                {/* Inbox / Mail */}
-                <section className="min-w-0 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
+                </section>)},
+{id:"inbox",content:(<section className="min-w-0 rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
                   <SectionHeading
                     icon={Mail}
                     title="Worth a look"
@@ -3163,13 +3158,8 @@ export default function Home() {
                     <p className="text-[9px] leading-relaxed text-[#9aa49b]">Only sender, subject, date, and short snippet are shown.</p>
                     <button onClick={() => handleSelectNav("Inbox")} className="text-[10px] font-semibold text-forest hover:underline">View all inbox →</button>
                   </div>
-                </section>
-              </div>
-
-              {/* ─── Focus + Quick links row ─── */}
-              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2">
-                {/* Focus plan */}
-                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
+                </section>)},
+{id:"focus",content:(<section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
                   <SectionHeading
                     icon={Clock3}
                     title="Make room for focus"
@@ -3197,9 +3187,8 @@ export default function Home() {
                   <button onClick={() => setShowFocusTimer(true)} className="mt-3 text-[10px] font-semibold text-[#648170] hover:text-forest transition">
                     Adjust your plan & timer <ArrowRight size={12} className="ml-1 inline" />
                   </button>
-                </section>
-
-                <ReadLaterPanel links={quickLinks} onAdd={() => {setAddingReadingLink(true);setShowQuickLinkModal(true);}} onDelete={id => {
+                </section>)},
+{id:"reading",content:(<ReadLaterPanel links={quickLinks} onAdd={() => {setAddingReadingLink(true);setShowQuickLinkModal(true);}} onDelete={id => {
                   const next = quickLinks.filter(item => item.id !== id);
                   setQuickLinks(next);
                   try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
@@ -3209,15 +3198,12 @@ export default function Home() {
                   setQuickLinks(next);
                   try { browserStore.setItem("routino_links", JSON.stringify(next)); } catch {}
                   syncToDatabase({ quickLinks: next });
-                }} />
-
-                <MeetingFollowUps notes={notes} tasks={tasks} onOpenNote={note => { setSearchNote({ id: note.id }); setActiveNav("Notes"); }} onOpenTask={task => { setHighlightedTaskId(task.id); setActiveNav("Tasks"); }} onCreateTask={(note, text, id) => {
+                }} />)},
+{id:"follow-ups",content:(<MeetingFollowUps notes={notes} tasks={tasks} onOpenNote={note => { setSearchNote({ id: note.id }); setActiveNav("Notes"); }} onOpenTask={task => { setHighlightedTaskId(task.id); setActiveNav("Tasks"); }} onCreateTask={(note, text, id) => {
                   if (hasMeetingAction(tasks, note.id, id)) return;
                   addTask({ title: text, meta: `Meeting note: ${note.id} · Action: ${id}`, meetingActionKey: meetingActionKey(note.id, id), category: "meeting", priority: false });
-                }} />
-
-                {/* Quick links */}
-                <section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
+                }} />)},
+{id:"links",content:(<section className="rounded-2xl border border-line bg-white p-5 shadow-card sm:p-6">
                   <SectionHeading
                     icon={Link2}
                     title="Quick links"
@@ -3260,13 +3246,9 @@ export default function Home() {
                       );
                     })}
                   </div>
-                </section>
-              </div>
-
-              {/* ─── Drive files + Quick Scratchpad row ─── */}
-              <div className="mt-4 grid gap-4 grid-cols-1 lg:grid-cols-2">
-                <GoogleDriveFilesCard googleConnected={Boolean(liveData?.connected)} />
-                <QuickScratchpadCard
+                </section>)},
+{id:"drive",content:(<GoogleDriveFilesCard googleConnected={Boolean(liveData?.connected)} />)},
+{id:"scratchpad",content:(<QuickScratchpadCard
                   onSaveAsNote={(note) => {
                     addNote(note);
                     toast("Scratchpad saved to Notes!");
@@ -3276,8 +3258,8 @@ export default function Home() {
                     toast("Added as Task!");
                   }}
                   onNavigateToNotes={() => handleSelectNav("Notes")}
-                />
-              </div>
+                />)}
+]} />
             </>
           )}
 
@@ -3485,6 +3467,7 @@ export default function Home() {
       <ToastContainer toasts={toasts} onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))} />
       <GoogleSetupModal isOpen={showGoogleSetup} onClose={() => setShowGoogleSetup(false)} />
       <PreferencesModal
+        workspacePreferences={workspacePreferences}
         subscriptionBudgets={subscriptionBudgets}
         focusRecords={focusRecords}
         taskTemplates={taskTemplates}
@@ -3558,6 +3541,6 @@ export default function Home() {
         }}
         onDeleteHabit={deleteHabit}
       />
-    </div></FocusWorkspaceProvider></SubscriptionBudgetProvider></NoteConnectionsProvider></AccountStorageContext.Provider>
+    </div></FocusWorkspaceProvider></SubscriptionBudgetProvider></NoteConnectionsProvider></WorkspacePreferencesProvider></AccountStorageContext.Provider>
   );
 }

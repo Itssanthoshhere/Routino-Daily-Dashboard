@@ -213,3 +213,21 @@ input[type="checkbox"], input[type="radio"] {
 
 .asset-manager-tabs { scrollbar-width: none; }
 .asset-manager-tabs::-webkit-scrollbar { display: none; }
+
+/* Account display preferences: scale controls along with text. */
+html[data-routino-text="large"] { zoom: 1.125; }
+html[data-routino-text="larger"] { zoom: 1.25; }
+html[data-routino-contrast="strong"] { --brand-red: #8b1116; --brand-red-dark: #6f0d12; }
+html[data-routino-contrast="strong"] body { color: #0f172a; background: #ffffff; }
+html[data-routino-contrast="strong"] .text-muted { color: #374151 !important; }
+html[data-routino-contrast="strong"] .border-line,
+html[data-routino-contrast="strong"] :is(input,select,textarea) { border-color: #64748b !important; }
+html[data-routino-contrast="strong"] :is(button,a,input,textarea,select,summary):focus-visible { outline: 3px solid #111827 !important; outline-offset: 3px; }
+html[data-routino-motion="reduced"] { scroll-behavior: auto !important; }
+html[data-routino-motion="reduced"] *, html[data-routino-motion="reduced"] *::before, html[data-routino-motion="reduced"] *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+.overview-widget-grid > [data-overview-widget]:empty { display: none; }
+.overview-widget-grid > [data-overview-widget] > :first-child { height: 100%; }
+@media print { html[data-routino-text] { zoom: 1; } }

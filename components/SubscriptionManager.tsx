@@ -1,4 +1,5 @@
 "use client";
+import { workspaceScrollBehavior } from "@/lib/workspacePreferences";
 
 import { RelatedNotes, useNoteConnections } from "@/components/NoteConnections";
 import { useEffect } from "react";
@@ -28,7 +29,7 @@ const inputClass = "w-full rounded-xl border border-line bg-white px-3 py-2 text
 
 export function SubscriptionManager({ subscriptions: storedSubscriptions, onChange, disabled = false, airtel, onRenewalTask }: { airtel?: AirtelData; subscriptions: Subscription[]; onChange: (next: Subscription[]) => void; disabled?: boolean; onRenewalTask?: (subscription: Subscription, date: string) => void }) {
   const {target,consume}=useNoteConnections();
-  useEffect(()=>{if(target?.kind!=="subscription")return;setSearch("");setStatus("all");requestAnimationFrame(()=>document.getElementById(`subscription-${target.id}`)?.scrollIntoView({block:"center",behavior:"smooth"}));consume(target);},[target,consume]);
+  useEffect(()=>{if(target?.kind!=="subscription")return;setSearch("");setStatus("all");requestAnimationFrame(()=>document.getElementById(`subscription-${target.id}`)?.scrollIntoView({block:"center",behavior:workspaceScrollBehavior()}));consume(target);},[target,consume]);
   const [alertMessage, setAlertMessage] = useState("");
   const [creatingAlert, setCreatingAlert] = useState(false);
   const countdown = (date: string) => { const days = Math.round((new Date(`${date}T12:00:00`).getTime() - new Date(`${localToday()}T12:00:00`).getTime()) / 86400000); return days < 0 ? `${-days} days overdue` : days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`; };

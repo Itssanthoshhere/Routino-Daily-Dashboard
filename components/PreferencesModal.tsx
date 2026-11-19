@@ -1,5 +1,7 @@
 "use client";
 
+import { AccessibleDisplaySettings, OverviewSettings } from "@/components/WorkspacePreferences";
+import type { WorkspacePreference } from "@/lib/workspacePreferences";
 import type { SubscriptionBudget } from "@/lib/subscriptionPlanning";
 import type { FocusRecord } from "@/lib/focusWorkspace";
 import type { TaskTemplate } from "@/lib/taskTemplates";
@@ -40,6 +42,7 @@ import type { AirtelData } from "@/types/airtel";
 import type { Subscription } from "@/types/subscriptions";
 
 type PreferencesModalProps = {
+  workspacePreferences?: WorkspacePreference[];
   subscriptionBudgets?: SubscriptionBudget[];
   focusRecords?: FocusRecord[];
   taskTemplates?: TaskTemplate[];
@@ -56,6 +59,7 @@ type PreferencesModalProps = {
   habits?: Habit[];
   notes?: KeepNote[];
   onImportData: (data: {
+    workspacePreferences?: WorkspacePreference[];
     subscriptionBudgets?: SubscriptionBudget[];
     focusRecords?: FocusRecord[];
     taskTemplates?: TaskTemplate[];
@@ -84,6 +88,7 @@ type PreferencesModalProps = {
 };
 
 export function PreferencesModal({
+  workspacePreferences,
   subscriptionBudgets,
   focusRecords,
   taskTemplates,
@@ -128,6 +133,7 @@ export function PreferencesModal({
       exportedAt: new Date().toISOString(),
       appName: appConfig.name,
       data: {
+        workspacePreferences,
         subscriptionBudgets,
         focusRecords,
         taskTemplates,
@@ -170,6 +176,7 @@ export function PreferencesModal({
             throw new Error("Invalid subscription data");
           }
           onImportData({
+            workspacePreferences: parsed.data.workspacePreferences,
             subscriptionBudgets: parsed.data.subscriptionBudgets,
             focusRecords: parsed.data.focusRecords,
             taskTemplates: parsed.data.taskTemplates,
@@ -277,6 +284,9 @@ export function PreferencesModal({
           {/* Tab 1: General & Routine */}
           {activeTab === "general" && (
             <div className="space-y-4">
+              <AccessibleDisplaySettings />
+              <section className="rounded-2xl border border-line bg-white p-4"><h4 className="mb-3 text-sm font-semibold">Overview layout</h4><OverviewSettings /></section>
+              <section className="rounded-2xl border border-line bg-white p-4"><h4 className="text-sm font-semibold">Installed app shortcuts</h4><p className="mt-2 text-xs text-muted">Supported browsers can show Capture, Tasks, and Focus shortcuts from the installed app icon. Availability depends on your browser and operating system.</p></section>
               <BrowserReminderSettings email={userEmail} />
               {userEmail && <DocumentStorageManager />}
               <CalendarColorManager connected={Boolean(userEmail)} label="Colour events" />
