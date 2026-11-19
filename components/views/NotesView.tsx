@@ -2563,6 +2563,8 @@ export function NotesView({
               type="text"
               placeholder="Title"
               value={editingNote.title}
+              readOnly={activeTab !== "edit"}
+              aria-label="Note title"
               onChange={(e) => setEditingNote({ ...editingNote, title: e.target.value })}
               className="w-full bg-transparent text-[17px] sm:text-[19px] font-bold text-ink outline-none placeholder:text-muted/60 pr-4"
             />
@@ -2710,7 +2712,7 @@ export function NotesView({
 
           {/* Modal Body */}
           <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-4 flex flex-col sidebar-scroll">
-            {!editIsEncrypted && <NoteReferenceEditor value={editingNote.references || []} onChange={references=>setEditingNote({...editingNote,references})} />}
+            {!editIsEncrypted && (activeTab === "edit" ? <NoteReferenceEditor value={editingNote.references || []} onChange={references=>setEditingNote({...editingNote,references})} /> : <NoteReferenceChips references={editingNote.references} />)}
             {/* Attached Images Gallery in Edit Modal */}
             {editImages.length > 0 && (
               <div className="mb-4 space-y-2 shrink-0">
@@ -2784,9 +2786,7 @@ export function NotesView({
             ) : (
               /* Live Rendered Markdown & Rich Text Preview */
               <div
-                onClick={() => setActiveTab("edit")}
-                className="flex-1 rounded-2xl bg-white/75 p-5 sm:p-6 border border-black/5 overflow-y-auto sidebar-scroll min-h-[300px] cursor-pointer hover:border-black/15 transition group relative"
-                title="Click anywhere to edit"
+                className="flex-1 rounded-2xl bg-white/75 p-5 sm:p-6 border border-black/5 overflow-y-auto sidebar-scroll min-h-[300px] cursor-text relative"
               >
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-black/5">
                   <h1 className="text-[19px] sm:text-[21px] font-bold text-ink">
@@ -2798,16 +2798,16 @@ export function NotesView({
                       e.stopPropagation();
                       setActiveTab("edit");
                     }}
-                    className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-[11px] font-semibold text-forest bg-forest/10 px-2.5 py-1 rounded-lg transition"
+                    className="btn-theme flex items-center gap-1 text-[11px] font-semibold text-forest bg-forest/10 px-2.5 py-1 rounded-lg transition"
                   >
                     <Edit3 size={12} />
-                    <span>Click to edit</span>
+                    <span>Edit note</span>
                   </button>
                 </div>
                 {editDecryptedContent ? (
                   <FormattedContent text={editDecryptedContent} isCompact={false} />
                 ) : (
-                  <p className="text-muted italic text-[12px]">No body text written yet. Click to start typing...</p>
+                  <p className="text-muted italic text-[12px]">No body text written yet. Choose Edit note to start typing.</p>
                 )}
               </div>
             )}
