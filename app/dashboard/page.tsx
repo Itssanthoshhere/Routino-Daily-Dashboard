@@ -2276,7 +2276,8 @@ export default function Home() {
               onAirtelChange={(airtel) => {
                 const before = trackerWorkspace.airtel;
                 const account = currentAccount.current;
-                if (trackerWorkspace.update({ airtel }) && airtel.deletedIds.some(id => !before.deletedIds.includes(id))) toast("Recharge removed", "info", { label: "Undo", onClick: () => { if (currentAccount.current !== account) { toast("Undo belongs to a different account. No changes made.", "info"); return; } if (!trackerWorkspace.undo({ airtel: before }, { airtel })) toast("Undo unavailable: records changed or sync needs review.", "info"); } });
+                const familyChanged=JSON.stringify(before.familyMembers)!==JSON.stringify(airtel.familyMembers);
+                if (trackerWorkspace.update({ airtel }) && (familyChanged||airtel.deletedIds.some(id => !before.deletedIds.includes(id)))) toast(familyChanged?"Family recharge updated":"Recharge removed", "info", { label: "Undo", onClick: () => { if (currentAccount.current !== account) { toast("Undo belongs to a different account. No changes made.", "info"); return; } if (!trackerWorkspace.undo({ airtel: before }, { airtel })) toast("Undo unavailable: records changed or sync needs review.", "info"); } });
               }}
               subscriptionsDisabled={!trackerWorkspace.ready || trackerWorkspace.status === "conflict"}
               onSubscriptionsChange={(next) => {

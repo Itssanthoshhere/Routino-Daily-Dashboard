@@ -166,7 +166,9 @@ export function useTrackerWorkspace(email?: string | null) {
       const records = undoRecords(current.airtel.records, before.airtel.records, after.airtel.records);
       const deletedIds = undoMembership(current.airtel.deletedIds, before.airtel.deletedIds, after.airtel.deletedIds);
       if (!records || !deletedIds) return false;
-      patch.airtel = { ...current.airtel, records, deletedIds };
+      const familyMembers=undoRecords(current.airtel.familyMembers||[],before.airtel.familyMembers||[],after.airtel.familyMembers||[]);
+      if(!familyMembers)return false;
+      patch.airtel = { ...current.airtel, records, deletedIds, ...(before.airtel.familyMembers!==undefined||after.airtel.familyMembers!==undefined?{familyMembers}:{}) };
     }
     if(before.assetRecords&&after.assetRecords){const restored=undoKeyedRecords(current.assetRecords||{},before.assetRecords,after.assetRecords);if(!restored)return false;patch.assetRecords=restored;}
     if(before.assetDocuments&&after.assetDocuments){const restored=undoKeyedRecords(current.assetDocuments||{},before.assetDocuments,after.assetDocuments);if(!restored)return false;patch.assetDocuments=restored;}

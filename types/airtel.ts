@@ -27,7 +27,17 @@ export type AirtelRecharge = {
   journalDate?: string;
 };
 
+export type AirtelFamilyObservation = {
+  id:string;recordedOn:string;capturedOn?:string;expiresOn?:string;source:'screenshot'|'airtel-website'|'manual';
+  planAmount:number;planLabel:string;reportedDaysLeft?:number;remainingDataGB?:number;dailyDataGB?:number;notes:string;
+};
+export type AirtelFamilyMember = {
+  id:string;name:string;relationship:'mother'|'sister'|'father'|'brother'|'other';phone:string;archived?:boolean;
+  observations:AirtelFamilyObservation[];
+  recharge:Omit<AirtelData,'familyMembers'>;
+};
 export type AirtelData = {
+  familyMembers?: AirtelFamilyMember[];
   records: AirtelRecharge[];
   planHistory?: AirtelPlan[];
   plan: AirtelPlan | null;
