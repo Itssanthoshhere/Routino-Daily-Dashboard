@@ -1,5 +1,8 @@
 "use client";
 
+import { RestoreChanges } from "@/components/RestoreChanges";
+import { buildRestorePreview, restoreFingerprint } from "@/lib/restorePreview";
+import { workspaceValidationError } from "@/lib/workspaceValidation";
 import { AccessibleDisplaySettings, OverviewSettings } from "@/components/WorkspacePreferences";
 import type { WorkspacePreference } from "@/lib/workspacePreferences";
 import type { SubscriptionBudget } from "@/lib/subscriptionPlanning";
@@ -72,7 +75,7 @@ type PreferencesModalProps = {
     notes?: KeepNote[];
     focusMinutes?: number;
     soundEnabled?: boolean;
-  }) => void;
+  }) => boolean | void;
   onClearCompletedTasks: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
@@ -124,6 +127,15 @@ export function PreferencesModal({
   const [syncSuccessToast, setSyncSuccessToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [importReview,setImportReview] = useState<{name:string;data:Parameters<PreferencesModalProps["onImportData"]>[0];baseline:string;account?:string|null}|null>(null);
+  const [importConfirmed,setImportConfirmed] = useState(false);
+  const [importError,setImportError] = useState("");
+  const importGeneration = useRef(0);
+  const currentImportData = {workspacePreferences,subscriptionBudgets,focusRecords,taskTemplates,focusMinutes,soundEnabled,tasks,customEvents,quickLinks,habits,notes,subscriptions,airtel};
+  const importBaseline = restoreFingerprint(currentImportData);
+  useEffect(()=>{setImportConfirmed(false);},[importBaseline]);
+  useEffect(()=>{importGeneration.current++;setImportReview(null);setImportConfirmed(false);setImportError("");},[userEmail,isOpen]);
+
   if (!isOpen) return null;
 
   // Export all workspace data to a JSON file
@@ -166,16 +178,21 @@ export function PreferencesModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    e.target.value = "";
+    setImportError("");setImportConfirmed(false);setImportReview(null);
+    if(file.size>10*1024*1024){setImportError("Choose a workspace JSON backup under 10 MB.");return;}
+    const generation=++importGeneration.current;
     const reader = new FileReader();
     reader.onload = (event) => {
+      if(generation!==importGeneration.current)return;
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        if (parsed.data) {
+        if (parsed.data && typeof parsed.data==="object" && !Array.isArray(parsed.data)) {
           if (parsed.data.airtel !== undefined && !isAirtelData(parsed.data.airtel)) throw new Error("Invalid Airtel records");
           if (parsed.data.subscriptions !== undefined && !isSubscriptionList(parsed.data.subscriptions)) {
             throw new Error("Invalid subscription data");
           }
-          onImportData({
+          const imported = {
             workspacePreferences: parsed.data.workspacePreferences,
             subscriptionBudgets: parsed.data.subscriptionBudgets,
             focusRecords: parsed.data.focusRecords,
@@ -189,13 +206,17 @@ export function PreferencesModal({
             airtel: parsed.data.airtel,
             focusMinutes: parsed.data.focusMinutes,
             soundEnabled: parsed.data.soundEnabled,
-          });
-          onClose();
-        }
-      } catch {
-        alert("Invalid workspace backup file. Please select a valid Routino JSON file.");
+          };
+          const supported=Object.fromEntries(Object.entries(imported).filter(([,value])=>value!==undefined));
+          if(!Object.keys(supported).length)throw new Error("No supported workspace records in this backup.");
+          const invalid=workspaceValidationError(supported);if(invalid)throw new Error(invalid);
+          setImportReview({name:file.name,data:supported,baseline:importBaseline,account:userEmail});
+        }else throw new Error("Choose a Routino workspace JSON backup.");
+      } catch(error) {
+        setImportError(error instanceof Error?error.message:"Invalid workspace backup file.");
       }
     };
+    reader.onerror=()=>setImportError("Could not read the backup file. Nothing was restored.");
     reader.readAsText(file);
   };
 
@@ -481,6 +502,13 @@ export function PreferencesModal({
                 >
                   <Upload size={13} /> Select Backup File
                 </button>
+                {importError&&<p role="alert" className="mt-3 text-xs text-red-700">{importError}</p>}
+                {importReview&&<div className="mt-4 space-y-3"><p className="text-xs font-semibold">Review backup: {importReview.name}</p><p className="text-xs text-muted">Only fields supported by workspace import are compared. Fields omitted from this file stay unchanged. Uploads and provider mail/calendars are not restored.</p><RestoreChanges preview={buildRestorePreview(currentImportData,{...currentImportData,...importReview.data})}/>
+                  {importReview.baseline!==importBaseline&&<p role="status" className="text-xs text-amber-800">Your workspace changed since this preview. <button type="button" className="underline" onClick={()=>{setImportReview({...importReview,baseline:importBaseline,account:userEmail});setImportConfirmed(false);}}>Refresh comparison</button> before confirming.</p>}
+                  <label className="flex items-start gap-2 text-xs"><input type="checkbox" checked={importConfirmed} disabled={importReview.baseline!==importBaseline} onChange={e=>setImportConfirmed(e.target.checked)}/>I reviewed the records and settings that this file would replace.</label>
+                  <div className="flex gap-3"><button type="button" className="btn-theme rounded-lg border border-line px-3 py-2 text-xs font-semibold disabled:opacity-40" disabled={!importConfirmed||importReview.baseline!==importBaseline||importReview.account!==userEmail} onClick={()=>{if(!importConfirmed||importReview.baseline!==importBaseline||importReview.account!==userEmail)return;try{if(onImportData(importReview.data)===false){setImportError("Restore was not accepted. Resolve tracker sync or validation errors and try again.");return;}setImportReview(null);setImportConfirmed(false);onClose();}catch{setImportError("Restore could not complete. Review sync status before trying again.");}}}>Restore reviewed changes</button><button type="button" className="text-xs underline" onClick={()=>{setImportReview(null);setImportConfirmed(false);}}>Cancel</button></div>
+                </div>}
+
               </div>
             </div>
           )}

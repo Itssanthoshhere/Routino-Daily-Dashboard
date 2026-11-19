@@ -1965,17 +1965,17 @@ export default function Home() {
     soundEnabled?: boolean;
   }) => {
     const invalid = workspaceValidationError(imported);
-    if (invalid) { toast(invalid); return; }
+    if (invalid) { toast(invalid); return false; }
     if (imported.subscriptions !== undefined && !isSubscriptionList(imported.subscriptions)) {
       toast("Invalid subscription data in backup. No workspace changes were made.");
-      return;
+      return false;
     }
     if (imported.airtel !== undefined && !isAirtelData(imported.airtel)) {
-      toast("Invalid Airtel records in backup. No changes were made."); return;
+      toast("Invalid Airtel records in backup. No changes were made."); return false;
     }
     if (imported.subscriptions !== undefined || imported.airtel !== undefined) {
       if (!trackerWorkspace.update({ ...(imported.subscriptions !== undefined ? { subscriptions: imported.subscriptions } : {}), ...(imported.airtel !== undefined ? { airtel: imported.airtel } : {}) })) {
-        toast("Trackers are not ready to restore. No workspace changes were made."); return;
+        toast("Trackers are not ready to restore. No workspace changes were made."); return false;
       }
     }
     if (imported.workspacePreferences) { setWorkspacePreferences(imported.workspacePreferences); browserStore.setItem("routino_workspace_preferences", JSON.stringify(imported.workspacePreferences)); }
@@ -2024,7 +2024,8 @@ export default function Home() {
       focusMinutes: imported.focusMinutes,
       soundEnabled: imported.soundEnabled,
     });
-    toast("Workspace snapshot restored & synced!");
+    toast("Workspace snapshot restored; syncing saved data…");
+    return true;
   };
 
   /* ── Render ── */
