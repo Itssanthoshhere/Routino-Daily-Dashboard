@@ -2192,6 +2192,17 @@ export default function Home() {
             <UndoHistory entries={undoHistory} account={verifiedWorkspaceAccount}/>
             <RemindersInbox today={notificationDay} items={unifiedReminders(tasks,subscriptions,trackerWorkspace.airtel,trackerWorkspace.assetRecords||{},notificationDay)} onOpen={item=>{if(item.target==='tasks'){const task=tasks.find(t=>t.id===item.taskId);if(task){setReminderTarget(null);handleSelectNav('Tasks');editTask(task);}else toast('This task is no longer available.','info');}else{setReminderTarget({...item});handleOpenTrackersTab(item.target);}}}/>
             <SyncCenter trackerStatus={trackerWorkspace.status} trackerSavedAt={trackerWorkspace.savedAt} coreError={workspaceSaveError} syncing={isSyncing} email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
+            <button
+              type="button"
+              className="mobile-quick-capture grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-forest text-white shadow-sm sm:hidden"
+              aria-label="Quick capture"
+              aria-haspopup="dialog"
+              aria-expanded={showQuickCapture}
+              title="Quick capture: task, note or scratchpad"
+              onClick={() => setShowQuickCapture(true)}
+            >
+              <Plus size={20} aria-hidden="true" />
+            </button>
             </div>
             <Link
               href="/"
