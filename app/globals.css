@@ -248,6 +248,7 @@ html[data-routino-motion="reduced"] *, html[data-routino-motion="reduced"] *::be
   .workspace-header { gap: 8px; padding: 10px 12px; }
   .workspace-header > :first-child { flex: none; width: calc(100% - 168px); min-width: 0; gap: 8px; }
   .workspace-header-actions { display: contents; }
+  .workspace-resume-status { order: 3; flex-basis: 100%; }
   .workspace-header-actions > * { order: 1; }
   .workspace-header-actions > .workspace-header-tools { order: 2; flex: 1 0 100%; }
   .workspace-header-tools > button { flex: 1; padding: 6px 8px; }

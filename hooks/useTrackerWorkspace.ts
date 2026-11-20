@@ -23,6 +23,9 @@ export function useTrackerWorkspace(email?: string | null) {
   const [message, setMessage] = useState("");
   const [ready, setReady] = useState(false);
   const [durable, setDurable] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
+  const refreshSequence = useRef(0);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const state = useRef({ data: empty(), revision: 0, pending: false, busy: false, blocked: false, ready: false, generation: 0 });
   const key = `routino_trackers_v2:${email?.trim().toLowerCase() || "guest"}`;
@@ -55,6 +58,7 @@ export function useTrackerWorkspace(email?: string | null) {
         cache();
         setDurable(!!result.dbStatus?.configured);
         setSavedAt(result.savedAt);
+        setCheckedAt(Date.now());
         setStatus(result.dbStatus?.configured ? "synced" : "local");
         setMessage(result.dbStatus?.configured ? "Saved to your account database." : "Saved to this server only. Configure a cloud database for cross-device sync.");
       }
@@ -72,10 +76,13 @@ export function useTrackerWorkspace(email?: string | null) {
     const current = state.current;
     if (!email || current.busy || (current.pending && !replaceLocal)) return;
     const generation = current.generation;
+    const sequence = ++refreshSequence.current;
+    const revision = current.revision;
+    setRefreshing(true);
     try {
       const response = await fetch("/api/tracker-workspace", { cache: "no-store" });
       const result = await response.json();
-      if (generation !== state.current.generation) return;
+      if (generation !== state.current.generation || sequence !== refreshSequence.current || revision !== current.revision) return;
       if (!response.ok) throw new Error(result.error || "Could not load saved records.");
       if (result.email !== email.trim().toLowerCase()) throw new Error("The signed-in account changed. Refresh to load the correct workspace.");
       const server: Data = { subscriptions: result.data?.subscriptions ?? [], airtel: result.data?.airtel ?? emptyAirtelData(), subscriptionJournalImported: result.data?.subscriptionJournalImported ?? false, assetRecords: result.data?.assetRecords ?? {}, assetDocuments: result.data?.assetDocuments ?? {} };
@@ -92,22 +99,27 @@ export function useTrackerWorkspace(email?: string | null) {
       current.blocked = false;
       current.ready = true;
       cache();
+      setCheckedAt(Date.now());
       setData(server);
       setReady(true);
       setDurable(!!result.dbStatus?.configured);
       setStatus(result.dbStatus?.configured ? "synced" : "local");
       setMessage(result.dbStatus?.configured ? "Loaded from your account database." : "Cloud database not configured. Cross-device sync is unavailable.");
     } catch (error) {
-      if (generation === state.current.generation) {
+      if (generation === state.current.generation && sequence === refreshSequence.current) {
         setStatus("error");
         setMessage(error instanceof Error ? error.message : "Could not load records; local data preserved.");
       }
+    } finally {
+      if (generation === state.current.generation && sequence === refreshSequence.current) setRefreshing(false);
     }
   }, [email, key, cache]);
 
   useEffect(() => {
     state.current = { data: empty(), revision: 0, pending: false, busy: false, blocked: false, ready: false, generation: state.current.generation + 1 };
     const current = state.current;
+    refreshSequence.current++;
+    setRefreshing(false); setCheckedAt(null);
     setData(current.data); setReady(false); setStatus("loading");
     try {
       const stored = localStorage.getItem(key);
@@ -132,9 +144,11 @@ export function useTrackerWorkspace(email?: string | null) {
     } else { void refresh(); }
     const onFocus = () => { if (current.pending) void flush(); else void refresh(); };
     const onVisible = () => { if (document.visibilityState === "visible") onFocus(); };
+    const onPageShow = (event: PageTransitionEvent) => { if (event.persisted) onVisible(); };
     const interval = window.setInterval(onVisible, 30000);
+    window.addEventListener("pageshow", onPageShow);
     window.addEventListener("focus", onFocus); window.addEventListener("routino:workspace-restored", onFocus); window.addEventListener("online", onFocus); document.addEventListener("visibilitychange", onVisible);
-    return () => { current.generation += 1; clearInterval(interval); window.removeEventListener("focus", onFocus); window.removeEventListener("routino:workspace-restored", onFocus); window.removeEventListener("online", onFocus); document.removeEventListener("visibilitychange", onVisible); };
+    return () => { current.generation += 1; clearInterval(interval); window.removeEventListener("pageshow", onPageShow); window.removeEventListener("focus", onFocus); window.removeEventListener("routino:workspace-restored", onFocus); window.removeEventListener("online", onFocus); document.removeEventListener("visibilitychange", onVisible); };
   }, [key, email, refresh, flush]);
 
   const update = useCallback((patch: Partial<Data>) => {
@@ -188,5 +202,5 @@ export function useTrackerWorkspace(email?: string | null) {
     const url = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "routino-tracker-backup.json"; anchor.click(); URL.revokeObjectURL(url);
   }, [key]);
 
-  return { ...data, update, undo, importSubscriptions, status, message, ready, durable, savedAt, retry: flush, reloadSaved: () => refresh(true), downloadLocalCopy };
+  return { ...data, update, undo, importSubscriptions, status, message, ready, durable, savedAt, refreshing, checkedAt, retry: flush, reloadSaved: () => refresh(true), downloadLocalCopy };
 }

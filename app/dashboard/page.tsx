@@ -1,4 +1,5 @@
 "use client";
+import { ResumeSyncStatus } from "@/components/ResumeSyncStatus";
 import { mergeTrackerSync } from "@/lib/trackerSyncState";
 import { journalBudgetUsage } from "@/lib/journalBudget";
 import { habitPaused, pauseAwareStreak } from "@/lib/habitTargets";
@@ -460,6 +461,9 @@ export default function Home() {
   const coreSyncVersion = useRef(0);
   const coreSaveChain = useRef<Promise<boolean>>(Promise.resolve(true));
   const [workspaceSaveError, setWorkspaceSaveError] = useState(false);
+  const [coreRefreshing, setCoreRefreshing] = useState(false);
+  const [coreCheckedAt, setCoreCheckedAt] = useState<number | null>(null);
+  const [coreRefreshError, setCoreRefreshError] = useState(false);
   const [workspaceSyncReady, setWorkspaceSyncReady] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [dbSource, setDbSource] = useState<string>("Local Storage");
@@ -614,6 +618,7 @@ export default function Home() {
   useEffect(() => {
     setTrackersData(SEED_TRACKERS_DATA);
     setTrackersRefreshError(null);
+    setCoreCheckedAt(null); setCoreRefreshError(false);
     setWorkspacePreferences([]); setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]); setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks);
     setShowQuickCapture(false); setShowTaskModal(false);
     setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false); coreRevision.current = 0; coreSnapshot.current = {}; conflictBlocked.current = false; setCoreConflict(false);
@@ -1314,6 +1319,7 @@ export default function Home() {
     const loadWorkspace = () => {
       const readVersion = coreSyncVersion.current;
       const sequence = ++readSequence;
+      setCoreRefreshing(true);
       return fetch("/api/user-data", { cache: "no-store" })
       .then(async (r) => {
         if (r.status === 401 && active) {
@@ -1321,11 +1327,13 @@ export default function Home() {
           setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks); setWorkspacePreferences([]); setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]);
           try { localStorage.removeItem("routino_verified_workspace_account"); } catch {}
         }
-        if (!r.ok) return null;
+        if (!r.ok) { if (r.status !== 401) throw new Error("Workspace refresh failed"); return null; }
         return r.json();
       })
       .then((res) => {
         if (!active || !res || !res.authenticated || readVersion !== coreSyncVersion.current || sequence !== readSequence) return;
+        setCoreCheckedAt(Date.now());
+        setCoreRefreshError(false);
         try { migrateAccountCache(localStorage, res.email.toLowerCase()); } catch { setWorkspaceSaveError(true); }
         currentAccount.current = res.email.toLowerCase();
         if (!conflictBlocked.current) coreRevision.current = res.data?.coreRevision || 0;
@@ -1389,13 +1397,16 @@ export default function Home() {
           }
         }
       })
-      .catch(() => undefined);
+      .catch(() => { if (active && sequence === readSequence) setCoreRefreshError(true); })
+      .finally(() => { if (active && sequence === readSequence) setCoreRefreshing(false); });
     };
     void loadWorkspace();
     const onVisible = () => { if (document.visibilityState === "visible") void loadWorkspace(); };
+    const onPageShow = (event: PageTransitionEvent) => { if (event.persisted) onVisible(); };
     const interval = window.setInterval(onVisible, 30000);
+    window.addEventListener("pageshow", onPageShow); window.addEventListener("online", onVisible);
     window.addEventListener("focus", onVisible); window.addEventListener("routino:workspace-restored", onVisible); document.addEventListener("visibilitychange", onVisible);
-    return () => { active = false; clearInterval(interval); window.removeEventListener("focus", onVisible); window.removeEventListener("routino:workspace-restored", onVisible); document.removeEventListener("visibilitychange", onVisible); };
+    return () => { active = false; clearInterval(interval); window.removeEventListener("pageshow", onPageShow); window.removeEventListener("online", onVisible); window.removeEventListener("focus", onVisible); window.removeEventListener("routino:workspace-restored", onVisible); document.removeEventListener("visibilitychange", onVisible); };
   }, [liveData?.connected, liveData?.user?.email]);
 
   const handleManualSync = async () => {
@@ -2255,6 +2266,15 @@ export default function Home() {
               />
             </div>
           </div>
+          <ResumeSyncStatus
+            account={verifiedWorkspaceAccount}
+            checking={coreRefreshing || trackerWorkspace.refreshing || trackerWorkspace.status === "loading"}
+            saving={isSyncing || trackerWorkspace.status === "syncing"}
+            error={coreRefreshError || workspaceSaveError || coreConflict || trackerWorkspace.status === "error" || trackerWorkspace.status === "conflict"}
+            localOnly={trackerWorkspace.status === "local"}
+            checkedAt={coreCheckedAt}
+            trackerCheckedAt={trackerWorkspace.checkedAt}
+          />
         </header>
 
         {/* Content */}
