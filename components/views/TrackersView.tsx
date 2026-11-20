@@ -1109,12 +1109,12 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
       {partialJournalSync && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Some spreadsheet sources could not refresh. Last successful data is retained where available; unavailable sources are labelled. Sync Now retries them.</p>}
 
       {/* ─── Navigation Tabs ─── */}
-      <label className="block sm:hidden text-xs font-semibold">Choose tracker
+      <label className="block xl:hidden text-xs font-semibold">Choose tracker
         <select aria-label="Choose tracker" value={activeTab} onChange={event=>handleTabSelect(event.target.value as TabKey)} className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-3 text-base">
           <option value="airtel">Airtel Recharge</option><option value="subscriptions">Subscriptions</option><option value="eb">PG Electricity (EB)</option><option value="expenses">Expense &amp; Budget</option><option value="tokens">Antigravity Tokens</option><option value="investments">Investment Journal</option><option value="placements">Placements &amp; Career</option><option value="life">Time on Earth</option><option value="purchases">Gadgets &amp; Assets</option>
         </select>
       </label>
-      <div className="hidden sm:flex flex-wrap items-center gap-1.5 border-b border-line pb-3">
+      <div className="hidden xl:flex flex-wrap items-center gap-1.5 border-b border-line pb-3">
         {[
           { key: "airtel", label: "Airtel Recharge", icon: RefreshCw, count: airtel?.plan ? `${airtel.plan.validityDays} days` : "History" },
           { key: "subscriptions", label: "Subscriptions", icon: CreditCard, count: `${subscriptions.length}` },
@@ -1658,7 +1658,17 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
+            <ul className="divide-y divide-line sm:hidden" aria-label="Expense transactions">
+              {filteredExpenses.slice(0, expenseVisibleCount).map(exp => <li key={exp.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0"><p className="break-words text-sm font-semibold text-ink">{exp.item}</p><p className="mt-1 text-xs text-muted">{exp.dateStr} · {exp.category}</p></div>
+                  <span className={`shrink-0 text-sm font-bold ${exp.income ? "text-[#059669]" : "text-ink"}`}>{exp.income ? "+" : ""}₹{(exp.income || exp.amount).toLocaleString()}</span>
+                </div>
+                {exp.notes && <p className="mt-2 break-words text-xs leading-relaxed text-muted">{exp.notes}</p>}
+                <p className="mt-2 text-xs text-muted">Balance: {exp.balance ? `₹${exp.balance.toLocaleString()}` : "—"}</p>
+              </li>)}
+            </ul>
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-left border-collapse text-[12px]">
                 <thead>
                   <tr className="border-b border-line bg-[#fafbf7] text-[10.5px] font-bold uppercase tracking-wider text-muted">

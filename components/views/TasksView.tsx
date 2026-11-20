@@ -321,7 +321,7 @@ export function TasksView({
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex max-w-full items-center gap-1.5 overflow-x-auto pb-2 [&>button]:shrink-0 [&>div]:shrink-0 sm:flex-wrap sm:overflow-visible sm:pb-0">
           <div className="flex items-center gap-1"><input aria-label="Saved task view name" value={viewName} onChange={event => setViewName(event.target.value)} placeholder="Save view…" className="w-24 rounded-lg border border-line bg-white px-2 py-1.5 text-[11px]" /><button type="button" onClick={saveView} className="btn-theme rounded-lg border border-line px-2 py-1.5 text-[11px]">Save</button></div>
           {savedViews.map(view => <button key={view} type="button" onClick={() => { setSearchQuery(view); setSelectedFilter("all"); }} className="btn-theme rounded-xl border border-line bg-white px-3 py-1.5 text-[11px]">{view}</button>)}
           <button
@@ -449,20 +449,18 @@ export function TasksView({
                     </div>
                   )}
                   <div className="group hover:bg-[#fbfcf9] transition">
-                  <div className="flex items-center justify-between gap-3 p-4">
+                  <div className="flex flex-col items-stretch justify-between gap-3 p-4 sm:flex-row sm:items-center">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       {selectionMode && <input type="checkbox" aria-label={`Select task: ${task.title}`} disabled={task.checked || task.skipped} checked={selectedIds.includes(task.id)} onChange={event=>setSelectedIds(previous=>event.target.checked?[...previous,task.id]:previous.filter(id=>id!==task.id))} />}
                       <button
                         onClick={() => onToggleTask(task.id)}
                         aria-label={`${task.checked ? "Mark incomplete" : "Complete"}: ${task.title}`}
                         aria-pressed={task.checked}
-                        className={`grid h-5 w-5 place-items-center rounded-full border transition-all ${
-                          task.checked
-                            ? "border-forest bg-forest text-white"
-                            : "border-[#d6ddd4] text-transparent hover:border-forest/50"
-                        }`}
+                        className="grid h-11 w-11 shrink-0 place-items-center self-start rounded-xl hover:bg-forest/5 sm:h-5 sm:w-5"
                       >
-                        {task.checked ? <Check size={12} /> : <Circle size={10} />}
+                        <span className={`grid h-5 w-5 place-items-center rounded-full border transition-all ${task.checked ? "border-forest bg-forest text-white" : "border-[#d6ddd4] text-transparent"}`}>
+                          {task.checked ? <Check size={12} /> : <Circle size={10} />}
+                        </span>
                       </button>
 
                       <div className="min-w-0 flex-1">
