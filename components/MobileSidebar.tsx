@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   CalendarDays,
   Inbox,
@@ -53,14 +53,16 @@ export function MobileSidebar({
   onOpenPreferences,
   onOpenShortcuts,
 }: MobileSidebarProps) {
+  const drawerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = "hidden";
+    drawerRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus();
     };
   }, [isOpen]);
 
@@ -75,7 +77,15 @@ export function MobileSidebar({
       />
 
       {/* Drawer */}
-      <div className="relative flex w-[280px] max-w-[85vw] flex-col bg-[#fbfcf8] p-6 shadow-2xl animate-in slide-in-from-left duration-200 overflow-y-auto max-h-screen">
+      <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Workspace navigation" onKeyDown={event=>{
+        if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+        if (event.key !== "Tab") return;
+        const controls = drawerRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]');
+        if (!controls?.length) return;
+        const first = controls[0], last = controls[controls.length-1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      }} className="relative flex w-[280px] max-w-[85vw] flex-col bg-[#fbfcf8] p-6 shadow-2xl animate-in slide-in-from-left duration-200 overflow-y-auto max-h-[100dvh]">
         <div className="flex items-center justify-between pb-6">
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -101,6 +111,7 @@ export function MobileSidebar({
           {navItems.map(({ icon: Icon, label }) => (
             <button
               key={label}
+              aria-current={activeNav === label ? "page" : undefined}
               onClick={() => {
                 onSelectNav(label);
                 onClose();

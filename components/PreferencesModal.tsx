@@ -234,8 +234,8 @@ export function PreferencesModal({
   const completedCount = tasks.filter((t) => t.checked).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-lg rounded-3xl border border-line bg-[#fbfcf8] p-6 sm:p-7 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-150">
+      <div role="dialog" aria-modal="true" aria-label="Preferences" className="relative w-full max-w-lg rounded-none sm:rounded-3xl border border-line bg-[#fbfcf8] p-4 sm:p-7 shadow-2xl overflow-hidden h-[100dvh] sm:h-auto max-h-[100dvh] sm:max-h-[90dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-line pb-4 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -257,7 +257,7 @@ export function PreferencesModal({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="mt-4 flex items-center gap-1.5 border-b border-line pb-3 shrink-0">
+        <div className="mt-4 flex items-center gap-1.5 overflow-x-auto border-b border-line pb-3 shrink-0">
           <button
             onClick={() => setActiveTab("general")}
             className={`rounded-xl px-3.5 py-1.5 text-[11px] font-semibold transition ${

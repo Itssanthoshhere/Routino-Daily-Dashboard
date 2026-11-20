@@ -79,7 +79,7 @@ export function FocusSlotFinder({ events, tasks, onScheduleTask, onClose }: Prop
             }}
             className="mt-1 w-full rounded-lg border border-line bg-white px-2.5 py-2 text-sm text-ink outline-none focus:border-forest"
           >
-            {[25, 45, 60, 90].map((value) => (
+            {[15, 25, 30, 45, 60, 90].map((value) => (
               <option key={value} value={value}>
                 {value} minutes
               </option>

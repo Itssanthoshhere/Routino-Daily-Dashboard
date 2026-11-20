@@ -23,6 +23,7 @@ export function NotificationsPopover({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      if ((e.target as Element).closest?.('button[aria-label="Notifications"]')) return;
       if (ref.current && !ref.current.contains(e.target as Node)) {
         onClose();
       }
@@ -38,7 +39,7 @@ export function NotificationsPopover({
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-12 z-50 w-80 rounded-2xl border border-line bg-[#fbfcf8] p-4 shadow-2xl ring-1 ring-black/5 isolate animate-in fade-in zoom-in-95 duration-150"
+      className="mobile-header-popover absolute right-0 top-12 z-50 w-80 rounded-2xl border border-line bg-[#fbfcf8] p-4 shadow-2xl ring-1 ring-black/5 isolate animate-in fade-in zoom-in-95 duration-150"
     >
       <div className="flex items-center justify-between border-b border-line pb-3">
         <div className="flex items-center gap-2">

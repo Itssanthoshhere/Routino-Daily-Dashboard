@@ -454,6 +454,8 @@ export function TasksView({
                       {selectionMode && <input type="checkbox" aria-label={`Select task: ${task.title}`} disabled={task.checked || task.skipped} checked={selectedIds.includes(task.id)} onChange={event=>setSelectedIds(previous=>event.target.checked?[...previous,task.id]:previous.filter(id=>id!==task.id))} />}
                       <button
                         onClick={() => onToggleTask(task.id)}
+                        aria-label={`${task.checked ? "Mark incomplete" : "Complete"}: ${task.title}`}
+                        aria-pressed={task.checked}
                         className={`grid h-5 w-5 place-items-center rounded-full border transition-all ${
                           task.checked
                             ? "border-forest bg-forest text-white"
@@ -557,7 +559,7 @@ export function TasksView({
                       {onEditTask && <button onClick={() => onEditTask(task)} aria-label={`Edit ${task.title}`} className="rounded px-2 py-1.5 text-xs font-semibold text-muted hover:text-forest">Edit</button>}
                       <button
                         onClick={() => onDeleteTask(task.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-[#c05746] rounded transition"
+                        className="touch-action opacity-0 group-hover:opacity-100 p-1.5 text-muted hover:text-[#c05746] rounded transition"
                         aria-label="Delete"
                       >
                         <Trash2 size={14} />

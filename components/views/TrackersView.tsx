@@ -1,4 +1,6 @@
 "use client";
+import { mergeTrackerSync } from "@/lib/trackerSyncState";
+import { journalBudgetUsage } from "@/lib/journalBudget";
 import {workspaceScrollBehavior} from "@/lib/workspacePreferences";
 import type {UnifiedReminder} from "@/lib/unifiedReminders";
 
@@ -50,7 +52,7 @@ import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 import { subscriptionsFromJournals } from "@/lib/subscriptionJournal";
 import { AirtelRenewal } from "@/components/AirtelRenewal";
 import { journalMonth } from "@/lib/journalMonth";
-import { JournalSummaries } from "@/components/JournalSummaries";
+import { JournalSummaries, JournalSourceNotice } from "@/components/JournalSummaries";
 import { MonthlySpending } from "@/components/MonthlySpending";
 import { AirtelRechargeTracker } from "@/components/AirtelRechargeTracker";
 import { SubscriptionManager } from "@/components/SubscriptionManager";
@@ -495,23 +497,27 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
   const [autoSyncIntervalSec, setAutoSyncIntervalSec] = useState<number>(30); // 30s background auto-sync
   const [autoSyncEnabled, setAutoSyncEnabled] = useState<boolean>(true);
 
+  const syncSequence = useRef(0);
+
   // Sync handler (supports silent background sync without locking UI)
   const handleSync = useCallback(async (force = true, isSilent = false) => {
+    const sequence = ++syncSequence.current;
     if (!isSilent) setIsSyncing(true);
     setSyncError(null);
     try {
       const res = await fetch(`/api/trackers/sync${force ? "?force=true" : ""}`, { cache: "no-store" });
       const json = await res.json();
+      if (sequence !== syncSequence.current) return;
       if (json.success && json.data) {
-        setData(json.data);
+        setData(previous => mergeTrackerSync(previous, json.data));
         setLastSyncStr(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       } else {
-        if (!isSilent) setSyncError(json.error || "Could not sync latest rows.");
+        setSyncError(json.error || "Could not sync latest rows. Previously loaded data is unchanged.");
       }
     } catch {
-      if (!isSilent) setSyncError("Network error while syncing Google Sheet.");
+      if (sequence === syncSequence.current) setSyncError("Network error while syncing Google Sheet. Previously loaded data is unchanged.");
     } finally {
-      if (!isSilent) setIsSyncing(false);
+      if (sequence === syncSequence.current) setIsSyncing(false);
     }
   }, []);
 
@@ -566,7 +572,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
       });
       const json = await res.json();
       if (json.success && json.data) {
-        setData(json.data);
+        setData(previous => mergeTrackerSync(previous, json.data));
         setShowAddReadingModal(false);
         setNewReadingVal("");
         setNewReadingDateTime("");
@@ -596,7 +602,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
       });
       const json = await res.json();
       if (json.success && json.data) {
-        setData(json.data);
+        setData(previous => mergeTrackerSync(previous, json.data));
         setShowAddExpenseModal(false);
         setNewExpenseItem("");
         setNewExpenseAmount("");
@@ -713,6 +719,12 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
   const totalActiveJournalExpense = useMemo(() => {
     return (activeJournal.expenses || []).reduce((acc, curr) => acc + (curr.amount || 0), 0);
   }, [activeJournal.expenses]);
+
+  const budgetMonth = expenseMonthFilter === "all" ? new Date().getMonth() + 1 : Number(expenseMonthFilter);
+  const budgetMonthLabel = new Intl.DateTimeFormat("en", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(activeJournal.year, budgetMonth - 1, 1)));
+  const budgetUsage = journalBudgetUsage(activeJournal, budgetMonth, data.budgetSync === "unavailable" ? 0 : data.totalMonthlyBudget);
+  const partialJournalSync = data.budgetSync === "unavailable" || data.budgetSync === "stale" || Object.values(data.journals || {}).some(journal =>
+    journal.journalSync === "stale" || journal.journalSync === "unavailable" || journal.summarySync === "stale" || journal.summarySync === "unavailable");
 
   // Active journal category spending breakdown & percentages
   const activeJournalCategoryBreakdown = useMemo(() => {
@@ -1024,7 +1036,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
   }, [data.investments]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="min-w-0 space-y-6 animate-in fade-in duration-200">
       {reminderError&&<p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs">{reminderError}</p>}
       {/* ─── Header & Sync Controls ─── */}
       <div className="flex flex-col justify-between gap-4 border-b border-line pb-5 sm:flex-row sm:items-center">
@@ -1094,18 +1106,15 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
         </div>
       )}
 
-      <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={(key,category,month)=>{
-        setExpenseMonthFilter(month?String(month):"all");
-        setSelectedJournalKey(key);
-        setExpenseSearch("");
-        setExpenseCategoryFilter(category ? data.journals?.[key]?.expenses.find(row=>row.category.trim().toLowerCase()===category.trim().toLowerCase())?.category || category : "all");
-        setExpenseVisibleCount(50);
-        handleTabSelect("expenses");
-        requestAnimationFrame(()=>document.getElementById(category||month?"expense-transactions":"expense-journal-view")?.scrollIntoView({block:"start",behavior:workspaceScrollBehavior()}));
-      }}/>
+      {partialJournalSync && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Some spreadsheet sources could not refresh. Last successful data is retained where available; unavailable sources are labelled. Sync Now retries them.</p>}
 
       {/* ─── Navigation Tabs ─── */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-line pb-3">
+      <label className="block sm:hidden text-xs font-semibold">Choose tracker
+        <select aria-label="Choose tracker" value={activeTab} onChange={event=>handleTabSelect(event.target.value as TabKey)} className="mt-2 w-full rounded-xl border border-line bg-white px-3 py-3 text-base">
+          <option value="airtel">Airtel Recharge</option><option value="subscriptions">Subscriptions</option><option value="eb">PG Electricity (EB)</option><option value="expenses">Expense &amp; Budget</option><option value="tokens">Antigravity Tokens</option><option value="investments">Investment Journal</option><option value="placements">Placements &amp; Career</option><option value="life">Time on Earth</option><option value="purchases">Gadgets &amp; Assets</option>
+        </select>
+      </label>
+      <div className="hidden sm:flex flex-wrap items-center gap-1.5 border-b border-line pb-3">
         {[
           { key: "airtel", label: "Airtel Recharge", icon: RefreshCw, count: airtel?.plan ? `${airtel.plan.validityDays} days` : "History" },
           { key: "subscriptions", label: "Subscriptions", icon: CreditCard, count: `${subscriptions.length}` },
@@ -1150,6 +1159,16 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
           </button>
         ))}
       </div>
+
+      <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={(key,category,month)=>{
+        setExpenseMonthFilter(month?String(month):"all");
+        setSelectedJournalKey(key);
+        setExpenseSearch("");
+        setExpenseCategoryFilter(category ? data.journals?.[key]?.expenses.find(row=>row.category.trim().toLowerCase()===category.trim().toLowerCase())?.category || category : "all");
+        setExpenseVisibleCount(50);
+        handleTabSelect("expenses");
+        requestAnimationFrame(()=>document.getElementById(category||month?"expense-transactions":"expense-journal-view")?.scrollIntoView({block:"start",behavior:workspaceScrollBehavior()}));
+      }}/>
 
       {/* ═══════════════════════════════════════════════════════════
           TAB 1: PG ELECTRICITY (EB) METER TRACKER
@@ -1440,6 +1459,8 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
             </div>
           </div>
 
+          <JournalSourceNotice journal={activeJournal}/>
+          {activeJournal.journalSync === "unavailable" ? <p className="rounded-xl border border-line bg-white p-4 text-sm">This journal could not be loaded. Retry sync or choose another journal; its balance and transactions are unavailable.</p> : <>
           {/* Top KPI Cards for Selected Journal */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-2xl border border-line bg-white p-4 shadow-card">
@@ -1481,47 +1502,53 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
               <div>
                 <h3 className="text-[14px] font-bold text-ink">Monthly Budget Burn-down</h3>
                 <p className="text-[11px] text-muted">
-                  Spend velocity vs planned limit of ₹{(data.totalMonthlyBudget || 7500).toLocaleString()}
+                  {budgetMonthLabel} · {budgetUsage.source}{budgetUsage.stale ? " (last successful data)" : ""} · {data.budgetSync === "unavailable" ? "Monthly limit unavailable" : `Monthly limit ₹${data.totalMonthlyBudget.toLocaleString()}`}{data.budgetSync === "stale" ? " (last successful limit)" : ""}
                 </p>
               </div>
+              <label className="text-xs font-semibold">Budget month
+                <select aria-label="Budget month" value={budgetMonth} onChange={event => { setExpenseMonthFilter(event.target.value); setExpenseVisibleCount(50); }} className="ml-2 rounded-lg border border-line bg-white p-2">
+                  {Array.from({length:12},(_,index)=><option key={index+1} value={index+1}>{new Intl.DateTimeFormat("en",{month:"long",timeZone:"UTC"}).format(new Date(Date.UTC(2026,index,1)))}</option>)}
+                </select>
+              </label>
               <div className="flex items-center gap-2">
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${
-                    (totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) > 0.9
+                    ((budgetUsage.percent ?? 0) / 100) > 0.9
                       ? "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]"
-                      : (totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) > 0.7
+                      : ((budgetUsage.percent ?? 0) / 100) > 0.7
                       ? "bg-[#fffbeb] text-[#b45309] border border-[#fde68a]"
                       : "bg-[#ecfdf5] text-[#047857] border border-[#a7f3d0]"
                   }`}
                 >
-                  {Math.round((totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) * 100)}% utilized
+                  {budgetUsage.percent == null ? "No monthly limit" : `${budgetUsage.percent}% utilized`}
                 </span>
                 <span className="text-[12px] font-semibold text-ink">
-                  ₹{Math.max(0, (data.totalMonthlyBudget || 7500) - totalActiveJournalExpense).toLocaleString()} left
+                  {budgetUsage.remaining == null ? "Set a monthly limit" : `₹${budgetUsage.remaining.toLocaleString()} left`}
                 </span>
               </div>
             </div>
 
+            <p className="text-xs text-muted">₹{(budgetUsage.spent ?? 0).toLocaleString()} recorded for {budgetMonthLabel}. {budgetUsage.source === "Full journal debits" ? "No Summary value for this month; using its full journal debits, including transfers recorded as debits." : "Uses this month’s Summary pivot, not the full-year total."} Current planned monthly limit; historical budget changes are not recorded.</p>
             {/* Progress Bar */}
             <div className="space-y-1.5">
               <div className="h-3 w-full bg-[#f0f2eb] rounded-full overflow-hidden p-0.5">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
-                    (totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) > 0.9
+                    ((budgetUsage.percent ?? 0) / 100) > 0.9
                       ? "bg-[#ef4444]"
-                      : (totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) > 0.7
+                      : ((budgetUsage.percent ?? 0) / 100) > 0.7
                       ? "bg-[#f59e0b]"
                       : "bg-[#10b981]"
                   }`}
                   style={{
-                    width: `${Math.min(100, Math.max(4, Math.round((totalActiveJournalExpense / (data.totalMonthlyBudget || 7500)) * 100)))}%`,
+                    width: `${Math.min(100, Math.max(0, Math.round(((budgetUsage.percent ?? 0) / 100) * 100)))}%`,
                   }}
                 />
               </div>
               <div className="flex justify-between text-[10.5px] text-muted font-medium">
                 <span>₹0</span>
-                <span>₹{((data.totalMonthlyBudget || 7500) * 0.5).toLocaleString()} (50%)</span>
-                <span>Limit: ₹{(data.totalMonthlyBudget || 7500).toLocaleString()}</span>
+                <span>₹{(data.totalMonthlyBudget * 0.5).toLocaleString()} (50%)</span>
+                <span>Limit: ₹{data.totalMonthlyBudget.toLocaleString()}</span>
               </div>
             </div>
 
@@ -1684,6 +1711,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
               </div>
             )}
           </div>
+          </>}
         </div>
       )}
 
@@ -2067,7 +2095,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
 
           {/* Search, Status & Sort Controls */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="relative flex-1 w-full sm:w-auto">
+            <div className="relative min-w-0 flex-1 w-full sm:w-auto">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
@@ -2395,7 +2423,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
 
           {/* Search, Status & Source Filter Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="relative flex-1 w-full sm:w-auto">
+            <div className="relative min-w-0 flex-1 w-full sm:w-auto">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
@@ -2416,7 +2444,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               {/* Status Chips */}
-              <div className="flex items-center gap-1 bg-white border border-line rounded-xl p-1 text-[11px] overflow-x-auto max-w-full">
+              <div className="flex flex-wrap items-center gap-1 bg-white border border-line rounded-xl p-1 text-[11px] min-w-0 max-w-full">
                 <button
                   onClick={() => setPlacementStatusFilter("all")}
                   className={`px-2.5 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
@@ -2719,7 +2747,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
 
           {/* Search, Brand Filter Chips & Sort Controls */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="relative flex-1 w-full sm:w-auto">
+            <div className="relative min-w-0 flex-1 w-full sm:w-auto">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
@@ -2740,7 +2768,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               {/* Brand Filter Chips */}
-              <div className="flex items-center gap-1 bg-white border border-line rounded-xl p-1 text-[11px] overflow-x-auto max-w-full">
+              <div className="flex flex-wrap items-center gap-1 bg-white border border-line rounded-xl p-1 text-[11px] min-w-0 max-w-full">
                 <button
                   onClick={() => setPurchaseBrandFilter("all")}
                   className={`px-2.5 py-1 rounded-lg font-semibold transition whitespace-nowrap ${

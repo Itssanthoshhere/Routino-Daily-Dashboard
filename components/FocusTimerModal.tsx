@@ -197,7 +197,7 @@ export function FocusTimerModal({ isOpen, onClose, onSessionComplete, events = [
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-label="Focus timer" className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-5 sm:p-6 shadow-2xl max-h-[92dvh] overflow-y-auto">
         <label className="mb-3 block text-xs">Link focus to a task<select disabled={isRunning || !!session.current} value={taskId} onChange={e=>setTaskId(e.target.value)} className="mt-1 w-full rounded-lg border border-line bg-white p-2"><option value="">Unassigned focus</option>{tasks.filter(t=>!t.checked&&!t.skipped).map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></label>
         <FocusHistory />
         {saveError && <p role="alert" className="text-xs text-red-700">{saveError}<button type="button" onClick={()=>{setRetrySave(n=>n+1);}}>Retry</button></p>}

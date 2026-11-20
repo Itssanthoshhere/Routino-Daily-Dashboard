@@ -127,8 +127,8 @@ export function QuickCaptureModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-24 sm:pt-32 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-lg rounded-2xl border border-line bg-[#fbfcf8] p-5 shadow-2xl animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-4 sm:pt-32 animate-in fade-in duration-150">
+      <div role="dialog" aria-modal="true" aria-label="Quick capture" className="relative max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-9rem)] overflow-y-auto w-full max-w-lg rounded-2xl border border-line bg-[#fbfcf8] p-5 shadow-2xl animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-line">
           <div className="flex items-center gap-2">
@@ -142,6 +142,7 @@ export function QuickCaptureModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close quick capture"
             className="rounded-lg p-1 text-muted hover:bg-black/5 hover:text-ink transition cursor-pointer"
           >
             <X size={16} />

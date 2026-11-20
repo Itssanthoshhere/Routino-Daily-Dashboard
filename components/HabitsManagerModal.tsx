@@ -84,7 +84,7 @@ export function HabitsManagerModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-2xl rounded-2xl border border-line bg-[#fbfcf8] p-4 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label="Manage habits" className="relative w-full max-w-2xl rounded-2xl border border-line bg-[#fbfcf8] p-4 sm:p-6 shadow-2xl max-h-[92dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-line pb-3 sm:pb-4 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3">

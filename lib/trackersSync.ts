@@ -55,7 +55,8 @@ async function fetchGVizSheet(sheetName: string, range?: string): Promise<GVizRe
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}") + 1;
     if (start === -1 || end <= start) return null;
-    return JSON.parse(text.slice(start, end)) as GVizResponse;
+    const data = JSON.parse(text.slice(start, end)) as GVizResponse;
+    return Array.isArray(data?.table?.rows) ? data : null;
   } catch (err) {
     console.error(`Failed to fetch GViz sheet: ${sheetName}`, err);
     return null;
@@ -153,6 +154,7 @@ export function parseExpenseJournalRows(
 
 /* ── Live Syncer ── */
 export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
+  const syncStartedAt = new Date().toISOString();
   if (!GOOGLE_SHEET_ID) {
     return {
       ...SEED_TRACKERS_DATA,
@@ -201,15 +203,15 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
     ]);
 
     // Parse Category Budget
-    let totalMonthlyBudget = 7500;
+    let totalMonthlyBudget = 0;
     const categoryBudgets: TrackerCategoryBudget[] = [];
     if (budgetData?.table?.rows) {
       budgetData.table.rows.forEach((row, idx) => {
         const cat = parseString(row.c[0]);
         if (!cat) return;
         if (idx === 0) {
-          const totalVal = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : 7500;
-          if (totalVal > 0) totalMonthlyBudget = totalVal;
+          const totalVal = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : 0;
+          if (totalVal >= 0) totalMonthlyBudget = totalVal;
           return;
         }
         if (cat.toLowerCase() === "category" || cat.toLowerCase() === "income") return;
@@ -261,6 +263,15 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       "pg": makeJournal("pg", "PG Expenses", 2026, jPg, { isPG: true }),
     };
 
+    const journalSources = { "2026": exp2026Data, "2026-fampay": exp2026FamPayData,
+      "2025": exp2025Data, "2025-fampay": exp2025FamPayData, "2024": exp2024Data,
+      "2024-fampay": exp2024FamPayData, "2023": exp2023Data, pg: expPgData };
+    const journalUpdatedAt = syncStartedAt;
+    for (const [key, source] of Object.entries(journalSources)) {
+      journals[key].journalSync = source ? "fresh" : "unavailable";
+      if (source) journals[key].journalUpdatedAt = journalUpdatedAt;
+    }
+
     const summarySheets: Record<string,string> = {
       "2023":"2023 Summary", "2024":"2024 Summary", "2025":"2025 Summary", "2026":"2026 Summary",
       "2024-fampay":"2024 Fam Pay Summary ", "2025-fampay":"2025 Fam Pay Summary ", "2026-fampay":"2026 Fam Pay Summary ",
@@ -268,7 +279,9 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
     await Promise.all(Object.entries(summarySheets).map(async ([key,sheet])=>{
       const pivot = await fetchGVizSheet(sheet,"A1:Z900");
       const summary = parseJournalSummaryRows(pivot?.table?.rows,sheet);
-      if(summary)journals[key].sheetSummary=summary;
+      journals[key].summarySync = summary || (pivot && pivot.table.rows.length === 0) ? "fresh" : "unavailable";
+      if (journals[key].summarySync === "fresh") journals[key].summaryUpdatedAt = syncStartedAt;
+      if (summary) journals[key].sheetSummary = summary;
     }));
 
     const expenses = journals["2026"].expenses;
@@ -678,8 +691,10 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       spreadsheetUrl: GOOGLE_SHEET_URL,
       lastSyncedAt: new Date().toISOString(),
       isLive: true,
-      totalMonthlyBudget: totalMonthlyBudget || 7500,
-      categoryBudgets: categoryBudgets.length > 0 ? categoryBudgets : SEED_TRACKERS_DATA.categoryBudgets,
+      totalMonthlyBudget,
+      budgetSync: budgetData ? "fresh" : "unavailable",
+      budgetUpdatedAt: budgetData ? syncStartedAt : undefined,
+      categoryBudgets,
       expenses,
       journals,
       ebMeta,

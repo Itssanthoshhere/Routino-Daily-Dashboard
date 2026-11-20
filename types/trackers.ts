@@ -145,6 +145,10 @@ export type TrackerJournalSummary = {
 };
 
 export type TrackerExpenseJournal = {
+  journalSync?: "fresh" | "stale" | "unavailable";
+  summarySync?: "fresh" | "stale" | "unavailable";
+  journalUpdatedAt?: string;
+  summaryUpdatedAt?: string;
   sheetSummary?: TrackerJournalSummary;
   key: string;
   title: string;
@@ -178,6 +182,9 @@ export type TrackerAntigravityTokenSummary = {
 };
 
 export type TrackersData = {
+  syncAccount?: string;
+  budgetSync?: "fresh" | "stale" | "unavailable";
+  budgetUpdatedAt?: string;
   spreadsheetId: string;
   spreadsheetUrl: string;
   lastSyncedAt: string;

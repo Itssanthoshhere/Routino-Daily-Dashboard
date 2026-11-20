@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { syncSpreadsheetTrackers } from "@/lib/trackersSync";
+import { mergeTrackerSync } from "@/lib/trackerSyncState";
+import { syncSpreadsheetTrackers, GOOGLE_SHEET_ID } from "@/lib/trackersSync";
 import { SEED_TRACKERS_DATA } from "@/lib/trackersSeed";
 import type { TrackersData } from "@/types/dashboard";
 
 const cacheByAccount = new Map<string, { data: TrackersData; fetchedAt: number }>();
+const pendingBySource = new Map<string, Promise<TrackersData>>();
+async function fetchTrackerData(accountKey: string) {
+  const key = `${accountKey}:${GOOGLE_SHEET_ID}`;
+  const existing = pendingBySource.get(key);
+  if (existing) return existing;
+  const pending = syncSpreadsheetTrackers();
+  pendingBySource.set(key, pending);
+  try { return await pending; }
+  finally { if (pendingBySource.get(key) === pending) pendingBySource.delete(key); }
+}
 const CACHE_TTL_MS = 15 * 1000; // 15 seconds cache for fast live updates
 
 function jsonNoStore(body: unknown, init?: ResponseInit) {
@@ -42,7 +53,7 @@ export async function GET(request: Request) {
     const now = Date.now();
 
     const cached = cacheByAccount.get(accountKey);
-    if (!force && cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+    if (!force && cached && cached.data.spreadsheetId === GOOGLE_SHEET_ID && now - cached.fetchedAt < CACHE_TTL_MS) {
       return jsonNoStore({
         success: true,
         source: "cache",
@@ -50,7 +61,11 @@ export async function GET(request: Request) {
       });
     }
 
-    const data = await syncSpreadsheetTrackers();
+    const fetched = await fetchTrackerData(accountKey);
+    if (!fetched.isLive) {
+      return jsonNoStore({ success: false, error: "Could not refresh the spreadsheet. Previously loaded data is unchanged." }, { status: 503 });
+    }
+    const data = mergeTrackerSync(cacheByAccount.get(accountKey)?.data, { ...fetched, syncAccount: accountKey });
     cacheByAccount.set(accountKey, { data, fetchedAt: now });
 
     return jsonNoStore({
@@ -88,8 +103,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action, payload } = body;
 
-    if (!cachedData) {
-      cacheByAccount.set(accountKey, { data: await syncSpreadsheetTrackers(), fetchedAt: Date.now() });
+    if (!cachedData || cachedData.spreadsheetId !== GOOGLE_SHEET_ID) {
+      const fetched = await fetchTrackerData(accountKey);
+      if (!fetched.isLive) return jsonNoStore({ success: false, error: "Could not load the spreadsheet." }, { status: 503 });
+      cacheByAccount.set(accountKey, { data: { ...fetched, syncAccount: accountKey }, fetchedAt: Date.now() });
     }
     const accountData = cacheByAccount.get(accountKey)!.data;
 

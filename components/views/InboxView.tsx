@@ -300,7 +300,7 @@ export function InboxView({
               <div
                 key={mail.id}
                 onClick={() => onSelectMail(mail)}
-                className={`flex items-start gap-4 p-4 hover:bg-[#fbfcf9] transition cursor-pointer group ${
+                className={`grid grid-cols-[44px_minmax(0,1fr)] gap-2 p-3 sm:flex sm:gap-4 sm:p-4 hover:bg-[#fbfcf9] transition cursor-pointer group ${
                   !mail.read ? "bg-[#fffdfa]" : ""
                 }`}
               >
@@ -319,13 +319,13 @@ export function InboxView({
                 </button>
 
                 {/* Avatar */}
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f0c6ae] text-[10px] font-bold text-[#4d5b52]">
+                <span className="hidden sm:grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#f0c6ae] text-[10px] font-bold text-[#4d5b52]">
                   {mail.from.slice(0, 2).toUpperCase()}
                 </span>
 
                 {/* Content */}
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                     <p
                       className={`truncate text-[12px] ${
                         !mail.read ? "font-bold text-ink" : "font-medium text-[#49574f]"
@@ -375,7 +375,7 @@ export function InboxView({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 shrink-0 self-center">
+                <div className="col-start-2 flex flex-wrap items-center gap-1.5 shrink-0 self-center">
                   {(() => {
                     const existingTask = tasks.length > 0 ? findTaskForEmail(mail, tasks) : undefined;
                     if (existingTask) {
@@ -426,7 +426,8 @@ export function InboxView({
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="p-1 text-muted hover:text-forest transition"
+                    aria-label={`Open email in ${mail.source === "outlook" ? "Outlook" : "Gmail"}`}
+                    className="inline-flex items-center justify-center p-1 text-muted hover:text-forest transition"
                   >
                     <ExternalLink size={13} />
                   </a>
