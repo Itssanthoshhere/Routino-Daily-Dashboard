@@ -1,4 +1,5 @@
 "use client";
+import { WorkspaceTools } from "@/components/WorkspaceTools";
 import { ResumeSyncStatus } from "@/components/ResumeSyncStatus";
 import { mergeTrackerSync } from "@/lib/trackerSyncState";
 import { journalBudgetUsage } from "@/lib/journalBudget";
@@ -2087,7 +2088,7 @@ export default function Home() {
       }} />}
       {workspaceSaveError && !coreConflict && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[80] rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:left-auto sm:max-w-md">Workspace changes are kept locally but database sync failed. They will retry when connected.<button className="ml-3 font-semibold underline" onClick={() => { void syncToDatabase(); }}>Retry now</button></div>}
       {/* ─── Sidebar (desktop) ─── */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col justify-between border-r border-line bg-[#fbfcf8] lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[236px] flex-col justify-between border-r border-line bg-[#fbfcf8] xl:flex">
         {/* Scrollable upper navigation & apps area */}
         <div className="flex-1 overflow-y-auto overscroll-contain sidebar-scroll px-4 xl:px-5 py-4 xl:py-6">
           <a href="#overview" onClick={() => handleSelectNav("Overview")} className="mb-4 xl:mb-7 flex items-center gap-3 px-1">
@@ -2190,22 +2191,20 @@ export default function Home() {
       />
 
       {/* ─── Main ─── */}
-      <main id="overview" className="min-h-screen lg:ml-[236px]">
+      <main id="overview" className="min-h-screen xl:ml-[236px]">
         {/* Header */}
         <header className="workspace-header sticky top-0 z-40 flex min-h-[68px] flex-wrap items-center justify-between gap-3 py-3 border-b border-line bg-[#f7f7f2]/95 px-5 backdrop-blur-md sm:px-8 xl:px-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowMobileSidebar(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white lg:hidden" aria-label="Open menu" aria-expanded={showMobileSidebar}><Menu size={17} /></button>
-            <img src="/favicon.svg" alt="Routino" className="hidden h-8 w-8 rounded-[11px] sm:block lg:hidden" />
-            <div className="text-[12px] text-muted">Workspace <span className="mx-2 text-[#c4cbc3]">/</span><span className="font-semibold text-ink">{activeNav}</span></div>
+            <button onClick={() => setShowMobileSidebar(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white xl:hidden" aria-label="Open menu" aria-expanded={showMobileSidebar}><Menu size={17} /></button>
+            <div className="min-w-0 truncate text-base font-semibold text-ink xl:text-xs"><span className="hidden font-normal text-muted xl:inline">Workspace <span className="mx-2 text-[#c4cbc3]">/</span></span>{activeNav}</div>
           </div>
           <div className="workspace-header-actions flex min-w-0 flex-wrap items-center gap-2">
-            <div className="workspace-header-tools flex flex-wrap items-center gap-2">
-            <UndoHistory entries={undoHistory} account={verifiedWorkspaceAccount}/>
-            <RemindersInbox today={notificationDay} items={unifiedReminders(tasks,subscriptions,trackerWorkspace.airtel,trackerWorkspace.assetRecords||{},notificationDay)} onOpen={item=>{if(item.target==='tasks'){const task=tasks.find(t=>t.id===item.taskId);if(task){setReminderTarget(null);handleSelectNav('Tasks');editTask(task);}else toast('This task is no longer available.','info');}else{setReminderTarget({...item});handleOpenTrackersTab(item.target);}}}/>
-            <SyncCenter trackerStatus={trackerWorkspace.status} trackerSavedAt={trackerWorkspace.savedAt} coreError={workspaceSaveError} syncing={isSyncing} email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
+            <button onClick={() => setShowCommandPalette(true)} aria-label="Search or command palette" className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition" title="Press Cmd+K">
+              <Search size={15} />
+            </button>
             <button
               type="button"
-              className="mobile-quick-capture grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-forest text-white shadow-sm sm:hidden"
+              className="mobile-quick-capture grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-forest text-white shadow-sm xl:hidden"
               aria-label="Quick capture"
               aria-haspopup="dialog"
               aria-expanded={showQuickCapture}
@@ -2214,57 +2213,61 @@ export default function Home() {
             >
               <Plus size={20} aria-hidden="true" />
             </button>
-            </div>
-            <Link
-              href="/"
-              className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#526056] hover:bg-[#f1f3ed] hover:text-ink transition"
-              title="View Public Landing Page"
-            >
-              <Globe size={13} className="text-forest" />
-              <span>Tour</span>
-            </Link>
-            <span className={"hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-semibold sm:flex " + (isConnected ? "border-[#fecaca] bg-[#fdf2f2] text-forest" : "border-[#eadfc6] bg-[#fbf5e9] text-[#987537]")}>
-              <span className={"h-1.5 w-1.5 rounded-full " + (isConnected ? "bg-forest" : "bg-[#e7ae51]")} />
-              {isConnected ? "GOOGLE CONNECTED" : "PREVIEW MODE"}
-            </span>
-            <button onClick={() => setShowCommandPalette(true)} aria-label="Search or command palette" className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition" title="Press Cmd+K">
-              <Search size={15} />
-            </button>
-            <div className="relative z-50">
-              <button onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }} aria-label="Notifications" aria-expanded={showNotifications} className="relative grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition">
-                <Bell size={15} />
-                {notifications.length > 0 && (
-                  <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[#d16b5b] text-[8px] font-bold text-white">{notifications.length}</span>
-                )}
-              </button>
-              <NotificationsPopover
-                isOpen={showNotifications}
-                onClose={() => setShowNotifications(false)}
-                notifications={notifications}
-                onSelectNotification={handleNotificationClick}
-                onClearAll={clearAllNotifications}
-              />
-            </div>
-            <div className="relative z-50">
-              <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }} aria-label="User profile" aria-expanded={showUserMenu} className="ml-1 grid h-8 w-8 place-items-center rounded-full bg-[#e4d4c2] text-[11px] font-semibold text-[#614d3f] hover:ring-2 hover:ring-forest/20 transition overflow-hidden">
-                {liveData?.user?.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={liveData.user.image} alt={liveData.user.name || "User"} className="h-full w-full object-cover" />
-                ) : (
-                  liveData?.user?.name ? liveData.user.name.charAt(0).toUpperCase() : appConfig.user.initial
-                )}
-              </button>
-              <UserMenuPopover
-                isOpen={showUserMenu}
-                onClose={() => setShowUserMenu(false)}
-                isConnected={!!liveData?.connected}
-                userName={liveData?.user?.name}
-                userEmail={liveData?.user?.email}
-                userImage={liveData?.user?.image}
-                onOpenPreferences={() => setShowPreferences(true)}
-                onOpenShortcuts={() => setShowShortcuts(true)}
-              />
-            </div>
+            <WorkspaceTools>
+              <div className="workspace-header-tools flex flex-wrap items-center gap-2">
+              <UndoHistory entries={undoHistory} account={verifiedWorkspaceAccount}/>
+              <RemindersInbox today={notificationDay} items={unifiedReminders(tasks,subscriptions,trackerWorkspace.airtel,trackerWorkspace.assetRecords||{},notificationDay)} onOpen={item=>{if(item.target==='tasks'){const task=tasks.find(t=>t.id===item.taskId);if(task){setReminderTarget(null);handleSelectNav('Tasks');editTask(task);}else toast('This task is no longer available.','info');}else{setReminderTarget({...item});handleOpenTrackersTab(item.target);}}}/>
+              <SyncCenter trackerStatus={trackerWorkspace.status} trackerSavedAt={trackerWorkspace.savedAt} coreError={workspaceSaveError} syncing={isSyncing} email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
+
+              </div>
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#526056] hover:bg-[#f1f3ed] hover:text-ink transition"
+                title="View Public Landing Page"
+              >
+                <Globe size={13} className="text-forest" />
+                <span>Tour</span>
+              </Link>
+              <span className={"inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-semibold " + (isConnected ? "border-[#fecaca] bg-[#fdf2f2] text-forest" : "border-[#eadfc6] bg-[#fbf5e9] text-[#987537]")}>
+                <span className={"h-1.5 w-1.5 rounded-full " + (isConnected ? "bg-forest" : "bg-[#e7ae51]")} />
+                {isConnected ? "GOOGLE CONNECTED" : "PREVIEW MODE"}
+              </span>
+              <div className="relative z-50">
+                <button onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }} aria-label="Notifications" aria-expanded={showNotifications} className="relative grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition">
+                  <Bell size={15} />
+                  {notifications.length > 0 && (
+                    <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[#d16b5b] text-[8px] font-bold text-white">{notifications.length}</span>
+                  )}
+                </button>
+                <NotificationsPopover
+                  isOpen={showNotifications}
+                  onClose={() => setShowNotifications(false)}
+                  notifications={notifications}
+                  onSelectNotification={handleNotificationClick}
+                  onClearAll={clearAllNotifications}
+                />
+              </div>
+              <div className="relative z-50">
+                <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }} aria-label="User profile" aria-expanded={showUserMenu} className="ml-1 grid h-8 w-8 place-items-center rounded-full bg-[#e4d4c2] text-[11px] font-semibold text-[#614d3f] hover:ring-2 hover:ring-forest/20 transition overflow-hidden">
+                  {liveData?.user?.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={liveData.user.image} alt={liveData.user.name || "User"} className="h-full w-full object-cover" />
+                  ) : (
+                    liveData?.user?.name ? liveData.user.name.charAt(0).toUpperCase() : appConfig.user.initial
+                  )}
+                </button>
+                <UserMenuPopover
+                  isOpen={showUserMenu}
+                  onClose={() => setShowUserMenu(false)}
+                  isConnected={!!liveData?.connected}
+                  userName={liveData?.user?.name}
+                  userEmail={liveData?.user?.email}
+                  userImage={liveData?.user?.image}
+                  onOpenPreferences={() => setShowPreferences(true)}
+                  onOpenShortcuts={() => setShowShortcuts(true)}
+                />
+              </div>
+            </WorkspaceTools>
           </div>
           <ResumeSyncStatus
             account={verifiedWorkspaceAccount}

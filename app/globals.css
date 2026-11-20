@@ -245,19 +245,31 @@ html[data-routino-motion="reduced"] *, html[data-routino-motion="reduced"] *::be
   :is(input, textarea, select):not([type="checkbox"]):not([type="radio"]):not([type="range"]) { font-size: 16px; }
   .touch-action { opacity: 1; }
   summary { min-height: 44px; padding-block: 10px; }
-  .workspace-header { gap: 8px; padding: 10px 12px; }
-  .workspace-header > :first-child { flex: none; width: calc(100% - 168px); min-width: 0; gap: 8px; }
-  .workspace-header-actions { display: contents; }
-  .workspace-resume-status { order: 3; flex-basis: 100%; }
-  .workspace-header-actions > * { order: 1; }
-  .workspace-header-actions > .workspace-header-tools { order: 2; flex: 1 0 100%; }
-  .workspace-header-tools > button { flex: 1; padding: 6px 8px; }
-  .workspace-header-tools > .mobile-quick-capture { flex: none; padding: 0; }
-  .workspace-header-actions > div:not(.workspace-header-tools) { width: 44px; height: 44px; }
-  .workspace-header-actions > div > button { margin-left: 0; width: 44px; height: 44px; }
-  .mobile-header-popover { position: fixed; top: 62px; left: 12px; right: 12px; width: auto; max-height: calc(100dvh - 140px); overflow-y: auto; }
-  .workspace-header-actions > :is(button, div) { flex-shrink: 0; }
+
 }
 @media (hover: none), (pointer: coarse) {
   .touch-action { opacity: 1; }
+}
+
+/* A single navigation row leaves room for content on phones and portrait iPads. */
+.workspace-tools-panel { display: flex; align-items: center; gap: 8px; }
+.workspace-tools-toggle { display: none; }
+@media (max-width: 1279px) {
+  .workspace-header { gap: 8px; padding: 10px 16px; }
+  .workspace-header > :first-child { flex: 1; min-width: 0; gap: 10px; }
+  .workspace-header-actions { flex-wrap: nowrap; gap: 6px; }
+  .workspace-header-actions > button, .workspace-header > div > button { width: 44px; height: 44px; flex-shrink: 0; }
+  .workspace-resume-status { flex-basis: 100%; }
+  .workspace-tools-toggle { display: grid; width: 44px; height: 44px; place-items: center; }
+  .workspace-tools-panel { display: none; position: absolute; top: 64px; right: 16px; width: min(360px, calc(100vw - 32px)); flex-wrap: wrap; padding: 16px; border: 1px solid var(--color-line, #e1e5dc); border-radius: 20px; background: #fbfcf8; box-shadow: 0 12px 40px #18251a26; }
+  .workspace-tools-panel[data-open="true"] { display: flex; }
+  .workspace-header-tools { width: 100%; }
+  .workspace-header-tools > button { flex: 1; min-height: 44px; }
+  .workspace-tools-panel > a { min-height: 44px; }
+  .workspace-tools-panel > div > button { width: 44px; height: 44px; margin: 0; }
+  .mobile-header-popover { position: fixed; top: 72px; left: auto; right: 16px; width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 100px); overflow-y: auto; }
+}
+@media (max-width: 639px) {
+  .workspace-header { padding-inline: 12px; }
+  main > .mx-auto { padding-top: 16px; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
 }

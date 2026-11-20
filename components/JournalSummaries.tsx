@@ -38,8 +38,8 @@ export function JournalSummaries({ journals, isLive, onOpen }: {
   const [expanded, setExpanded] = useState(false);
   return <section className="rounded-2xl border border-line bg-white p-5" aria-labelledby="journal-summaries-title">
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="journal-summaries-title" className="text-base font-bold">Journal summaries · 2023–2026</h3><span className="text-xs text-muted">{isLive ? "From your connected sheet" : "Preview / sample data"}</span></div>
-    <button type="button" aria-expanded={expanded} aria-controls="journal-summary-content" onClick={()=>setExpanded(value=>!value)} className="btn-theme mt-3 w-full rounded-xl border border-line px-3 py-2 text-xs font-semibold sm:hidden">{expanded ? "Hide yearly summaries" : "Show yearly summaries"}</button>
-    <div id="journal-summary-content" className={`${expanded ? "block" : "hidden"} sm:block`}>
+    <button type="button" aria-expanded={expanded} aria-controls="journal-summary-content" onClick={()=>setExpanded(value=>!value)} className="btn-theme mt-3 w-full rounded-xl border border-line px-3 py-2 text-xs font-semibold xl:hidden">{expanded ? "Hide yearly summaries" : "Show yearly summaries"}</button>
+    <div id="journal-summary-content" className={`${expanded ? "block" : "hidden"} xl:block`}>
     <p className="mt-2 text-xs text-muted">Spending matches each year’s Summary-tab pivot. Credits, balances and entry counts describe the full journal. FamPay stays separate; transfers between journals are not combined into a spending total.</p>
     <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[2023, 2024, 2025, 2026].map(year => {
       const key = String(year), journal = journals[key], famPay = journals[`${year}-fampay`];

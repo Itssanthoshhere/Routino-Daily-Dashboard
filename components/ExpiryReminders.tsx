@@ -13,6 +13,7 @@ export function ExpiryReminders({ subscriptions, airtel, assets = {}, snoozes = 
   snoozes?: ReminderSnooze[];
   onOpen: (reminder: UnifiedReminder) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [daysAhead, setDaysAhead] = useState(30);
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -23,10 +24,12 @@ export function ExpiryReminders({ subscriptions, airtel, assets = {}, snoozes = 
   return <section className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h3 className="text-sm font-semibold text-ink">Upcoming renewals & warranties</h3>
-      <label className="text-xs">Show<select aria-label="Upcoming renewals period" className="ml-2 rounded-lg border border-line bg-white p-2" value={daysAhead} onChange={e => setDaysAhead(Number(e.target.value))}>
+      <button type="button" aria-expanded={expanded} aria-controls="renewal-list" onClick={() => setExpanded(value => !value)} className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold xl:hidden">{expanded ? "Hide reminders" : `View reminders (${reminders.length})`}</button>
+    </div>
+    <div id="renewal-list" className={`${expanded ? "block" : "hidden"} xl:block`}>
+      <label className="mt-3 inline-block text-xs">Show<select aria-label="Upcoming renewals period" className="ml-2 rounded-lg border border-line bg-white p-2" value={daysAhead} onChange={e => setDaysAhead(Number(e.target.value))}>
         {[7, 30, 90].map(days => <option key={days} value={days}>Next {days} days</option>)}
       </select></label>
-    </div>
     <p className="mt-2 text-xs text-muted">Your recharge expiry, subscription renewals and gadget warranties. Includes overdue dates from the last 30 days; snoozed reminders stay in the reminders inbox.</p>
     <ul className="mt-3 grid gap-3 sm:grid-cols-2">{reminders.map(reminder => {
       const daysLeft = Math.round((Date.parse(reminder.date) - Date.parse(today)) / 86400000);
@@ -37,5 +40,6 @@ export function ExpiryReminders({ subscriptions, airtel, assets = {}, snoozes = 
       </button></li>;
     })}</ul>
     {!reminders.length && <p className="mt-3 text-sm text-muted">No recorded renewals or warranties due in this period.</p>}
+    </div>
   </section>;
 }

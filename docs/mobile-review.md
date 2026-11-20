@@ -109,3 +109,16 @@ Both previously outstanding data issues are implemented and regression-tested.
 - Overview also ignores older in-flight results and errors after a newer refresh or account change.
 - Added 15-minute and 30-minute focus-time options while retaining 25/45/60/90 minutes. Scheduling tests confirm the returned slot lengths for both new durations.
 - Physical-device behavior, successful unlock with the user's actual PIN, real save/restore flows, and the final focus-finder booking flow remain outside this non-writing verification. No account records were changed for the review.
+
+
+## Phone and iPad visual refinement — 20 November 2026
+
+- Compact header below 1280px: navigation, current view, search, quick capture, and an expandable Workspace tools panel. Secondary actions and the existing sync status remain available. The panel supports outside-pointer dismissal and Escape with focus returned to its trigger.
+- Sidebar switches to a drawer below 1280px, giving iPad Pro portrait and the smaller landscape viewport full content width. Larger landscape screens retain desktop navigation.
+- Renewals and yearly journal summaries start collapsed below 1280px. Tracker navigation uses the labelled dropdown at these widths.
+- Phone expense transactions use cards with date, category, description, amount and balance; tablet/desktop retain the table. Both use the same filtered and paginated records.
+- Phone task actions stack below task content, completion controls retain a small visual circle inside a 44px target, and saved views/filter tabs scroll horizontally.
+- Browser overflow checks passed for all eight workspace views at 393×852 and 834×1194, and all nine tracker tabs at 393×852. Additional responsive checks covered 320×740, 360×800, 430×932, 768×1024, 1024×1366, 1194×834 and 1366×1024. Visual inspection covered phone tasks/trackers and both iPad Pro portrait sizes plus landscape. Disclosure expansion/collapse and tools dismissal were exercised. These are browser viewport checks, not physical Safari/PWA verification or exhaustive checks of every dialog.
+- TypeScript, full test suite, production Webpack build and whitespace checks passed. UI verification did not create, edit or remove account records.
+
+- Commit review: native dialogs retain Escape handling without closing the parent Workspace tools panel; browser verification confirmed first Escape closes Undo history while tools remain expanded, and the next Escape dismisses tools.
