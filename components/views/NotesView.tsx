@@ -1,6 +1,7 @@
 "use client";
 import { NoteReferenceEditor, NoteReferenceChips } from "@/components/NoteConnections";
 import { noteTemplate, type NoteReference } from "@/lib/noteOrganization";
+import { verifyNoteVaultPin } from "@/lib/noteVaultUnlock";
 import { useAccountStorage } from "@/components/AccountStorage";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
@@ -397,12 +398,35 @@ export function NotesView({
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [showChangePinModal, setShowChangePinModal] = useState(false);
 
+  const [pendingUnlockNoteId, setPendingUnlockNoteId] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+  const unlockAttempt = useRef(0);
+  const hasConfiguredVault = Boolean(vaultVerifier) || notes.some(note => note.isEncrypted || isEncryptedPayload(note.content));
+
   // PIN Inputs
   const [pinInput, setPinInput] = useState("");
   const [pinConfirmInput, setPinConfirmInput] = useState("");
   const [oldPinInput, setOldPinInput] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
   const [showPinText, setShowPinText] = useState(false);
+
+  const requestUnlock = useCallback((noteId?: string) => {
+    unlockAttempt.current++;
+    setUnlocking(false);
+    setPinInput("");
+    setPinError(null);
+    setShowPinText(false);
+    setPendingUnlockNoteId(noteId || null);
+    setShowUnlockModal(true);
+  }, []);
+  const closeUnlock = () => {
+    unlockAttempt.current++;
+    setUnlocking(false);
+    setPinInput("");
+    setPinError(null);
+    setPendingUnlockNoteId(null);
+    setShowUnlockModal(false);
+  };
 
   // Edit modal state
   const [editingNote, setEditingNote] = useState<KeepNote | null>(null);
@@ -692,7 +716,10 @@ export function NotesView({
         }
       }
     }
-    if (generation === lockGeneration.current && sequence === decryptSequence.current) setDecryptedCache(nextCache);
+    if (generation === lockGeneration.current && sequence === decryptSequence.current) {
+      setDecryptedCache(nextCache);
+      return nextCache;
+    }
   }, []);
 
   useEffect(() => {
@@ -705,6 +732,10 @@ export function NotesView({
   const handleSetupPin = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinError(null);
+    if (hasConfiguredVault) {
+      setPinError("Private notes already have a master PIN. Close this dialog and unlock with the original PIN.");
+      return;
+    }
     if (!pinInput || pinInput.length < 4) {
       setPinError("PIN must be at least 4 characters.");
       return;
@@ -729,25 +760,34 @@ export function NotesView({
     }
   };
 
-  // Unlock Vault Handler
+  // The verifier is device-local; synced ciphertext also authenticates the existing PIN.
   const handleUnlockVault = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (unlocking) return;
+    const attempt = ++unlockAttempt.current;
+    const generation = lockGeneration.current;
     setPinError(null);
-    if (!vaultVerifier) return;
-
+    setUnlocking(true);
     try {
-      const isValid = await verifyPassphrase(pinInput, vaultVerifier.salt, vaultVerifier.hash);
+      const isValid = await verifyNoteVaultPin(pinInput, vaultVerifier, notes.map(note => note.content));
+      if (attempt !== unlockAttempt.current || generation !== lockGeneration.current) return;
       if (!isValid) {
-        setPinError("Incorrect master PIN. Please try again.");
+        setPinError("Could not unlock with this PIN. Use the original master PIN for these notes.");
         return;
       }
-
+      const cache = await decryptAllNotes(pinInput, notes);
+      if (attempt !== unlockAttempt.current || generation !== lockGeneration.current) return;
+      if (pendingUnlockNoteId && !cache?.[pendingUnlockNoteId]) {
+        setPinError("This note could not be decrypted with that PIN. Its saved contents are unchanged.");
+        return;
+      }
       setSessionPin(pinInput);
       setShowUnlockModal(false);
       setPinInput("");
-      await decryptAllNotes(pinInput, notes);
     } catch {
-      setPinError("Verification error. Please try again.");
+      if (attempt === unlockAttempt.current) setPinError("Could not verify your PIN. Please try again on a secure connection.");
+    } finally {
+      if (attempt === unlockAttempt.current) setUnlocking(false);
     }
   };
 
@@ -890,7 +930,7 @@ export function NotesView({
 
     if (composeEncrypted) {
       if (!sessionPin) {
-        setShowUnlockModal(true);
+        requestUnlock();
         return;
       }
 
@@ -964,7 +1004,7 @@ export function NotesView({
 
     if (note.isEncrypted) {
       if (!sessionPin || !decryptedCache[noteId]) {
-        setShowUnlockModal(true);
+        requestUnlock();
         return;
       }
       const cached = decryptedCache[noteId];
@@ -997,18 +1037,18 @@ export function NotesView({
 
   // Open note for viewing / editing (defaults to preview mode)
   const handleOpenEdit = useCallback((note: KeepNote) => {
-    if (note.isEncrypted && !sessionPin) {
-      setShowUnlockModal(true);
+    if ((note.isEncrypted || isEncryptedPayload(note.content)) && (!sessionPin || !decryptedCache[note.id])) {
+      requestUnlock(note.id);
       return;
     }
 
     isFirstLoadOfNote.current = true;
     setAutoSaveStatus("idle");
     setEditingNote(note);
-    setEditIsEncrypted(Boolean(note.isEncrypted));
+    setEditIsEncrypted(Boolean(note.isEncrypted || isEncryptedPayload(note.content)));
     setEditPriority(note.priority || "none");
 
-    if (note.isEncrypted && decryptedCache[note.id]) {
+    if ((note.isEncrypted || isEncryptedPayload(note.content)) && decryptedCache[note.id]) {
       setEditDecryptedContent(decryptedCache[note.id].text);
       setEditDecryptedChecklist(decryptedCache[note.id].checklist || []);
       setEditImages(getNoteImages(decryptedCache[note.id]));
@@ -1020,7 +1060,14 @@ export function NotesView({
 
     // Default to Preview mode so user sees clean rendered view; switch to edit when needed
     setActiveTab("preview");
-  }, [sessionPin, decryptedCache]);
+  }, [sessionPin, decryptedCache, requestUnlock]);
+
+  useEffect(() => {
+    if (!pendingUnlockNoteId || !sessionPin || !decryptedCache[pendingUnlockNoteId]) return;
+    const note = notes.find(item => item.id === pendingUnlockNoteId);
+    setPendingUnlockNoteId(null);
+    if (note) handleOpenEdit(note);
+  }, [pendingUnlockNoteId, sessionPin, decryptedCache, notes, handleOpenEdit]);
 
   useEffect(() => {
     if (!searchRequest || handledSearchRequest.current === searchRequest) return;
@@ -1042,7 +1089,7 @@ export function NotesView({
   // Permanently remove lock from a note
   const handleRemoveLock = async (note: KeepNote) => {
     if (!sessionPin) {
-      setShowUnlockModal(true);
+      requestUnlock();
       return;
     }
 
@@ -1135,7 +1182,7 @@ export function NotesView({
 
     if (isEncrypted) {
       if (!sessionPin) {
-        if (closeModal) setShowUnlockModal(true);
+        if (closeModal) requestUnlock();
         return;
       }
       try {
@@ -1503,7 +1550,7 @@ export function NotesView({
           </div>
 
           {/* Private Notes Security Control */}
-          {!vaultVerifier ? (
+          {!hasConfiguredVault ? (
             <button
               onClick={() => {
                 setPinError(null);
@@ -1526,7 +1573,7 @@ export function NotesView({
               >
                 Lock
               </button>
-              <button
+              {vaultVerifier && <button
                 onClick={() => {
                   setPinError(null);
                   setShowChangePinModal(true);
@@ -1535,13 +1582,13 @@ export function NotesView({
                 title="Change master PIN"
               >
                 PIN
-              </button>
+              </button>}
             </div>
           ) : (
             <button
               onClick={() => {
                 setPinError(null);
-                setShowUnlockModal(true);
+                requestUnlock();
               }}
               className="inline-flex items-center gap-1.5 rounded-xl border border-[#fed7aa] bg-[#fffaf5] px-3 py-1.5 text-[11px] font-semibold text-[#9a3412] hover:bg-[#ffedd5] transition shadow-sm cursor-pointer"
               title="Click to unlock protected notes with your master PIN"
@@ -1551,7 +1598,7 @@ export function NotesView({
             </button>
           )}
 
-          {vaultVerifier && <label className="text-[11px] text-muted">Auto-lock <select aria-label="Vault auto-lock" value={autoLockMinutes} onChange={event => { const minutes = Number(event.target.value); try { browserStore.setItem("routino_vault_autolock", String(minutes)); setAutoLockMinutes(minutes); } catch { setVaultStatus("Could not save the auto-lock preference. Existing settings are unchanged."); } }} className="rounded-lg border border-line bg-white p-1"><option value={0}>Off</option><option value={1}>1 minute + background</option><option value={5}>5 minutes + background</option><option value={15}>15 minutes + background</option></select></label>}
+          {hasConfiguredVault && <label className="text-[11px] text-muted">Auto-lock <select aria-label="Vault auto-lock" value={autoLockMinutes} onChange={event => { const minutes = Number(event.target.value); try { browserStore.setItem("routino_vault_autolock", String(minutes)); setAutoLockMinutes(minutes); } catch { setVaultStatus("Could not save the auto-lock preference. Existing settings are unchanged."); } }} className="rounded-lg border border-line bg-white p-1"><option value={0}>Off</option><option value={1}>1 minute + background</option><option value={5}>5 minutes + background</option><option value={15}>15 minutes + background</option></select></label>}
           {vaultStatus && <p role="status" className="text-[11px] text-muted">{vaultStatus}</p>}
           {/* Search Input */}
           <div className="relative w-full sm:w-56">
@@ -1651,10 +1698,10 @@ export function NotesView({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (!vaultVerifier) {
+                    if (!hasConfiguredVault) {
                       setShowSetupPinModal(true);
                     } else if (!sessionPin) {
-                      setShowUnlockModal(true);
+                      requestUnlock();
                     } else {
                       setComposeEncrypted(true);
                     }
@@ -1738,12 +1785,12 @@ export function NotesView({
                     type="button"
                     onClick={() => {
                       if (!composeEncrypted) {
-                        if (!vaultVerifier) {
+                        if (!hasConfiguredVault) {
                           setShowSetupPinModal(true);
                           return;
                         }
                         if (!sessionPin) {
-                          setShowUnlockModal(true);
+                          requestUnlock();
                           return;
                         }
                         setComposeEncrypted(true);
@@ -2017,17 +2064,18 @@ export function NotesView({
       {/* Unlock Vault Modal */}
       {showUnlockModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm rounded-2xl border border-line bg-white p-5 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="unlock-notes-title" className="relative max-h-[calc(100dvh-2rem)] overflow-y-auto w-full max-w-sm rounded-2xl border border-line bg-white p-5 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-line">
               <div className="flex items-center gap-2">
                 <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#fff7ed] text-[#c2410c]">
                   <Lock size={15} />
                 </span>
-                <h3 className="text-[14px] font-bold text-ink">Unlock Private Notes</h3>
+                <h3 id="unlock-notes-title" className="text-[14px] font-bold text-ink">Unlock Private Notes</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setShowUnlockModal(false)}
+                onClick={closeUnlock}
+                aria-label="Close notes unlock"
                 className="text-muted hover:text-ink"
               >
                 <X size={16} />
@@ -2041,6 +2089,8 @@ export function NotesView({
 
               <div className="relative">
                 <input
+                  aria-label="Master PIN"
+                  autoComplete="off"
                   type={showPinText ? "text" : "password"}
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
@@ -2050,6 +2100,7 @@ export function NotesView({
                 />
                 <button
                   type="button"
+                  aria-label={showPinText ? "Hide PIN" : "Show PIN"}
                   onClick={() => setShowPinText(!showPinText)}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
                 >
@@ -2058,7 +2109,7 @@ export function NotesView({
               </div>
 
               {pinError && (
-                <div className="flex items-center gap-1.5 rounded-lg bg-[#fef2f2] p-2 text-[11px] font-medium text-[#b91c1c]">
+                <div role="alert" className="flex items-center gap-1.5 rounded-lg bg-[#fef2f2] p-2 text-[11px] font-medium text-[#b91c1c]">
                   <AlertCircle size={13} className="shrink-0" />
                   <span>{pinError}</span>
                 </div>
@@ -2067,16 +2118,17 @@ export function NotesView({
               <div className="pt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowUnlockModal(false)}
+                  onClick={closeUnlock}
                   className="rounded-xl px-3 py-1.5 text-[11px] font-medium text-muted hover:bg-black/5"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  disabled={unlocking || !pinInput}
                   className="rounded-xl bg-forest px-4 py-1.5 text-[11px] font-semibold text-white hover:bg-[#8b1116] transition"
                 >
-                  Unlock Notes
+                  {unlocking ? "Unlocking…" : "Unlock Notes"}
                 </button>
               </div>
             </form>
@@ -2331,7 +2383,7 @@ export function NotesView({
             <div className="flex flex-wrap items-center gap-1.5 min-w-0">
               {/* Drag Handle */}
               <span
-                className="opacity-0 group-hover:opacity-100 text-muted/60 hover:text-ink cursor-grab active:cursor-grabbing p-0.5 transition"
+                className="touch-action opacity-0 group-hover:opacity-100 text-muted/60 hover:text-ink cursor-grab active:cursor-grabbing p-0.5 transition"
                 title="Drag to reorder"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -2385,7 +2437,7 @@ export function NotesView({
                 e.stopPropagation();
                 onUpdateNote(note.id, { pinned: !note.pinned });
               }}
-              className={`opacity-0 group-hover:opacity-100 p-1 rounded transition ml-auto shrink-0 ${
+              className={`touch-action opacity-0 group-hover:opacity-100 p-1 rounded transition ml-auto shrink-0 ${
                 note.pinned
                   ? "!opacity-100 text-forest bg-[#fdf2f2]"
                   : "text-muted hover:text-ink hover:bg-black/5"
@@ -2408,7 +2460,7 @@ export function NotesView({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowUnlockModal(true);
+                  requestUnlock(note.id);
                 }}
                 className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-[#ea580c] px-3 py-1.5 text-[10.5px] font-semibold text-white shadow-sm hover:bg-[#c2410c] transition cursor-pointer"
               >
@@ -2656,12 +2708,12 @@ export function NotesView({
                 <button
                   type="button"
                   onClick={() => {
-                    if (!vaultVerifier) {
+                    if (!hasConfiguredVault) {
                       setShowSetupPinModal(true);
                       return;
                     }
                     if (!sessionPin) {
-                      setShowUnlockModal(true);
+                      requestUnlock();
                       return;
                     }
                     setEditIsEncrypted(true);

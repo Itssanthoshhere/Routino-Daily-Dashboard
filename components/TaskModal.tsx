@@ -158,7 +158,7 @@ export function TaskModal({ isOpen, onClose, onAddTask, initialTask, relatedTask
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-label="Task editor" className="relative w-full max-w-md rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl max-h-[90dvh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-[#fdf2f2] text-forest">

@@ -16,6 +16,11 @@ assert.equal(slots.length,1);assert.equal(slots[0].start.getHours(),9);assert.eq
 assert.equal(JSON.stringify(event),original,'Buffering cannot edit a saved event');
 assert.equal(findFocusSlots([],from,7,45,{...preferences,days:[5]}).every(s=>s.start.getDay()===5),true);
 assert.equal(findFocusSlots([],from,7,0,preferences).length,0);
+for (const minutes of [15, 30]) {
+  const shortSlots = findFocusSlots([], from, 7, minutes, preferences);
+  assert(shortSlots.length > 0);
+  assert(shortSlots.every(slot => slot.minutes === minutes && slot.end - slot.start === minutes * 60000));
+}
 const blocks=bufferedFocusEvents([event],preferences);
 assert.equal(hasFocusConflict(blocks,new Date(2026,10,19,9,44),new Date(2026,10,19,10),Intl.DateTimeFormat().resolvedOptions().timeZone),true);
 assert.equal(hasFocusConflict(blocks,new Date(2026,10,19,11,19),new Date(2026,10,19,12),Intl.DateTimeFormat().resolvedOptions().timeZone),true);

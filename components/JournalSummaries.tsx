@@ -1,11 +1,26 @@
 "use client";
+import { useState } from "react";
 import { journalReconciliation } from "@/lib/journalSummary";
 import type { TrackerExpenseJournal } from "@/types/dashboard";
 
 const money = (amount: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(amount);
+export function JournalSourceNotice({ journal }: { journal: TrackerExpenseJournal }) {
+  const status = (kind: "journal" | "summary") => {
+    const state = kind === "journal" ? journal.journalSync : journal.summarySync;
+    const date = kind === "journal" ? journal.journalUpdatedAt : journal.summaryUpdatedAt;
+    if (state !== "stale" && state !== "unavailable") return null;
+    return <p key={kind}>{kind === "journal" ? "Journal" : "Summary"} refresh failed. {state === "stale" ? `Showing last successful data${date ? ` from ${new Date(date).toLocaleString()}` : ""}.` : "No successful data is available yet. Retry sync."}</p>;
+  };
+  const journalNotice = status("journal"), summaryNotice = status("summary");
+  return journalNotice || summaryNotice ? <div role="status" className="mt-3 space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">{journalNotice}{summaryNotice}</div> : null;
+}
 function JournalFigures({ journal, onCategory, onMonth }: { journal: TrackerExpenseJournal; onCategory: (category:string)=>void; onMonth:(month:number)=>void }) {
   const reconciliation = journalReconciliation(journal);
-  return <><dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+  if (journal.journalSync === "unavailable") return <>
+    <JournalSourceNotice journal={journal}/>
+    {journal.sheetSummary && <p className="mt-3 text-xs">Summary sheet spending: <strong>{money(journal.sheetSummary.totalSpent)}</strong></p>}
+  </>;
+  return <><JournalSourceNotice journal={journal}/><dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
     <div><dt className="text-muted">{journal.sheetSummary ? "Summary sheet spending" : "All journal debits"}</dt><dd className="mt-1 text-base font-bold text-ink">{money(journal.sheetSummary?.totalSpent ?? journal.totalSpent)}</dd></div>
     <div><dt className="text-muted">All journal income / credits</dt><dd className="mt-1 font-semibold text-forest">{money(journal.totalIncome)}</dd></div>
     <div><dt className="text-muted">Journal entries</dt><dd className="mt-1 font-semibold">{journal.expenses.length.toLocaleString("en-IN")}</dd></div>
@@ -20,16 +35,20 @@ export function JournalSummaries({ journals, isLive, onOpen }: {
   isLive: boolean;
   onOpen: (key: string, category?:string, month?:number) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   return <section className="rounded-2xl border border-line bg-white p-5" aria-labelledby="journal-summaries-title">
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="journal-summaries-title" className="text-base font-bold">Journal summaries · 2023–2026</h3><span className="text-xs text-muted">{isLive ? "From your connected sheet" : "Preview / sample data"}</span></div>
+    <button type="button" aria-expanded={expanded} aria-controls="journal-summary-content" onClick={()=>setExpanded(value=>!value)} className="btn-theme mt-3 w-full rounded-xl border border-line px-3 py-2 text-xs font-semibold sm:hidden">{expanded ? "Hide yearly summaries" : "Show yearly summaries"}</button>
+    <div id="journal-summary-content" className={`${expanded ? "block" : "hidden"} sm:block`}>
     <p className="mt-2 text-xs text-muted">Spending matches each year’s Summary-tab pivot. Credits, balances and entry counts describe the full journal. FamPay stays separate; transfers between journals are not combined into a spending total.</p>
     <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[2023, 2024, 2025, 2026].map(year => {
       const key = String(year), journal = journals[key], famPay = journals[`${year}-fampay`];
       return <article key={year} className="rounded-xl border border-line bg-[#fafbf8] p-4">
         <h4 className="text-lg font-bold">{year} Journal</h4>
         {journal ? <><JournalFigures journal={journal} onCategory={category=>onOpen(key,category)} onMonth={month=>onOpen(key,undefined,month)}/><button type="button" onClick={() => onOpen(key)} className="btn-theme mt-4 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold">Open {year} journal</button></> : <p className="mt-4 text-xs text-muted">Journal data is not available. Sync your connected sheet to load it.</p>}
-        {famPay && <details className="mt-4 border-t border-line pt-3"><summary className="cursor-pointer text-xs font-semibold">{year} FamPay · {money(famPay.sheetSummary?.totalSpent ?? famPay.totalSpent)} spent</summary><JournalFigures journal={famPay} onCategory={category=>onOpen(`${year}-fampay`,category)} onMonth={month=>onOpen(`${year}-fampay`,undefined,month)}/><button type="button" onClick={() => onOpen(`${year}-fampay`)} className="btn-theme mt-3 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold">Open {year} FamPay</button></details>}
+        {famPay && <details className="mt-4 border-t border-line pt-3"><summary className="cursor-pointer text-xs font-semibold">{year} FamPay · {famPay.journalSync === "unavailable" && !famPay.sheetSummary ? "Spending unavailable" : `${money(famPay.sheetSummary?.totalSpent ?? famPay.totalSpent)} spent`}</summary><JournalFigures journal={famPay} onCategory={category=>onOpen(`${year}-fampay`,category)} onMonth={month=>onOpen(`${year}-fampay`,undefined,month)}/><button type="button" onClick={() => onOpen(`${year}-fampay`)} className="btn-theme mt-3 rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold">Open {year} FamPay</button></details>}
       </article>;
     })}</div>
+    </div>
   </section>;
 }

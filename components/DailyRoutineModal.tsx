@@ -82,7 +82,7 @@ export function DailyRoutineModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-lg rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+      <div role="dialog" aria-modal="true" aria-label="Daily routine" className="relative max-h-[90dvh] overflow-y-auto w-full max-w-lg rounded-2xl border border-line bg-[#fbfcf8] p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-line pb-4">
           <div className="flex items-center gap-2">

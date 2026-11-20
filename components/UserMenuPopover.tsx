@@ -33,6 +33,7 @@ export function UserMenuPopover({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      if ((e.target as Element).closest?.('button[aria-label="User profile"]')) return;
       if (ref.current && !ref.current.contains(e.target as Node)) {
         onClose();
       }
@@ -48,7 +49,7 @@ export function UserMenuPopover({
   return (
     <div
       ref={ref}
-      className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-line bg-[#fbfcf8] p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+      className="mobile-header-popover absolute right-0 top-12 z-50 w-64 rounded-2xl border border-line bg-[#fbfcf8] p-4 shadow-2xl animate-in fade-in zoom-in-95 duration-150"
     >
       <div className="flex items-center gap-3 border-b border-line pb-3">
         {userImage ? (

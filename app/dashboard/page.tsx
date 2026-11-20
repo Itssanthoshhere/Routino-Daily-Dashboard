@@ -1,4 +1,6 @@
 "use client";
+import { mergeTrackerSync } from "@/lib/trackerSyncState";
+import { journalBudgetUsage } from "@/lib/journalBudget";
 import { habitPaused, pauseAwareStreak } from "@/lib/habitTargets";
 import type { HabitPlanning } from "@/components/HabitPlanning";
 import { WorkspacePreferencesProvider, OverviewLayout } from "@/components/WorkspacePreferences";
@@ -481,25 +483,36 @@ export default function Home() {
 
   /* ── Trackers Snapshot state ── */
   const [trackersData, setTrackersData] = useState<TrackersData>(SEED_TRACKERS_DATA);
+  const [trackersRefreshError, setTrackersRefreshError] = useState<string | null>(null);
   const [copiedOverviewEmail, setCopiedOverviewEmail] = useState<string | null>(null);
   const [trackersTab, setTrackersTab] = useState<TrackersTabKey>("eb");
   const [trackersTabKey, setTrackersTabKey] = useState<number>(0);
 
+  const trackerFetchSequence = useRef(0);
+  const trackerAccount = useRef(liveData?.user?.email?.trim().toLowerCase() || "");
+  trackerAccount.current = liveData?.user?.email?.trim().toLowerCase() || "";
   const fetchTrackersData = useCallback(async () => {
+    const sequence = ++trackerFetchSequence.current;
+    const account = trackerAccount.current;
     if (!liveData?.connected) {
       setTrackersData(SEED_TRACKERS_DATA);
+      setTrackersRefreshError(null);
       return;
     }
     try {
       const res = await fetch("/api/trackers/sync", { cache: "no-store" });
       const json = await res.json();
+      if (sequence !== trackerFetchSequence.current || trackerAccount.current !== account || (json?.data?.isLive && json.data.syncAccount !== account)) return;
       if (json?.success && json?.data) {
-        setTrackersData(json.data);
+        setTrackersData(previous => mergeTrackerSync(previous, json.data));
+        setTrackersRefreshError(null);
+      } else {
+        setTrackersRefreshError(json.error || "Spreadsheet refresh failed. Previously loaded data is unchanged.");
       }
     } catch {
-      // Keep seeded fallback
+      if (sequence === trackerFetchSequence.current && trackerAccount.current === account) setTrackersRefreshError("Spreadsheet refresh failed. Previously loaded data is unchanged.");
     }
-  }, [liveData?.connected]);
+  }, [liveData?.connected, liveData?.user?.email]);
 
   useEffect(() => {
     fetchTrackersData();
@@ -551,7 +564,12 @@ export default function Home() {
 
     // 3. Monthly Budget
     const budget = trackersData.totalMonthlyBudget ?? 0;
-    const spent = trackersData.journals?.["2026"]?.totalSpent ?? trackersData.expenses?.reduce((acc, curr) => acc + (curr.amount || 0), 0) ?? 0;
+    const budgetDate = new Date();
+    const year = budgetDate.getFullYear();
+    const journal = trackersData.journals?.[String(year)] || { key: String(year), title: `${year} Journal`, year, journalSync: "unavailable" as const, expenses: [], totalSpent: 0, totalIncome: 0 };
+    const budgetUsage = journalBudgetUsage(journal, budgetDate.getMonth() + 1, trackersData.budgetSync === "unavailable" ? 0 : budget);
+    const budgetMonthLabel = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(budgetDate);
+    const spent = budgetUsage.spent ?? 0;
     const spentPct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
     const remaining = Math.max(0, budget - spent);
 
@@ -570,12 +588,14 @@ export default function Home() {
       projectedShare,
       budget,
       spent,
+      budgetUsage,
+      budgetMonthLabel,
       spentPct,
       remaining,
       activeAppsCount: activeApps.length,
       featuredApplications,
     };
-  }, [trackersData]);
+  }, [trackersData, notificationDay]);
 
   useEffect(() => {
     setIntentionIndex(getTodayIntentionIndex());
@@ -592,6 +612,8 @@ export default function Home() {
   const today = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
 
   useEffect(() => {
+    setTrackersData(SEED_TRACKERS_DATA);
+    setTrackersRefreshError(null);
     setWorkspacePreferences([]); setSubscriptionBudgets([]); setFocusRecords([]); setTaskTemplates([]); setTasks([]); setNotes([]); setHabits([]); setCustomEvents([]); setQuickLinks(seedLinks);
     setShowQuickCapture(false); setShowTaskModal(false);
     setVerifiedWorkspaceAccount(null); setWorkspaceSyncReady(false); coreRevision.current = 0; coreSnapshot.current = {}; conflictBlocked.current = false; setCoreConflict(false);
@@ -2159,16 +2181,18 @@ export default function Home() {
       {/* ─── Main ─── */}
       <main id="overview" className="min-h-screen lg:ml-[236px]">
         {/* Header */}
-        <header className="sticky top-0 z-40 flex min-h-[68px] flex-wrap items-center justify-between gap-3 py-3 border-b border-line bg-[#f7f7f2]/95 px-5 backdrop-blur-md sm:px-8 xl:px-10">
+        <header className="workspace-header sticky top-0 z-40 flex min-h-[68px] flex-wrap items-center justify-between gap-3 py-3 border-b border-line bg-[#f7f7f2]/95 px-5 backdrop-blur-md sm:px-8 xl:px-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowMobileSidebar(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white lg:hidden" aria-label="Open menu"><Menu size={17} /></button>
+            <button onClick={() => setShowMobileSidebar(true)} className="grid h-9 w-9 place-items-center rounded-xl border border-line bg-white lg:hidden" aria-label="Open menu" aria-expanded={showMobileSidebar}><Menu size={17} /></button>
             <img src="/favicon.svg" alt="Routino" className="hidden h-8 w-8 rounded-[11px] sm:block lg:hidden" />
             <div className="text-[12px] text-muted">Workspace <span className="mx-2 text-[#c4cbc3]">/</span><span className="font-semibold text-ink">{activeNav}</span></div>
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="workspace-header-actions flex min-w-0 flex-wrap items-center gap-2">
+            <div className="workspace-header-tools flex flex-wrap items-center gap-2">
             <UndoHistory entries={undoHistory} account={verifiedWorkspaceAccount}/>
             <RemindersInbox today={notificationDay} items={unifiedReminders(tasks,subscriptions,trackerWorkspace.airtel,trackerWorkspace.assetRecords||{},notificationDay)} onOpen={item=>{if(item.target==='tasks'){const task=tasks.find(t=>t.id===item.taskId);if(task){setReminderTarget(null);handleSelectNav('Tasks');editTask(task);}else toast('This task is no longer available.','info');}else{setReminderTarget({...item});handleOpenTrackersTab(item.target);}}}/>
             <SyncCenter trackerStatus={trackerWorkspace.status} trackerSavedAt={trackerWorkspace.savedAt} coreError={workspaceSaveError} syncing={isSyncing} email={verifiedWorkspaceAccount} lastSyncedAt={lastSyncedAt} onRetry={handleManualSync} onBackup={() => setShowPreferences(true)} />
+            </div>
             <Link
               href="/"
               className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#526056] hover:bg-[#f1f3ed] hover:text-ink transition"
@@ -2185,7 +2209,7 @@ export default function Home() {
               <Search size={15} />
             </button>
             <div className="relative z-50">
-              <button onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }} aria-label="Notifications" className="relative grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition">
+              <button onClick={() => { setShowNotifications(!showNotifications); setShowUserMenu(false); }} aria-label="Notifications" aria-expanded={showNotifications} className="relative grid h-9 w-9 place-items-center rounded-xl border border-line bg-white text-[#758078] hover:bg-[#f1f3ed] transition">
                 <Bell size={15} />
                 {notifications.length > 0 && (
                   <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[#d16b5b] text-[8px] font-bold text-white">{notifications.length}</span>
@@ -2200,7 +2224,7 @@ export default function Home() {
               />
             </div>
             <div className="relative z-50">
-              <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }} aria-label="User profile" className="ml-1 grid h-8 w-8 place-items-center rounded-full bg-[#e4d4c2] text-[11px] font-semibold text-[#614d3f] hover:ring-2 hover:ring-forest/20 transition overflow-hidden">
+              <button onClick={() => { setShowUserMenu(!showUserMenu); setShowNotifications(false); }} aria-label="User profile" aria-expanded={showUserMenu} className="ml-1 grid h-8 w-8 place-items-center rounded-full bg-[#e4d4c2] text-[11px] font-semibold text-[#614d3f] hover:ring-2 hover:ring-forest/20 transition overflow-hidden">
                 {liveData?.user?.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={liveData.user.image} alt={liveData.user.name || "User"} className="h-full w-full object-cover" />
@@ -2543,12 +2567,13 @@ export default function Home() {
                       <div className="flex items-center gap-2">
                         <h3 className="text-[15px] font-bold text-ink">Trackers Quick Snapshot</h3>
                         <span className="rounded-full bg-[#ecfdf5] border border-[#a7f3d0] px-2 py-0.5 text-[10px] font-bold text-[#047857]">
-                          Live Sync
+                          {trackersRefreshError ? "Refresh failed" : trackersData.isLive ? "Live Sync" : "Preview / sample"}
                         </span>
                       </div>
                       <p className="text-[11.5px] text-muted">
                         Executive pulse across Antigravity tokens, utility meters, monthly burn, and career applications
                       </p>
+                      {trackersRefreshError && <p role="status" className="mt-2 text-xs text-amber-800">{trackersRefreshError}</p>}
                     </div>
                   </div>
 
@@ -2658,7 +2683,7 @@ export default function Home() {
                       </div>
                       <div className="mt-2.5 flex items-baseline gap-1.5">
                         <span className="text-[22px] font-bold text-ink tracking-tight">
-                          ₹{overviewTrackersSummary.spent.toLocaleString()}
+                          {overviewTrackersSummary.budgetUsage.available ? `₹${overviewTrackersSummary.spent.toLocaleString()}` : "Unavailable"}
                         </span>
                         <span className="text-[12px] font-normal text-muted">
                           / ₹{overviewTrackersSummary.budget.toLocaleString()}
@@ -2672,10 +2697,11 @@ export default function Home() {
                               : "bg-[#ecfdf5] text-[#047857]"
                           }`}
                         >
-                          {overviewTrackersSummary.spentPct}%
+                          {overviewTrackersSummary.budgetUsage.percent == null ? "—" : `${overviewTrackersSummary.budgetUsage.percent}%`}
                         </span>
                       </div>
 
+                      <p className="mt-2 text-[10.5px] text-muted">{overviewTrackersSummary.budgetMonthLabel} · {overviewTrackersSummary.budgetUsage.source}{overviewTrackersSummary.budgetUsage.stale || trackersData.budgetSync === "stale" ? " · Last successful data; refresh failed" : ""}{trackersData.budgetSync === "unavailable" ? " · Budget limit unavailable" : ""}</p>
                       {/* Mini Burn-Down Progress Bar */}
                       <div className="mt-2.5 h-2 w-full bg-[#f0f2eb] rounded-full overflow-hidden">
                         <div
@@ -2686,14 +2712,14 @@ export default function Home() {
                               ? "bg-[#f59e0b]"
                               : "bg-[#10b981]"
                           }`}
-                          style={{ width: `${Math.min(100, Math.max(5, overviewTrackersSummary.spentPct))}%` }}
+                          style={{ width: `${Math.min(100, Math.max(0, overviewTrackersSummary.spentPct))}%` }}
                         />
                       </div>
                     </div>
 
                     <div className="mt-3 pt-2.5 border-t border-[#f0f2eb] flex items-center justify-between text-[10.5px]">
                       <span className="text-muted">Remaining limit:</span>
-                      <span className="font-bold text-ink">₹{overviewTrackersSummary.remaining.toLocaleString()} left</span>
+                      <span className="font-bold text-ink">{overviewTrackersSummary.budgetUsage.remaining == null ? "Unavailable / no limit" : `₹${overviewTrackersSummary.budgetUsage.remaining.toLocaleString()} left`}</span>
                     </div>
                   </div>
 
