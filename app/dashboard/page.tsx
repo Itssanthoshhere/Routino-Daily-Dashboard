@@ -1,4 +1,6 @@
 "use client";
+import { useWorkspaceResume } from "@/hooks/useWorkspaceResume";
+import { resumeSections, resumeTrackers } from "@/lib/workspaceResume";
 import { WorkspaceTools } from "@/components/WorkspaceTools";
 import { ResumeSyncStatus } from "@/components/ResumeSyncStatus";
 import { mergeTrackerSync } from "@/lib/trackerSyncState";
@@ -689,7 +691,7 @@ export default function Home() {
         }
       } else {
         const storedNav = browserStore.getItem("routino_active_nav");
-        if (storedNav) {
+        if (storedNav && resumeSections.includes(storedNav as typeof resumeSections[number])) {
           setActiveNav(storedNav);
         }
       }
@@ -733,6 +735,25 @@ export default function Home() {
     if(action==="capture")setShowQuickCapture(true);else setShowFocusTimer(true);
     const url=new URL(window.location.href);url.searchParams.delete("action");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);
   },[workspaceSyncReady,liveData?.connected]);
+
+  useWorkspaceResume({
+    ready: hydrated && (workspaceSyncReady || liveData?.connected === false || (typeof navigator !== "undefined" && !navigator.onLine)),
+    account: currentAccount.current,
+    section: activeNav,
+    tracker: trackersTab,
+    onResume: position => {
+      setActiveNav(position.section);
+      if (resumeTrackers.includes(position.tracker as TrackersTabKey)) {
+        setTrackersTab(position.tracker as TrackersTabKey);
+        setTrackersTabKey(key => key + 1);
+      }
+      const slug = TAB_TO_PARAM[position.section] || "overview";
+      const url = new URL(window.location.href);
+      if (slug !== "overview") url.searchParams.set("tab", slug);
+      if (position.section === "Trackers") url.searchParams.set("sub", position.tracker);
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    },
+  });
 
   /* ── Browser Back / Forward URL Sync ── */
   useEffect(() => {

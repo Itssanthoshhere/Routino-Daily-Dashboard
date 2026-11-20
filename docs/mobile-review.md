@@ -122,3 +122,14 @@ Both previously outstanding data issues are implemented and regression-tested.
 - TypeScript, full test suite, production Webpack build and whitespace checks passed. UI verification did not create, edit or remove account records.
 
 - Commit review: native dialogs retain Escape handling without closing the parent Workspace tools panel; browser verification confirmed first Escape closes Undo history while tools remain expanded, and the next Escape dismisses tools.
+
+
+## Remember last workspace position
+
+- Save the last section, tracker and vertical scroll offset on this device, using account-scoped storage. No journal, note, task or other account records are changed or copied into the navigation record.
+- Reopening `/dashboard` returns to the saved destination. Explicit tab links, setup flows, anchor links and capture/focus shortcuts take priority. A reload of the same tracker can restore its position; a different explicit destination starts normally.
+- Restoration briefly retries as asynchronous tracker content mounts. Touch, pointer, wheel, keyboard or browser history navigation immediately stops these retries. Corrupt/unavailable storage falls back to normal navigation.
+- Browser demonstration at 393×852: Expense & Budget reopened from `/dashboard` at the same 3,408px position. Explicit `/dashboard?tab=tasks` opened Tasks at 0px. Before/after screenshots captured without changing account records. Device Safari/PWA confirmation remains separate.
+- Regression tests cover saved-record validation, launch-intent precedence, tracker-specific offsets and account/guest isolation. Full tests, TypeScript and Webpack production build passed during implementation.
+
+- Commit review: wheel, touch and browser-history input during account loading suppress late restoration. Mocked lifecycle regressions cover these inputs, active restore cancellation, timer cleanup, hide-time flushes and explicit launch precedence.
