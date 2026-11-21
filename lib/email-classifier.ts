@@ -14,19 +14,19 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
 
   // 1. Security / Authentication / Permissions
   if (
-    text.includes("security") ||
+    /\bsecurity\b/i.test(text) ||
     text.includes("sign-in") ||
-    text.includes("signin") ||
+    /\bsignin\b/i.test(text) ||
     text.includes("account security") ||
     text.includes("suspicious sign-in") ||
     text.includes("verification code") ||
     text.includes("password reset") ||
     text.includes("two-factor") ||
-    text.includes("2fa") ||
-    text.includes("oauth") ||
+    /\b2fa\b/i.test(text) ||
+    /\boauth\b/i.test(text) ||
     text.includes("data-sharing") ||
-    text.includes("mpin") ||
-    text.includes("unauthorized")
+    /\bmpin\b/i.test(text) ||
+    /\bunauthorized\b/i.test(text)
   ) {
     return {
       label: "SECURITY ALERT",
@@ -39,16 +39,16 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
   // 2. Finance / Banking / UPI / Statements
   if (
     /\bupi\b/i.test(text) ||
-    text.includes("credited") ||
-    text.includes("debited") ||
-    text.includes("bank") ||
+    /\bcredited\b/i.test(text) ||
+    /\bdebited\b/i.test(text) ||
+    /\bbank\b/i.test(text) ||
     /\batm\b/i.test(text) ||
-    text.includes("payout") ||
-    text.includes("razorpay") ||
-    text.includes("stripe") ||
-    text.includes("statement") ||
+    /\bpayout\b/i.test(text) ||
+    /\brazorpay\b/i.test(text) ||
+    /\bstripe\b/i.test(text) ||
+    /\bstatement\b/i.test(text) ||
     text.includes("funds balance") ||
-    text.includes("invoice")
+    /\binvoice\b/i.test(text)
   ) {
     return {
       label: "FINANCE",
@@ -60,13 +60,13 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
 
   // 3. Cloud / Dev Infra / Vendor policies
   if (
-    text.includes("vercel") ||
+    /\bvercel\b/i.test(text) ||
     /\baws\b/i.test(text) ||
-    text.includes("github") ||
-    text.includes("supabase") ||
-    text.includes("cloudflare") ||
-    text.includes("docker") ||
-    text.includes("subprocessor") ||
+    /\bgithub\b/i.test(text) ||
+    /\bsupabase\b/i.test(text) ||
+    /\bcloudflare\b/i.test(text) ||
+    /\bdocker\b/i.test(text) ||
+    /\bsubprocessor\b/i.test(text) ||
     text.includes("project paused") ||
     text.includes("service alert") ||
     text.includes("deletion deadline")
@@ -81,15 +81,15 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
 
   // 4. Career / Recruitment / Academics
   if (
-    text.includes("internship") ||
+    /\binternship\b/i.test(text) ||
     text.includes("job alert") ||
-    text.includes("recruiter") ||
-    text.includes("interview") ||
-    text.includes("application") ||
-    text.includes("university") ||
-    text.includes("college") ||
-    text.includes("evaluation") ||
-    text.includes("faculty") ||
+    /\brecruiter\b/i.test(text) ||
+    /\binterview\b/i.test(text) ||
+    /\b(?:job|internship|admission|college|university|scholarship|employment)\s+applications?\b|\bapplications?\s+(?:status|received|submitted|shortlisted|rejected|accepted)\b|\bthank you for applying\b/i.test(text) ||
+    /\buniversity\b/i.test(text) ||
+    /\bcollege\b/i.test(text) ||
+    /\bevaluation\b/i.test(text) ||
+    /\bfaculty\b/i.test(text) ||
     /\bviva\b/i.test(text)
   ) {
     return {

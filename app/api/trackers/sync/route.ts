@@ -99,59 +99,7 @@ export async function POST(request: Request) {
     if (!isTrackerOwner(accountKey)) {
       return jsonNoStore({ success: false, error: "Tracker access is not configured for this account." }, { status: 403 });
     }
-    const cachedData = cacheByAccount.get(accountKey)?.data;
-    const body = await request.json();
-    const { action, payload } = body;
-
-    if (!cachedData || cachedData.spreadsheetId !== GOOGLE_SHEET_ID) {
-      const fetched = await fetchTrackerData(accountKey);
-      if (!fetched.isLive) return jsonNoStore({ success: false, error: "Could not load the spreadsheet." }, { status: 503 });
-      cacheByAccount.set(accountKey, { data: { ...fetched, syncAccount: accountKey }, fetchedAt: Date.now() });
-    }
-    const accountData = cacheByAccount.get(accountKey)!.data;
-
-    if (action === "add_eb_reading" && payload) {
-      const prevReading = accountData.ebReadings[0]?.meterReading ?? accountData.ebMeta.latestReading;
-      const readingVal = Number(payload.meterReading);
-      const unitsUsed = Math.max(0, readingVal - prevReading);
-      const rate = accountData.ebMeta.currentRate || 12;
-      const cost = Math.round(unitsUsed * rate * 100) / 100;
-
-      const newReading = {
-        id: `reading-local-${Date.now()}`,
-        dateTimeStr: payload.dateTimeStr || new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }),
-        meterReading: readingVal,
-        unitsUsed,
-        cost,
-        daysSincePrevious: 1,
-        unitsPerDay: unitsUsed,
-        billingCycle: payload.billingCycle || "Running",
-      };
-
-      accountData.ebReadings = [newReading, ...accountData.ebReadings];
-      accountData.ebMeta.latestReading = readingVal;
-      accountData.ebMeta.latestReadingDate = newReading.dateTimeStr;
-
-      return jsonNoStore({ success: true, data: accountData });
-    }
-
-    if (action === "add_expense" && payload) {
-      const newExp = {
-        id: `exp-local-${Date.now()}`,
-        year: new Date().getFullYear(),
-        item: payload.item || "Expense",
-        amount: Number(payload.amount) || 0,
-        dateStr: payload.dateStr || new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-        category: payload.category || "General",
-        notes: payload.notes || "",
-        balance: null,
-      };
-
-      accountData.expenses = [newExp, ...accountData.expenses];
-      return jsonNoStore({ success: true, data: accountData });
-    }
-
-    return jsonNoStore({ success: false, error: "Unknown action" }, { status: 400 });
+    return jsonNoStore({ success: false, error: "Use the revision-checked tracker workspace save path. Spreadsheet sync is read-only." }, { status: 410 });
   } catch (error) {
     console.error("Error updating tracker data:", error);
     return jsonNoStore({ success: false, error: "Could not update tracker data." }, { status: 500 });

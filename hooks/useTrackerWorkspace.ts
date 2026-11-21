@@ -1,4 +1,5 @@
 "use client";
+import { isManualTrackerRecords, type ManualTrackerRecords } from "@/lib/manualTrackers";
 import { writeBrowserStorage } from "@/lib/accountStorage";
 
 import { recordDeviceSave } from "@/lib/deviceSync";
@@ -13,10 +14,10 @@ import type { AssetDocuments } from "@/types/documents";
 
 import { isAssetRecords } from "@/lib/assetRecords";
 import type { AssetRecords } from "@/types/assets";
-type Data = { assetRecords?: AssetRecords; subscriptions: Subscription[]; airtel: AirtelData; subscriptionJournalImported: boolean; assetDocuments?: AssetDocuments };
+type Data = { manualTrackerRecords?: ManualTrackerRecords; assetRecords?: AssetRecords; subscriptions: Subscription[]; airtel: AirtelData; subscriptionJournalImported: boolean; assetDocuments?: AssetDocuments };
 type Status = "loading" | "synced" | "syncing" | "local" | "error" | "conflict";
 const empty = (): Data => ({ subscriptions: [], airtel: emptyAirtelData(), subscriptionJournalImported: false });
-const valid = (data: Data) => !!data && isSubscriptionList(data.subscriptions) && isAirtelData(data.airtel) && typeof data.subscriptionJournalImported === "boolean" && (data.assetRecords === undefined || isAssetRecords(data.assetRecords)) && (data.assetDocuments === undefined || isAssetDocuments(data.assetDocuments));
+const valid = (data: Data) => !!data && (data.manualTrackerRecords === undefined || isManualTrackerRecords(data.manualTrackerRecords)) && isSubscriptionList(data.subscriptions) && isAirtelData(data.airtel) && typeof data.subscriptionJournalImported === "boolean" && (data.assetRecords === undefined || isAssetRecords(data.assetRecords)) && (data.assetDocuments === undefined || isAssetDocuments(data.assetDocuments));
 
 export function useTrackerWorkspace(email?: string | null) {
   const [data, setData] = useState<Data>(empty);
@@ -86,7 +87,7 @@ export function useTrackerWorkspace(email?: string | null) {
       if (generation !== state.current.generation || sequence !== refreshSequence.current || revision !== current.revision) return;
       if (!response.ok) throw new Error(result.error || "Could not load saved records.");
       if (result.email !== email.trim().toLowerCase()) throw new Error("The signed-in account changed. Refresh to load the correct workspace.");
-      const server: Data = { subscriptions: result.data?.subscriptions ?? [], airtel: result.data?.airtel ?? emptyAirtelData(), subscriptionJournalImported: result.data?.subscriptionJournalImported ?? false, assetRecords: result.data?.assetRecords ?? {}, assetDocuments: result.data?.assetDocuments ?? {} };
+      const server: Data = { manualTrackerRecords: result.data?.manualTrackerRecords, subscriptions: result.data?.subscriptions ?? [], airtel: result.data?.airtel ?? emptyAirtelData(), subscriptionJournalImported: result.data?.subscriptionJournalImported ?? false, assetRecords: result.data?.assetRecords ?? {}, assetDocuments: result.data?.assetDocuments ?? {} };
       if (!valid(server)) throw new Error("Saved tracker records need repair. Existing data has not been overwritten.");
       if (current.pending && !replaceLocal) return;
       if (replaceLocal) {

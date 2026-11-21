@@ -1,4 +1,5 @@
 "use client";
+import { isManualTrackerRecords, type ManualTrackerRecords } from "@/lib/manualTrackers";
 
 import { RestoreChanges } from "@/components/RestoreChanges";
 import { buildRestorePreview, restoreFingerprint } from "@/lib/restorePreview";
@@ -51,6 +52,7 @@ type PreferencesModalProps = {
   taskTemplates?: TaskTemplate[];
   openDataToken?: number;
   subscriptions?: Subscription[];
+  manualTrackerRecords?: ManualTrackerRecords;
   airtel?: AirtelData;
   isOpen: boolean;
   onClose: () => void;
@@ -71,7 +73,8 @@ type PreferencesModalProps = {
     quickLinks?: QuickLink[];
     habits?: Habit[];
     subscriptions?: Subscription[];
-    airtel?: AirtelData;
+    manualTrackerRecords?: ManualTrackerRecords;
+  airtel?: AirtelData;
     notes?: KeepNote[];
     focusMinutes?: number;
     soundEnabled?: boolean;
@@ -107,6 +110,7 @@ export function PreferencesModal({
   notes,
   subscriptions,
   airtel,
+  manualTrackerRecords,
   onImportData,
   onClearCompletedTasks,
   soundEnabled,
@@ -131,7 +135,7 @@ export function PreferencesModal({
   const [importConfirmed,setImportConfirmed] = useState(false);
   const [importError,setImportError] = useState("");
   const importGeneration = useRef(0);
-  const currentImportData = {workspacePreferences,subscriptionBudgets,focusRecords,taskTemplates,focusMinutes,soundEnabled,tasks,customEvents,quickLinks,habits,notes,subscriptions,airtel};
+  const currentImportData = {manualTrackerRecords,workspacePreferences,subscriptionBudgets,focusRecords,taskTemplates,focusMinutes,soundEnabled,tasks,customEvents,quickLinks,habits,notes,subscriptions,airtel};
   const importBaseline = restoreFingerprint(currentImportData);
   useEffect(()=>{setImportConfirmed(false);},[importBaseline]);
   useEffect(()=>{importGeneration.current++;setImportReview(null);setImportConfirmed(false);setImportError("");},[userEmail,isOpen]);
@@ -158,6 +162,7 @@ export function PreferencesModal({
         notes,
         subscriptions,
         airtel,
+        manualTrackerRecords,
       },
     };
 
@@ -188,6 +193,7 @@ export function PreferencesModal({
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed.data && typeof parsed.data==="object" && !Array.isArray(parsed.data)) {
+          if (parsed.data.manualTrackerRecords !== undefined && !isManualTrackerRecords(parsed.data.manualTrackerRecords)) throw new Error("Invalid manual tracker records");
           if (parsed.data.airtel !== undefined && !isAirtelData(parsed.data.airtel)) throw new Error("Invalid Airtel records");
           if (parsed.data.subscriptions !== undefined && !isSubscriptionList(parsed.data.subscriptions)) {
             throw new Error("Invalid subscription data");
@@ -204,6 +210,7 @@ export function PreferencesModal({
             notes: parsed.data.notes,
             subscriptions: parsed.data.subscriptions,
             airtel: parsed.data.airtel,
+            manualTrackerRecords: parsed.data.manualTrackerRecords,
             focusMinutes: parsed.data.focusMinutes,
             soundEnabled: parsed.data.soundEnabled,
           };

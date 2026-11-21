@@ -12,6 +12,7 @@ import type { Subscription } from "@/types/subscriptions";
 import type { AssetDocuments } from "@/types/documents";
 
 export type UserWorkspaceData = {
+  manualTrackerRecords?: import("@/lib/manualTrackers").ManualTrackerRecords;
   calendarColorState?: import("@/lib/calendarColorSettings").ColorState;
   assetRecords?: import("@/types/assets").AssetRecords;
   assetDocuments?: AssetDocuments;
@@ -201,29 +202,19 @@ export async function saveOutlookAccount(email: string, record: OutlookAccountRe
     }
   }
 
-  // Redis fallback
+  // A configured provider must confirm persistence; never report a failed write as linked.
+  if (sql) throw new Error("Could not save linked Outlook credentials to the configured database.");
   const redis = getRedisConfig();
   if (redis) {
-    try {
-      await fetch(redis.url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${redis.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(["SET", `routino:outlook:${normalizedEmail}`, JSON.stringify(encryptedRecord)]),
-      });
-      return;
-    } catch {}
+    const response = await fetch(redis.url, { method: "POST", headers: { Authorization: `Bearer ${redis.token}`, "Content-Type": "application/json" }, body: JSON.stringify(["SET", `routino:outlook:${normalizedEmail}`, JSON.stringify(encryptedRecord)]) });
+    const result = await response.json();
+    if (!response.ok || result.error || result.result !== "OK") throw new Error("Could not save linked Outlook credentials.");
+    return;
   }
-
-  // Filesystem fallback
-  try {
-    const dataDir = path.join(process.cwd(), ".data");
-    await fs.mkdir(dataDir, { recursive: true });
-    const safeEmail = encodeURIComponent(normalizedEmail);
-    await fs.writeFile(path.join(dataDir, `outlook-${safeEmail}.json`), JSON.stringify(encryptedRecord, null, 2), "utf-8");
-  } catch {}
+  if (process.env.NODE_ENV === "production") throw new Error("Configure durable storage before connecting Outlook.");
+  const dataDir = path.join(process.cwd(), ".data");
+  await fs.mkdir(dataDir, { recursive: true });
+  await fs.writeFile(path.join(dataDir, `outlook-${encodeURIComponent(normalizedEmail)}.json`), JSON.stringify(encryptedRecord, null, 2), "utf-8");
 }
 
 export async function deleteOutlookAccount(email: string): Promise<void> {
@@ -449,7 +440,7 @@ export async function saveUserWorkspace(
   }
 }
 
-export type TrackerPatch = Pick<UserWorkspaceData, "subscriptions" | "airtel" | "subscriptionJournalImported" | "assetDocuments" | "assetRecords">;
+export type TrackerPatch = Pick<UserWorkspaceData, "subscriptions" | "airtel" | "subscriptionJournalImported" | "assetDocuments" | "assetRecords" | "manualTrackerRecords">;
 
 /** Compare-and-swap tracker fields without replacing unrelated workspace data. */
 export async function saveTrackerWorkspace(email: string, patch: TrackerPatch, revision: number): Promise<{ success: boolean; conflict?: boolean; data?: UserWorkspaceData }> {

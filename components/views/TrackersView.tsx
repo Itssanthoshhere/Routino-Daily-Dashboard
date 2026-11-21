@@ -1,4 +1,6 @@
 "use client";
+import { withManualTrackers, type ManualTrackerRecords } from "@/lib/manualTrackers";
+import { primaryJournalKey } from "@/lib/journalCatalog";
 import { mergeTrackerSync } from "@/lib/trackerSyncState";
 import { journalBudgetUsage } from "@/lib/journalBudget";
 import {workspaceScrollBehavior} from "@/lib/workspacePreferences";
@@ -73,6 +75,8 @@ export type TrackersTabKey = "eb" | "expenses" | "tokens" | "investments" | "pla
 type TabKey = TrackersTabKey;
 
 export type TrackersViewProps = {
+  manualTrackerRecords?: ManualTrackerRecords;
+  onManualTrackerRecordsChange?: (records: ManualTrackerRecords) => boolean;
   reminderTarget?:UnifiedReminder|null; onReminderHandled?:()=>void;
   assetRecords?: AssetRecords;
   onAssetRecordsChange?: (records: AssetRecords) => void;
@@ -325,7 +329,7 @@ function getDeviceLifecycleBadge(daysSince?: number, product = "", model = ""): 
   };
 }
 
-export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {}, onAssetRecordsChange, onAssetWarrantyReminder, assetDocuments = {}, onAssetDocumentsChange, onRenewalTask, initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, onRechargeRenewal, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
+export function TrackersView({ manualTrackerRecords, onManualTrackerRecordsChange, reminderTarget,onReminderHandled,assetRecords = {}, onAssetRecordsChange, onAssetWarrantyReminder, assetDocuments = {}, onAssetDocumentsChange, onRenewalTask, initialTab, tabChangeKey, onTabChange, onJournalSubscriptions, subscriptions = [], onSubscriptionsChange, subscriptionsDisabled, airtel, onAirtelChange, onRechargeRenewal, trackerSyncStatus, trackerSyncMessage, onRetryTrackerSync, onReloadTrackers, onExportTrackerDraft }: TrackersViewProps = {}) {
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab || "eb");
 
   useEffect(() => {
@@ -358,7 +362,9 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
       });
     }
   };
-  const [data, setData] = useState<TrackersData>(SEED_TRACKERS_DATA);
+  const [sourceData, setData] = useState<TrackersData>(SEED_TRACKERS_DATA);
+  const data = useMemo(() => withManualTrackers(sourceData, manualTrackerRecords), [sourceData, manualTrackerRecords]);
+  const [manualSaveError, setManualSaveError] = useState("");
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncStr, setLastSyncStr] = useState<string>("Just now");
@@ -370,7 +376,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
   }, [data, subscriptionsDisabled, onJournalSubscriptions]);
 
   // Filtering states
-  const [selectedJournalKey, setSelectedJournalKey] = useState<string>("2026");
+  const [selectedJournalKey, setSelectedJournalKey] = useState<string>("");
   const [expenseSearch, setExpenseSearch] = useState("");
   const [expenseMonthFilter, setExpenseMonthFilter] = useState("all");
   const [expenseCategoryFilter, setExpenseCategoryFilter] = useState("all");
@@ -553,64 +559,29 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
     };
   }, [handleSync]);
 
-  // Submit new EB reading
-  const handleAddReading = async (e: React.FormEvent) => {
+  // Manual additions use the existing account-scoped, revision-checked tracker queue.
+  const handleAddReading = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newReadingVal) return;
-    try {
-      const res = await fetch("/api/trackers/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "add_eb_reading",
-          payload: {
-            meterReading: parseFloat(newReadingVal),
-            billingCycle: newReadingCycle,
-            dateTimeStr: newReadingDateTime.trim() || undefined,
-          },
-        }),
-      });
-      const json = await res.json();
-      if (json.success && json.data) {
-        setData(previous => mergeTrackerSync(previous, json.data));
-        setShowAddReadingModal(false);
-        setNewReadingVal("");
-        setNewReadingDateTime("");
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    const meterReading = Number(newReadingVal);
+    const date = newReadingDateTime.trim() ? new Date(newReadingDateTime) : new Date();
+    if (!Number.isFinite(date.getTime()) || date.getTime() > Date.now()) { setManualSaveError("Enter a valid reading date that is not in the future."); return; }
+    const takenAt = date.toISOString();
+    if (!Number.isFinite(meterReading) || meterReading < data.ebMeta.latestReading) { setManualSaveError("Enter a valid reading at least as high as the latest meter reading."); return; }
+    const records = manualTrackerRecords || { expenses: [], readings: [] };
+    if (!onManualTrackerRecordsChange?.({ ...records, readings: [...records.readings, { id: `manual-${crypto.randomUUID()}`, takenAt, meterReading, previousReading: data.ebMeta.latestReading, unitRate: data.ebMeta.currentRate, billingCycle: newReadingCycle }] })) { setManualSaveError("Reading was not saved. Check tracker storage and sync status, then retry."); return; }
+    setManualSaveError(""); setShowAddReadingModal(false); setNewReadingVal(""); setNewReadingDateTime("");
   };
-
-  // Submit new Expense
-  const handleAddExpense = async (e: React.FormEvent) => {
+  const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newExpenseItem || !newExpenseAmount) return;
-    try {
-      const res = await fetch("/api/trackers/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "add_expense",
-          payload: {
-            item: newExpenseItem,
-            amount: parseFloat(newExpenseAmount),
-            category: newExpenseCategory,
-            notes: newExpenseNotes,
-          },
-        }),
-      });
-      const json = await res.json();
-      if (json.success && json.data) {
-        setData(previous => mergeTrackerSync(previous, json.data));
-        setShowAddExpenseModal(false);
-        setNewExpenseItem("");
-        setNewExpenseAmount("");
-        setNewExpenseNotes("");
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    const amount = Number(newExpenseAmount), now = new Date();
+    if (!newExpenseItem.trim() || !Number.isFinite(amount) || amount <= 0) { setManualSaveError("Enter an item and a positive amount."); return; }
+    const year = activeJournal.year;
+    if (year !== now.getFullYear()) { setManualSaveError("Select the current year's journal to log a new expense."); return; }
+    const dateStr = `${year}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    const records = manualTrackerRecords || { expenses: [], readings: [] };
+    const row = { id: `manual-${crypto.randomUUID()}`, journalKey: effectiveJournalKey, year, month: now.getMonth()+1, day: now.getDate(), dateStr, amount, item: newExpenseItem.trim(), category: newExpenseCategory, notes: newExpenseNotes, balance: null };
+    if (!onManualTrackerRecordsChange?.({ ...records, expenses: [...records.expenses, row] })) { setManualSaveError("Expense was not saved. Check tracker storage and sync status, then retry."); return; }
+    setManualSaveError(""); setShowAddExpenseModal(false); setNewExpenseItem(""); setNewExpenseAmount(""); setNewExpenseNotes("");
   };
 
   // Export current journal expenses to CSV
@@ -641,27 +612,12 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
 
   /* ── Computed values ── */
   // Journal sub-sections metadata
-  const journalTabs = useMemo(() => [
-    { key: "2026", label: "2026 Journal", count: data.journals?.["2026"]?.expenses?.length ?? data.expenses.length },
-    { key: "2026-fampay", label: "2026 Fam Pay", count: data.journals?.["2026-fampay"]?.expenses?.length ?? 0 },
-    { key: "2025", label: "2025 Journal", count: data.journals?.["2025"]?.expenses?.length ?? 0 },
-    { key: "2025-fampay", label: "2025 Fam Pay", count: data.journals?.["2025-fampay"]?.expenses?.length ?? 0 },
-    { key: "2024", label: "2024 Journal", count: data.journals?.["2024"]?.expenses?.length ?? 0 },
-    { key: "2024-fampay", label: "2024 Fam Pay", count: data.journals?.["2024-fampay"]?.expenses?.length ?? 0 },
-    { key: "2023", label: "2023 Journal", count: data.journals?.["2023"]?.expenses?.length ?? 0 },
-    { key: "pg", label: "PG Living Expenses", count: data.journals?.["pg"]?.expenses?.length ?? 0 },
-  ], [data.journals, data.expenses]);
-
-  const activeJournal = useMemo(() => {
-    return data.journals?.[selectedJournalKey] || {
-      key: selectedJournalKey,
-      title: "2026 Journal",
-      year: 2026,
-      totalSpent: 0,
-      totalIncome: 0,
-      expenses: data.expenses,
-    };
-  }, [data.journals, selectedJournalKey, data.expenses]);
+  const journalTabs = useMemo(() => Object.values(data.journals || {}).sort((a, b) => Number(!!a.isPG) - Number(!!b.isPG) || b.year - a.year || Number(!!a.isFamPay) - Number(!!b.isFamPay)).map(journal => ({ key: journal.key, label: journal.title, count: journal.expenses.length })), [data.journals]);
+  const effectiveJournalKey = data.journals?.[selectedJournalKey] ? selectedJournalKey : primaryJournalKey(data.journals || {});
+  const activeJournal = useMemo(() => data.journals?.[effectiveJournalKey] || {
+    key: effectiveJournalKey, title: `${effectiveJournalKey} Journal`, year: Number(effectiveJournalKey),
+    totalSpent: 0, totalIncome: 0, expenses: data.expenses,
+  }, [data.journals, effectiveJournalKey, data.expenses]);
 
   // Expenses filtering & robust sorting (latest on top)
   const filteredExpenses = useMemo(() => {
@@ -1097,7 +1053,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
         </div>}
       </div>
 
-      {(activeTab === "subscriptions" || activeTab === "airtel") && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white p-3 text-xs" role="status"><div><span className="font-semibold capitalize">{trackerSyncStatus === "synced" ? "Synced to account" : trackerSyncStatus === "local" ? "Saved locally" : trackerSyncStatus}</span><p className="mt-1 text-muted">{trackerSyncMessage}</p></div><div className="flex flex-wrap gap-3">{trackerSyncStatus === "error" && <button className="font-semibold text-forest" onClick={onRetryTrackerSync}>Retry save</button>}{(trackerSyncStatus === "error" || trackerSyncStatus === "conflict") && <><button onClick={onExportTrackerDraft}>Download local copy</button><button onClick={onReloadTrackers}>Reload saved records</button></>}</div></div>}
+      {(activeTab === "subscriptions" || activeTab === "airtel" || activeTab === "expenses" || activeTab === "eb") && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white p-3 text-xs" role="status"><div><span className="font-semibold capitalize">{trackerSyncStatus === "synced" ? "Synced to account" : trackerSyncStatus === "local" ? "Saved locally" : trackerSyncStatus}</span><p className="mt-1 text-muted">{trackerSyncMessage}</p></div><div className="flex flex-wrap gap-3">{trackerSyncStatus === "error" && <button className="font-semibold text-forest" onClick={onRetryTrackerSync}>Retry save</button>}{(trackerSyncStatus === "error" || trackerSyncStatus === "conflict") && <><button onClick={onExportTrackerDraft}>Download local copy</button><button onClick={onReloadTrackers}>Reload saved records</button></>}</div></div>}
 
       {syncError && (
         <div className="rounded-xl border border-[#fed7aa] bg-[#fffbeb] p-3 text-[12px] text-[#9a3412] flex items-center gap-2">
@@ -1160,7 +1116,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
         ))}
       </div>
 
-      <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={(key,category,month)=>{
+      {activeTab === "expenses" && <JournalSummaries journals={data.journals || {}} isLive={data.isLive} onOpen={(key,category,month)=>{
         setExpenseMonthFilter(month?String(month):"all");
         setSelectedJournalKey(key);
         setExpenseSearch("");
@@ -1168,7 +1124,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
         setExpenseVisibleCount(50);
         handleTabSelect("expenses");
         requestAnimationFrame(()=>document.getElementById(category||month?"expense-transactions":"expense-journal-view")?.scrollIntoView({block:"start",behavior:workspaceScrollBehavior()}));
-      }}/>
+      }}/> }
 
       {/* ═══════════════════════════════════════════════════════════
           TAB 1: PG ELECTRICITY (EB) METER TRACKER
@@ -1439,7 +1395,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
                     setExpenseCategoryFilter("all");
                   }}
                   className={`flex items-center gap-2 rounded-xl px-3 py-1.5 text-[11.5px] font-semibold whitespace-nowrap transition cursor-pointer ${
-                    selectedJournalKey === j.key
+                    effectiveJournalKey === j.key
                       ? "bg-forest text-white shadow-xs"
                       : "bg-[#fbfcf9] border border-line text-muted hover:bg-[#f1f3ed] hover:text-ink"
                   }`}
@@ -1448,7 +1404,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
                   {j.count > 0 && (
                     <span
                       className={`rounded-full px-1.5 py-0.2 text-[9.5px] font-bold ${
-                        selectedJournalKey === j.key ? "bg-white/20 text-white" : "bg-[#eff1ec] text-[#556056]"
+                        effectiveJournalKey === j.key ? "bg-white/20 text-white" : "bg-[#eff1ec] text-[#556056]"
                       }`}
                     >
                       {j.count}
@@ -1528,7 +1484,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
               </div>
             </div>
 
-            <p className="text-xs text-muted">₹{(budgetUsage.spent ?? 0).toLocaleString()} recorded for {budgetMonthLabel}. {budgetUsage.source === "Full journal debits" ? "No Summary value for this month; using its full journal debits, including transfers recorded as debits." : "Uses this month’s Summary pivot, not the full-year total."} Current planned monthly limit; historical budget changes are not recorded.</p>
+            <p className="text-xs text-muted">₹{(budgetUsage.spent ?? 0).toLocaleString()} recorded for {budgetMonthLabel}. {budgetUsage.source === "Full journal debits" ? "No Summary value for this month; using its full journal debits, including transfers recorded as debits." : "Uses this month’s Summary pivot plus any separately saved manual records, not the full-year total."} Current planned monthly limit; historical budget changes are not recorded.</p>
             {/* Progress Bar */}
             <div className="space-y-1.5">
               <div className="h-3 w-full bg-[#f0f2eb] rounded-full overflow-hidden p-0.5">
@@ -1661,7 +1617,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
             <ul className="divide-y divide-line sm:hidden" aria-label="Expense transactions">
               {filteredExpenses.slice(0, expenseVisibleCount).map(exp => <li key={exp.id} className="p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0"><p className="break-words text-sm font-semibold text-ink">{exp.item}</p><p className="mt-1 text-xs text-muted">{exp.dateStr} · {exp.category}</p></div>
+                  <div className="min-w-0"><p className="break-words text-sm font-semibold text-ink">{exp.item}</p>{exp.id.startsWith("manual-") && <span className="text-xs text-forest">Manual record</span>}<p className="mt-1 text-xs text-muted">{exp.dateStr} · {exp.category}</p></div>
                   <span className={`shrink-0 text-sm font-bold ${exp.income ? "text-[#059669]" : "text-ink"}`}>{exp.income ? "+" : ""}₹{(exp.income || exp.amount).toLocaleString()}</span>
                 </div>
                 {exp.notes && <p className="mt-2 break-words text-xs leading-relaxed text-muted">{exp.notes}</p>}
@@ -1684,7 +1640,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
                     <tr key={exp.id} className="hover:bg-[#fbfcf9] transition">
                       <td className="py-2.5 px-4 text-muted whitespace-nowrap">{exp.dateStr}</td>
                       <td className="py-2.5 px-4">
-                        <span className="font-semibold text-ink">{exp.item}</span>
+                        <span className="font-semibold text-ink">{exp.item}</span>{exp.id.startsWith("manual-") && <span className="ml-2 text-xs text-forest">Manual record</span>}
                         {exp.notes && (
                           <span className="block text-[10.5px] text-muted mt-0.5 line-clamp-1">{exp.notes}</span>
                         )}
@@ -2903,7 +2859,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
               </button>
             </div>
 
-            <form onSubmit={handleAddReading} className="mt-4 space-y-3.5">
+            <form onSubmit={handleAddReading} className="mt-4 space-y-3.5"><p className="text-xs text-muted">Saved with your account tracker records, separately from the spreadsheet. Check sync status after saving.</p>{manualSaveError && <p role="alert" className="text-sm text-red-700">{manualSaveError}</p>}
               <div>
                 <label className="text-[11px] font-semibold text-muted block mb-1">Meter Reading (Units)</label>
                 <input
@@ -2920,8 +2876,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
               <div>
                 <label className="text-[11px] font-semibold text-muted block mb-1">Date & Time</label>
                 <input
-                  type="text"
-                  placeholder="e.g. 07 Nov 2026, 9:40 AM"
+                  type="datetime-local"
                   value={newReadingDateTime}
                   onChange={(e) => setNewReadingDateTime(e.target.value)}
                   className="w-full h-9 rounded-xl border border-line px-3 text-[12px] text-ink focus:border-forest focus:outline-none"
@@ -2973,7 +2928,7 @@ export function TrackersView({ reminderTarget,onReminderHandled,assetRecords = {
               </button>
             </div>
 
-            <form onSubmit={handleAddExpense} className="mt-4 space-y-3.5">
+            <form onSubmit={handleAddExpense} className="mt-4 space-y-3.5"><p className="text-xs text-muted">Saved with your account tracker records, separately from the spreadsheet. Check sync status after saving.</p>{manualSaveError && <p role="alert" className="text-sm text-red-700">{manualSaveError}</p>}
               <div>
                 <label className="text-[11px] font-semibold text-muted block mb-1">Item / Merchant</label>
                 <input

@@ -98,6 +98,10 @@ The public introduction is at `/`; the workspace is at `/dashboard`. Routino is 
 | **Database & Sync** | Save status, pending edits, conflict handling, backup history, recovery, and health checks | Configured storage and optional private Vercel Blob |
 | **Time audit** | Calendar categorization and spreadsheet reports | Optional Google Apps Script |
 
+**Time Audit rules:** Customize Categories & Keywords → **Save Rules** saves categories, colours and keywords to your signed-in account. Other devices using the same account load them through normal workspace refresh. Offline changes stay in the local sync queue until reconnection; check the category sync status or Sync Center. Existing local rules are adopted when the account has no saved rules, with the original local copy retained. An open editor preserves its draft and asks you to reopen if newer rules arrive before saving. These settings apply to the dashboard; Apps Script rules remain separately configured.
+
+Weather uses browser location permission and Open-Meteo. If location is denied or unavailable, it shows **Weather unavailable**; it does not silently choose a city or perform an IP-location lookup.
+
 The responsive interface includes desktop/mobile navigation, accessible dialogs, print layouts, and consistent crimson hover and keyboard-focus states. Preview records are fictional.
 
 **Phone and iPad layouts:** Below 1280px, the compact header keeps navigation, search and Quick Capture visible; **Workspace tools** contains Undo history, Reminders, Sync Center, notifications and profile controls. The sidebar becomes a drawer, tracker navigation uses a labelled selector, and renewals/yearly journal summaries expand on demand. At 1280px and above, desktop navigation remains visible. Phone expense transactions use readable cards; tablet/desktop use the table with the same filters and pagination. Phone task actions stack below the task content, with horizontally scrollable view/filter controls. See [mobile review and verification coverage](docs/mobile-review.md) for viewport checks and remaining physical-device verification.
@@ -244,7 +248,9 @@ Renewal records the confirmed payment and validity, archives the previous plan, 
 
 ### Reports and reminders
 
-**Journal summaries:** Tracker Hub shows 2023–2026 Summary-tab spending pivots, monthly/category drill-down, and separate full-journal reconciliation. Income, counts, and balances describe the full journal; FamPay stays separate. Unavailable summaries are labelled rather than shown as zero.
+**Journal summaries:** Tracker Hub discovers year-labelled tabs such as `2027 Expense Journal`, `2027 Summary`, and `2027 Fam Pay Expense Journal` from the configured link-readable spreadsheet. New years appear in journal tabs and summaries on the next successful sync, using the existing journal column layout (the legacy 2023 layout remains supported). Historical sources are retained; failed refreshes keep earlier successful data labelled stale. Summaries offer monthly/category drill-down and separate full-journal reconciliation. Income, counts, and balances describe the full journal; FamPay stays separate. Unavailable summaries are labelled rather than shown as zero.
+
+**Manual expenses and readings:** **Log Expense** and **Save Reading** store additions separately in the account tracker workspace, using local drafts and revision-checked database sync. Spreadsheet rows and Summary pivots stay unchanged. Manual expenses appear in the selected current-year journal and monthly totals; the budget labels Summary-plus-manual totals explicitly. Check tracker sync status after saving. JSON export/import and database snapshots include these records. The old temporary in-memory write endpoint no longer reports a successful save.
 
 **Gmail receipt review:** Search likely receipts from Airtel Recharge or Subscriptions using sender, subject, date, and snippet only. Review the original and confirm your successful payment before adding or linking it. Duplicate checks preserve totals; amount/date suggestions need review. Email never determines plan validity or renewal dates, and messages/attachments remain unchanged.
 

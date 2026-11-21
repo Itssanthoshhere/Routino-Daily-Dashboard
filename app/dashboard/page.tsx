@@ -1,4 +1,6 @@
 "use client";
+import { validTimeAuditCategories, type TimeAuditPreference } from "@/lib/timeAuditPreferences";
+import { withManualTrackers, isManualTrackerRecords, type ManualTrackerRecords } from "@/lib/manualTrackers";
 import { writeBrowserStorage } from "@/lib/accountStorage";
 import { useWorkspaceResume } from "@/hooks/useWorkspaceResume";
 import { resumeSections, resumeTrackers } from "@/lib/workspaceResume";
@@ -550,18 +552,19 @@ export default function Home() {
   };
 
   const overviewTrackersSummary = useMemo(() => {
+    const summaryData = withManualTrackers(trackersData, trackerWorkspace.manualTrackerRecords);
     // 1. Antigravity Tokens
-    const tokens = trackersData.antigravityTokens || [];
+    const tokens = summaryData.antigravityTokens || [];
     const readyTokens = tokens.filter((t) => t.isAvailable);
     const cooldownTokens = tokens.filter((t) => !t.isAvailable);
-    const readyCount = trackersData.antigravityTokenSummary?.available ?? readyTokens.length;
-    const cooldownCount = trackersData.antigravityTokenSummary?.inCooldown ?? cooldownTokens.length;
+    const readyCount = summaryData.antigravityTokenSummary?.available ?? readyTokens.length;
+    const cooldownCount = summaryData.antigravityTokenSummary?.inCooldown ?? cooldownTokens.length;
 
     // 2. EB Meter
-    const latestEbReadingItem = trackersData.ebReadings?.[0];
-    const latestReading = latestEbReadingItem ? latestEbReadingItem.meterReading : (trackersData.ebMeta?.latestReading ?? 0);
-    const rate = trackersData.ebMeta?.currentRate ?? 0;
-    const runningCycle = trackersData.ebCycles?.find((c) => c.status === "Running" || c.cycle.toLowerCase() === "nov") || trackersData.ebCycles?.[trackersData.ebCycles.length - 1];
+    const latestEbReadingItem = summaryData.ebReadings?.[0];
+    const latestReading = latestEbReadingItem ? latestEbReadingItem.meterReading : (summaryData.ebMeta?.latestReading ?? 0);
+    const rate = summaryData.ebMeta?.currentRate ?? 0;
+    const runningCycle = summaryData.ebCycles?.find((c) => c.status === "Running" || c.cycle.toLowerCase() === "nov") || summaryData.ebCycles?.[summaryData.ebCycles.length - 1];
     const unitsUsed = runningCycle?.unitsUsed ?? 0;
     const people = runningCycle?.peopleSharing || 2;
     const daysElapsed = Math.max(1, new Date().getDate());
@@ -571,18 +574,18 @@ export default function Home() {
     const projectedShare = Math.round(projectedTotal / people);
 
     // 3. Monthly Budget
-    const budget = trackersData.totalMonthlyBudget ?? 0;
+    const budget = summaryData.totalMonthlyBudget ?? 0;
     const budgetDate = new Date();
     const year = budgetDate.getFullYear();
-    const journal = trackersData.journals?.[String(year)] || { key: String(year), title: `${year} Journal`, year, journalSync: "unavailable" as const, expenses: [], totalSpent: 0, totalIncome: 0 };
-    const budgetUsage = journalBudgetUsage(journal, budgetDate.getMonth() + 1, trackersData.budgetSync === "unavailable" ? 0 : budget);
+    const journal = summaryData.journals?.[String(year)] || { key: String(year), title: `${year} Journal`, year, journalSync: "unavailable" as const, expenses: [], totalSpent: 0, totalIncome: 0 };
+    const budgetUsage = journalBudgetUsage(journal, budgetDate.getMonth() + 1, summaryData.budgetSync === "unavailable" ? 0 : budget);
     const budgetMonthLabel = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(budgetDate);
     const spent = budgetUsage.spent ?? 0;
     const spentPct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
     const remaining = Math.max(0, budget - spent);
 
     // 4. Career Pipelines
-    const activeApps = (trackersData.jobApplications || []).filter(
+    const activeApps = (summaryData.jobApplications || []).filter(
       (j) => !j.status.toLowerCase().includes("reject") && !j.status.toLowerCase().includes("not attend")
     );
     const featuredApplications = activeApps.slice(0, 2);
@@ -590,6 +593,8 @@ export default function Home() {
     return {
       readyCount,
       cooldownCount,
+      tokenTotal: tokens.length,
+      tokenProfileCount: new Set(tokens.map(token => token.chromeProfile || "Unknown")).size,
       latestReading,
       burnRate,
       projectedTotal,
@@ -603,7 +608,7 @@ export default function Home() {
       activeAppsCount: activeApps.length,
       featuredApplications,
     };
-  }, [trackersData, notificationDay]);
+  }, [trackersData, notificationDay, trackerWorkspace.manualTrackerRecords]);
 
   useEffect(() => {
     setIntentionIndex(getTodayIntentionIndex());
@@ -2017,6 +2022,7 @@ export default function Home() {
     notes?: KeepNote[];
     subscriptions?: Subscription[];
     airtel?: AirtelData;
+    manualTrackerRecords?: ManualTrackerRecords;
     focusMinutes?: number;
     soundEnabled?: boolean;
   }) => {
@@ -2029,8 +2035,9 @@ export default function Home() {
     if (imported.airtel !== undefined && !isAirtelData(imported.airtel)) {
       toast("Invalid Airtel records in backup. No changes were made."); return false;
     }
-    if (imported.subscriptions !== undefined || imported.airtel !== undefined) {
-      if (!trackerWorkspace.update({ ...(imported.subscriptions !== undefined ? { subscriptions: imported.subscriptions } : {}), ...(imported.airtel !== undefined ? { airtel: imported.airtel } : {}) })) {
+    if (imported.manualTrackerRecords !== undefined && !isManualTrackerRecords(imported.manualTrackerRecords)) { toast("Invalid manual tracker records. No changes were made."); return false; }
+    if (imported.subscriptions !== undefined || imported.airtel !== undefined || imported.manualTrackerRecords !== undefined) {
+      if (!trackerWorkspace.update({ ...(imported.manualTrackerRecords !== undefined ? { manualTrackerRecords: imported.manualTrackerRecords } : {}), ...(imported.subscriptions !== undefined ? { subscriptions: imported.subscriptions } : {}), ...(imported.airtel !== undefined ? { airtel: imported.airtel } : {}) })) {
         toast("Trackers are not ready to restore. No workspace changes were made."); return false;
       }
     }
@@ -2338,12 +2345,25 @@ export default function Home() {
             />
           ) : activeNav === "Time Audit" ? (
             <TimeAuditView
+              savedCategories={workspacePreferences.find((record): record is TimeAuditPreference => record.id === "time-audit")?.categories}
+              categoriesReady={hydrated && (workspaceSyncReady || liveData?.connected === false || (typeof navigator !== "undefined" && !navigator.onLine))}
+              categorySyncReady={workspaceSyncReady && !!verifiedWorkspaceAccount}
+              categorySaveStatus={coreConflict ? "conflict" : workspaceSaveError ? "pending" : isSyncing ? "saving" : workspaceSyncReady ? "synced" : "local"}
+              onSaveCategories={async categories => {
+                if (!validTimeAuditCategories(categories)) throw new Error("Invalid category settings. Existing rules are unchanged.");
+                const records: WorkspacePreference[] = [...workspacePreferences.filter(record => record.id !== "time-audit"), { id: "time-audit", categories }];
+                browserStore.setItem("routino_workspace_preferences", JSON.stringify(records));
+                setWorkspacePreferences(records);
+                await syncToDatabase({ workspacePreferences: records });
+              }}
               events={allEvents}
               isConnected={isConnected}
             />
           ) : activeNav === "Trackers" ? (
             <TrackersView
               reminderTarget={reminderTarget} onReminderHandled={consumeReminder}
+              manualTrackerRecords={trackerWorkspace.manualTrackerRecords}
+              onManualTrackerRecordsChange={records => trackerWorkspace.update({ manualTrackerRecords: records })}
               assetRecords={trackerWorkspace.assetRecords}
               onAssetRecordsChange={assetRecords => {const before=trackerWorkspace.assetRecords||{};const account=currentAccount.current;if(trackerWorkspace.update({assetRecords}))toast("Asset updated","info",{label:"Undo",onClick:()=>{if(currentAccount.current===account&&!trackerWorkspace.undo({assetRecords:before},{assetRecords}))toast("Asset changed; Undo skipped.","info");}});}}
               onAssetWarrantyReminder={(key, name, date) => { const source = `Warranty: ${key} · ${date}`; if (tasks.some(task => task.meta === source)) { toast("Warranty reminder already exists"); return; } addTask({ title: `Review warranty: ${name}`, meta: source, dueDate: date, category: "personal", priority: true }); }}
@@ -2664,7 +2684,7 @@ export default function Home() {
                         <span className="text-[11px] font-medium text-muted">Ready / Cooldown</span>
                       </div>
                       <p className="mt-1 text-[10.5px] text-muted">
-                        Across 6 Chrome profiles · 36 total
+                        Across {overviewTrackersSummary.tokenProfileCount} Chrome {overviewTrackersSummary.tokenProfileCount === 1 ? "profile" : "profiles"} · {overviewTrackersSummary.tokenTotal} total
                       </p>
                     </div>
 
@@ -3600,6 +3620,7 @@ export default function Home() {
         notes={notes}
         subscriptions={subscriptions}
         airtel={trackerWorkspace.airtel}
+        manualTrackerRecords={trackerWorkspace.manualTrackerRecords}
         onImportData={handleImportData}
         onClearCompletedTasks={handleClearCompletedTasks}
         soundEnabled={soundEnabled}

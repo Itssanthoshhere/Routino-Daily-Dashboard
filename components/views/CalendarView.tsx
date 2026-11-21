@@ -1,4 +1,5 @@
 "use client";
+import { eventOverlapsLocalDay } from "@/lib/meeting";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
 import {
@@ -118,8 +119,8 @@ export function CalendarView({
     return events.filter((ev) => {
       const startStr = ev.start?.dateTime ?? ev.start?.date;
       if (!startStr) return selectedDayIndex === 0 && weekOffset === 0;
-      const d = calendarStart(ev.start)!;
-      return d.toDateString() === selectedDate.toDateString();
+      const day = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth()+1).padStart(2,"0")}-${String(selectedDate.getDate()).padStart(2,"0")}`;
+      return eventOverlapsLocalDay(ev, day);
     });
   }, [events, selectedDate, selectedDayIndex, weekOffset]);
 

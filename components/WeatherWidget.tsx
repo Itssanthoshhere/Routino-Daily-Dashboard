@@ -35,8 +35,8 @@ export function WeatherWidget() {
     try {
       const cached = localStorage.getItem("routino_weather");
       if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < 30 * 60 * 1000) {
+        const { data, timestamp, source } = JSON.parse(cached);
+        if (source === "browser-location" && Date.now() - timestamp < 30 * 60 * 1000) {
           setWeather(data);
           setLoading(false);
           return;
@@ -49,10 +49,10 @@ export function WeatherWidget() {
         const res = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,is_day`
         );
-        if (!res.ok) return;
+        if (!res.ok) { if (active) setLoading(false); return; }
         const json = await res.json();
         const current = json.current;
-        if (!current) return;
+        if (!current) { if (active) setLoading(false); return; }
 
         const info: WeatherState = {
           temp: Math.round(current.temperature_2m),
@@ -68,7 +68,7 @@ export function WeatherWidget() {
           try {
             localStorage.setItem(
               "routino_weather",
-              JSON.stringify({ data: info, timestamp: Date.now() })
+              JSON.stringify({ data: info, timestamp: Date.now(), source: "browser-location" })
             );
           } catch {}
         }
@@ -77,37 +77,25 @@ export function WeatherWidget() {
       }
     }
 
-    // Try browser geolocation first; if not available or denied, use IP-based location
+    // Only use granted browser location. Do not infer a location after denial.
     if (typeof window !== "undefined" && "geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           loadWeather(pos.coords.latitude, pos.coords.longitude, "Local");
         },
-        async () => {
-          // Geolocation denied or unavailable -> fallback to free IP lookup
-          try {
-            const ipRes = await fetch("https://ipapi.co/json/").catch(() => null);
-            if (ipRes && ipRes.ok) {
-              const ipData = await ipRes.json();
-              if (ipData.latitude && ipData.longitude) {
-                loadWeather(ipData.latitude, ipData.longitude, ipData.city || "Local");
-                return;
-              }
-            }
-          } catch {}
-          // Ultimate safe fallback
-          loadWeather(12.9716, 77.5946, "Bengaluru");
-        },
+        () => { if (active) setLoading(false); },
         { timeout: 4000 }
       );
     } else {
-      loadWeather(12.9716, 77.5946, "Bengaluru");
+      setLoading(false);
     }
 
     return () => {
       active = false;
     };
   }, []);
+
+  if (!loading && !weather) return <span className="text-xs text-muted" title="Weather needs location permission. Coordinates are sent to Open-Meteo to retrieve weather; no city or IP-location fallback is used.">Weather unavailable</span>;
 
   if (loading || !weather) {
     return (

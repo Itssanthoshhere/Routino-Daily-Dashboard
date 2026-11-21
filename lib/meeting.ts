@@ -355,6 +355,12 @@ function eventRange(event: DashboardEvent): { start: number; end: number } | nul
   return Number.isFinite(start) && Number.isFinite(end) && end > start ? { start, end } : null;
 }
 
+/** End dates are exclusive; events spanning midnight belong to both local days. */
+export function eventOverlapsLocalDay(event: DashboardEvent, date: string): boolean {
+  const day = localDayRange(date), range = eventRange(event);
+  return !!day && !!range && range.start < day.end && range.end > day.start;
+}
+
 /**
  * Detects overlapping or double-booked events for a given day.
  */

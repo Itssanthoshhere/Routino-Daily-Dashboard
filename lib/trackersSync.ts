@@ -1,4 +1,5 @@
 import "server-only";
+import { discoverJournalSources, primaryJournalKey, type JournalSource } from "@/lib/journalCatalog";
 import { parseJournalSummaryRows } from "@/lib/journalSummary";
 import { SEED_TRACKERS_DATA, SEED_ANTIGRAVITY_TOKENS } from "@/lib/trackersSeed";
 import type {
@@ -114,7 +115,7 @@ export function parseExpenseJournalRows(
     const inc = row.c[3] ? parseNumber(row.c[3].v ?? row.c[3].f) : null;
     if (!item && !amt && !inc) return;
 
-    const year = row.c[0] ? parseNumber(row.c[0].v ?? row.c[0].f) : parseInt(journalKey.slice(0, 4), 10) || 2026;
+    const year = row.c[0] ? parseNumber(row.c[0].v ?? row.c[0].f) : parseInt(journalKey.slice(0, 4), 10) || new Date().getFullYear();
     const day = is2023
       ? (row.c[4] ? parseNumber(row.c[4].v ?? row.c[4].f) : undefined)
       : (row.c[5] ? parseNumber(row.c[5].v ?? row.c[5].f) : undefined);
@@ -166,40 +167,21 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
   }
 
   try {
-    const [
-      budgetData,
-      exp2026Data,
-      exp2026FamPayData,
-      exp2025Data,
-      exp2025FamPayData,
-      exp2024Data,
-      exp2024FamPayData,
-      exp2023Data,
-      expPgData,
-      summaryData,
-      readingsData,
-      placementData,
-      purchaseData,
-      timeData,
-      investmentData,
-      tokenExpiryData,
-    ] = await Promise.all([
-      fetchGVizSheet("Category Budget"),
-      fetchGVizSheet("2026 Expense Journal"),
-      fetchGVizSheet("2026 Fam Pay Expense Journal"),
-      fetchGVizSheet("2025 Expense Journal"),
-      fetchGVizSheet("2025 Fam Pay Expense Journal"),
-      fetchGVizSheet("2024 Expense Journal"),
-      fetchGVizSheet("2024 Fam Pay Expense Journal"),
-      fetchGVizSheet("2023 Expense Journal"),
-      fetchGVizSheet("PG Expense Journal"),
-      fetchGVizSheet("Summary"),
-      fetchGVizSheet("Readings"),
-      fetchGVizSheet("Placement Tracker"),
-      fetchGVizSheet("Purchase Summary"),
-      fetchGVizSheet("Time Spent on Earth"),
-      fetchGVizSheet("Investment Journal"),
-      fetchGVizSheet("Antigravity Token Expiry"),
+    let discovered: JournalSource[] = [];
+    try {
+      const response = await fetch(`https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/htmlview`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      if (response.ok) discovered = discoverJournalSources(await response.text());
+    } catch { /* Retain historical sources and retry discovery on the next refresh. */ }
+    const legacy: JournalSource[] = [2023, 2024, 2025, 2026].flatMap(year => [
+      { key: String(year), year, journal: `${year} Expense Journal`, summary: `${year} Summary` },
+      ...(year > 2023 ? [{ key: `${year}-fampay`, year, isFamPay: true, journal: `${year} Fam Pay Expense Journal`, summary: `${year} Fam Pay Summary ` }] : []),
+    ]);
+    const sources = Array.from(new Map([...legacy, ...discovered].map(source => [source.key, source])).values());
+    const [budgetData, expPgData, summaryData, readingsData, placementData, purchaseData, timeData, investmentData, tokenExpiryData, journalResults] = await Promise.all([
+      fetchGVizSheet("Category Budget"), fetchGVizSheet("PG Expense Journal"), fetchGVizSheet("Summary"),
+      fetchGVizSheet("Readings"), fetchGVizSheet("Placement Tracker"), fetchGVizSheet("Purchase Summary"),
+      fetchGVizSheet("Time Spent on Earth"), fetchGVizSheet("Investment Journal"), fetchGVizSheet("Antigravity Token Expiry"),
+      Promise.all(sources.map(async source => ({ source, data: await fetchGVizSheet(source.journal) }))),
     ]);
 
     // Parse Category Budget
@@ -219,16 +201,6 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
         categoryBudgets.push({ category: cat, budget: amt });
       });
     }
-
-    // Parse All Expense Journals (2023 to 2026, FamPay, PG)
-    const j2026 = parseExpenseJournalRows(exp2026Data?.table?.rows, "2026");
-    const j2026FamPay = parseExpenseJournalRows(exp2026FamPayData?.table?.rows, "2026-fampay");
-    const j2025 = parseExpenseJournalRows(exp2025Data?.table?.rows, "2025");
-    const j2025FamPay = parseExpenseJournalRows(exp2025FamPayData?.table?.rows, "2025-fampay");
-    const j2024 = parseExpenseJournalRows(exp2024Data?.table?.rows, "2024");
-    const j2024FamPay = parseExpenseJournalRows(exp2024FamPayData?.table?.rows, "2024-fampay");
-    const j2023 = parseExpenseJournalRows(exp2023Data?.table?.rows, "2023", true);
-    const jPg = parseExpenseJournalRows(expPgData?.table?.rows, "pg");
 
     const makeJournal = (
       key: string,
@@ -252,39 +224,21 @@ export async function syncSpreadsheetTrackers(): Promise<TrackersData> {
       };
     };
 
-    const journals: Record<string, TrackerExpenseJournal> = {
-      "2026": makeJournal("2026", "2026 Journal", 2026, j2026),
-      "2026-fampay": makeJournal("2026-fampay", "2026 Fam Pay", 2026, j2026FamPay, { isFamPay: true }),
-      "2025": makeJournal("2025", "2025 Journal", 2025, j2025),
-      "2025-fampay": makeJournal("2025-fampay", "2025 Fam Pay", 2025, j2025FamPay, { isFamPay: true }),
-      "2024": makeJournal("2024", "2024 Journal", 2024, j2024),
-      "2024-fampay": makeJournal("2024-fampay", "2024 Fam Pay", 2024, j2024FamPay, { isFamPay: true }),
-      "2023": makeJournal("2023", "2023 Journal", 2023, j2023),
-      "pg": makeJournal("pg", "PG Expenses", 2026, jPg, { isPG: true }),
-    };
-
-    const journalSources = { "2026": exp2026Data, "2026-fampay": exp2026FamPayData,
-      "2025": exp2025Data, "2025-fampay": exp2025FamPayData, "2024": exp2024Data,
-      "2024-fampay": exp2024FamPayData, "2023": exp2023Data, pg: expPgData };
-    const journalUpdatedAt = syncStartedAt;
-    for (const [key, source] of Object.entries(journalSources)) {
-      journals[key].journalSync = source ? "fresh" : "unavailable";
-      if (source) journals[key].journalUpdatedAt = journalUpdatedAt;
+    const journals: Record<string, TrackerExpenseJournal> = {};
+    for (const { source, data } of journalResults) {
+      const rows = parseExpenseJournalRows(data?.table?.rows, source.key, source.year === 2023 && !source.isFamPay);
+      journals[source.key] = { ...makeJournal(source.key, `${source.year}${source.isFamPay ? " Fam Pay" : " Journal"}`, source.year, rows, { isFamPay: source.isFamPay }), journalSync: data ? "fresh" : "unavailable", journalUpdatedAt: data ? syncStartedAt : undefined };
     }
-
-    const summarySheets: Record<string,string> = {
-      "2023":"2023 Summary", "2024":"2024 Summary", "2025":"2025 Summary", "2026":"2026 Summary",
-      "2024-fampay":"2024 Fam Pay Summary ", "2025-fampay":"2025 Fam Pay Summary ", "2026-fampay":"2026 Fam Pay Summary ",
-    };
-    await Promise.all(Object.entries(summarySheets).map(async ([key,sheet])=>{
-      const pivot = await fetchGVizSheet(sheet,"A1:Z900");
-      const summary = parseJournalSummaryRows(pivot?.table?.rows,sheet);
-      journals[key].summarySync = summary || (pivot && pivot.table.rows.length === 0) ? "fresh" : "unavailable";
-      if (journals[key].summarySync === "fresh") journals[key].summaryUpdatedAt = syncStartedAt;
-      if (summary) journals[key].sheetSummary = summary;
+    journals.pg = { ...makeJournal("pg", "PG Expenses", new Date().getFullYear(), parseExpenseJournalRows(expPgData?.table?.rows, "pg"), { isPG: true }), journalSync: expPgData ? "fresh" : "unavailable", journalUpdatedAt: expPgData ? syncStartedAt : undefined };
+    await Promise.all(sources.map(async source => {
+      const pivot = await fetchGVizSheet(source.summary, "A1:Z900");
+      const summary = parseJournalSummaryRows(pivot?.table?.rows, source.summary);
+      const journal = journals[source.key];
+      journal.summarySync = summary || (pivot && pivot.table.rows.length === 0) ? "fresh" : "unavailable";
+      if (journal.summarySync === "fresh") journal.summaryUpdatedAt = syncStartedAt;
+      if (summary) journal.sheetSummary = summary;
     }));
-
-    const expenses = journals["2026"].expenses;
+    const expenses = journals[primaryJournalKey(journals)]?.expenses || [];
 
     // Parse EB Summary & Meta
     const ebMeta: TrackerEBMeta = {

@@ -1,3 +1,4 @@
+import { validTimeAuditCategories, type TimeAuditPreference } from "@/lib/timeAuditPreferences";
 import {validReminderPreference,type ReminderPreference} from "@/lib/reminderSnooze";
 export const overviewWidgets = [
     { id: 'intention', label: 'Daily intention', span: 'summary' }, { id: 'meeting-count', label: 'Meeting summary', span: 'summary' }, { id: 'mail-count', label: 'Inbox summary', span: 'summary' }, { id: 'focus-count', label: 'Focus summary', span: 'summary' },
@@ -16,10 +17,10 @@ export type OverviewPreference = {
     order: OverviewWidgetId[];
     hidden: OverviewWidgetId[];
 };
-export type WorkspacePreference = DisplayPreference | OverviewPreference | ReminderPreference;
+export type WorkspacePreference = DisplayPreference | OverviewPreference | ReminderPreference | TimeAuditPreference;
 export const defaultDisplay: DisplayPreference = { id: 'display', textSize: 'standard', reduceMotion: false, contrast: 'standard' };
 export function validWorkspacePreference(value: unknown): boolean { if (!value || typeof value !== 'object')
-    return false; const v = value as Record<string, unknown>; if(v.id==='reminder-snoozes')return validReminderPreference(v); if (v.id === 'display')
+    return false; const v = value as Record<string, unknown>; if(v.id==='time-audit') return validTimeAuditCategories(v.categories); if(v.id==='reminder-snoozes')return validReminderPreference(v); if (v.id === 'display')
     return ['standard', 'large', 'larger'].includes(String(v.textSize)) && typeof v.reduceMotion === 'boolean' && ['standard', 'strong'].includes(String(v.contrast)); const ids = (list: unknown) => Array.isArray(list) && list.length <= overviewWidgets.length && new Set(list).size === list.length && list.every(id => overviewWidgets.some(widget => widget.id === id)); return v.id === 'overview' && ids(v.order) && ids(v.hidden); }
 export function orderedOverview(preferences: WorkspacePreference[]): OverviewWidgetId[] { const saved = preferences.find((p): p is OverviewPreference => p.id === 'overview'); return [...(saved?.order || []), ...overviewWidgets.map(w => w.id).filter(id => !saved?.order.includes(id))]; }
 export function reorderOverview(order: OverviewWidgetId[], id: OverviewWidgetId, direction: -1 | 1): OverviewWidgetId[] { const index = order.indexOf(id), target = index + direction; if (index < 0 || target < 0 || target >= order.length)

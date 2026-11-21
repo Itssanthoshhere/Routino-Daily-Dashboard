@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Clock, Video, Calendar, ChevronDown, ChevronUp, MapPin, Moon, Plane, AlertTriangle } from "lucide-react";
 import type { DashboardEvent } from "@/types/dashboard";
-import { getMeetingUrl, findScheduleConflicts, ScheduleConflict } from "@/lib/meeting";
+import { eventOverlapsLocalDay, getMeetingUrl, findScheduleConflicts, ScheduleConflict } from "@/lib/meeting";
 
 interface DayTimelineBarProps {
   events: DashboardEvent[];
@@ -36,11 +36,7 @@ export function DayTimelineBar({
 
   // Find all events for today
   const rawTodayEvents = useMemo(() => {
-    return events.filter((ev) => {
-      const startStr = ev.start?.dateTime || ev.start?.date;
-      if (!startStr) return false;
-      return startStr.startsWith(todayDateStr);
-    });
+    return events.filter(ev => eventOverlapsLocalDay(ev, todayDateStr));
   }, [events, todayDateStr]);
 
   // Detect schedule overlaps/conflicts for today
@@ -51,6 +47,7 @@ export function DayTimelineBar({
   // Dynamically determine start and end hours
   const { startHour, endHour } = useMemo(() => {
     let s = propStartHour ?? 8;
+    const midnight = new Date(`${todayDateStr}T00:00:00`);
     let e = propEndHour ?? 20;
 
     const currentH = now.getHours();
@@ -59,9 +56,9 @@ export function DayTimelineBar({
     for (const ev of rawTodayEvents) {
       const startStr = ev.start?.dateTime || ev.start?.date;
       if (!startStr) continue;
-      const d = new Date(startStr);
-      const h = d.getHours();
-      if (h < s) s = Math.max(6, h);
+      const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(startStr) ? `${startStr}T00:00:00` : startStr);
+      const h = d < midnight ? 0 : d.getHours();
+      if (h < s) s = Math.max(0, h);
       if (h >= e || h === 23 || h === 22 || h === 21) e = 24;
     }
 
@@ -74,7 +71,7 @@ export function DayTimelineBar({
     }
 
     return { startHour: s, endHour: e };
-  }, [propStartHour, propEndHour, now, rawTodayEvents]);
+  }, [propStartHour, propEndHour, now, rawTodayEvents, todayDateStr]);
 
   const totalDayMinutes = (endHour - startHour) * 60;
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
@@ -100,11 +97,13 @@ export function DayTimelineBar({
       .map((ev) => {
         const startStr = ev.start?.dateTime || ev.start?.date || "";
         const endStr = ev.end?.dateTime || ev.end?.date || "";
-        const startDate = new Date(startStr);
-        const endDate = endStr ? new Date(endStr) : new Date(startDate.getTime() + 30 * 60 * 1000);
+        const startDate = new Date(/^\d{4}-\d{2}-\d{2}$/.test(startStr) ? `${startStr}T00:00:00` : startStr);
+        const endDate = endStr ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(endStr) ? `${endStr}T00:00:00` : endStr) : new Date(startDate.getTime() + 30 * 60 * 1000);
 
-        const eventStartMin = startDate.getHours() * 60 + startDate.getMinutes();
-        const eventEndMin = endDate.getHours() * 60 + endDate.getMinutes();
+        const midnight = new Date(`${todayDateStr}T00:00:00`);
+        const nextMidnight = new Date(midnight); nextMidnight.setDate(nextMidnight.getDate()+1);
+        const eventStartMin = startDate < midnight ? 0 : startDate.getHours() * 60 + startDate.getMinutes();
+        const eventEndMin = endDate >= nextMidnight ? 1440 : endDate.getHours() * 60 + endDate.getMinutes();
 
         // Raw percentage calculations
         const rawLeft = ((eventStartMin - startMinutes) / totalDayMinutes) * 100;

@@ -1,27 +1,40 @@
+import { accountStorageKey, writeBrowserStorage } from "@/lib/accountStorage";
 import { DashboardEvent, TimeAuditCategory, AuditedEvent } from "@/types/dashboard";
 
+/** Combined category lists explicitly supplied by the workspace owner. */
 export const DEFAULT_TIME_AUDIT_CATEGORIES: TimeAuditCategory[] = [
   {
-    id: "sleep",
-    name: "Sleep",
-    color: "#534AB7",
-    keys: ["sleep", "slee", "sle"],
+    "id": "sleep",
+    "name": "Sleep",
+    "color": "#534AB7",
+    "keys": [
+      "sleep",
+      "slee",
+      "sle"
+    ]
   },
   {
-    id: "typing",
-    name: "Typing / Journaling",
-    color: "#9B59B6",
-    keys: ["typing", "journal", "notes"],
+    "id": "typing",
+    "name": "Typing / Journaling",
+    "color": "#9B59B6",
+    "keys": [
+      "typing",
+      "journal",
+      "notes"
+    ]
   },
   {
-    id: "social",
-    name: "Social Media",
-    color: "#D85A30",
-    keys: [
+    "id": "social",
+    "name": "Social Media",
+    "color": "#D85A30",
+    "keys": [
       "instaa",
       "instagram",
       "youtube",
-      "social",
+      "candy crush",
+      "coc",
+      "bgmi",
+      "gaming",
       "chit chat",
       "bakchodi",
       "roaming",
@@ -29,15 +42,115 @@ export const DEFAULT_TIME_AUDIT_CATEGORIES: TimeAuditCategory[] = [
       "time pass",
       "reels",
       "twitter",
-      "reddit",
-      "community",
-    ],
+      "reddit"
+    ]
   },
   {
-    id: "gaming",
-    name: "Games / Gaming",
-    color: "#E11D48",
-    keys: [
+    "id": "study_work",
+    "name": "Study / Work",
+    "color": "#1D9E75",
+    "keys": [
+      "cset",
+      "assignment",
+      "project",
+      "course",
+      "coursera",
+      "codechef",
+      "leetcode",
+      "web dev",
+      "wavechat",
+      "nlp",
+      "soft computing",
+      "career skills",
+      "ieee",
+      "dcc",
+      "placement",
+      "fastapi",
+      "roomify",
+      "mf360",
+      "codigo",
+      "latest",
+      "nptel",
+      "hackathon",
+      "contest",
+      "linkedin",
+      "certificate",
+      "routino",
+      "building"
+    ]
+  },
+  {
+    "id": "entertainment",
+    "name": "Entertainment",
+    "color": "#378ADD",
+    "keys": [
+      "movie",
+      "series",
+      "cinema",
+      "watch",
+      "netflix",
+      "hotstar",
+      "i'm game movie"
+    ]
+  },
+  {
+    "id": "routine",
+    "name": "Daily Routine",
+    "color": "#BA7517",
+    "keys": [
+      "bath",
+      "lunch",
+      "dinner",
+      "freshup",
+      "fresh up",
+      "maggi",
+      "food",
+      "laundry",
+      "sorting",
+      "vc w",
+      "call w",
+      "breakfast",
+      "snack",
+      "chai",
+      "coffee",
+      "cooking",
+      "utensil",
+      "face wash",
+      "acne",
+      "ance cream",
+      "oil",
+      "trim",
+      "haircut",
+      "head bath"
+    ]
+  },
+  {
+    "id": "travel",
+    "name": "Travel / Outings",
+    "color": "#888780",
+    "keys": [
+      "manali",
+      "train",
+      "travel",
+      "trip",
+      "ndls",
+      "mas",
+      "bus",
+      "outing",
+      "roaming around",
+      "cab",
+      "metro",
+      "airport",
+      "station",
+      "central",
+      "gate"
+    ]
+  },
+  {
+    "id": "gaming",
+    "name": "Games / Gaming",
+    "color": "#E11D48",
+    "keys": [
       "coc",
       "clash of clans",
       "bgmi",
@@ -55,120 +168,58 @@ export const DEFAULT_TIME_AUDIT_CATEGORIES: TimeAuditCategory[] = [
       "call of duty",
       "cod",
       "steam",
-      "playstation",
-    ],
+      "playstation"
+    ]
   },
   {
-    id: "study_work",
-    name: "Study / Work",
-    color: "#1D9E75",
-    keys: [
-      "development",
-      "assignment",
-      "project",
-      "course",
-      "coding",
-      "engineering",
-      "leetcode",
-      "web dev",
-      "research",
-      "deep work",
-      "testing",
-      "documentation",
-      "review",
-      "design",
-      "architecture",
-      "hackathon",
-      "contest",
-      "certificate",
-    ],
-  },
-  {
-    id: "entertainment",
-    name: "Entertainment",
-    color: "#378ADD",
-    keys: ["movie", "series", "cinema", "watch", "netflix", "hotstar"],
-  },
-  {
-    id: "routine",
-    name: "Daily Routine",
-    color: "#BA7517",
-    keys: [
-      "bath",
-      "lunch",
-      "dinner",
-      "freshup",
-      "exercise",
-      "walk",
-      "gym",
-      "workout",
-      "food",
-      "laundry",
-      "chores",
-      "errands",
-      "breakfast",
-      "snack",
-      "chai",
-      "coffee",
-      "cooking",
-      "skincare",
-    ],
-  },
-  {
-    id: "travel",
-    name: "Travel / Outings",
-    color: "#888780",
-    keys: [
-      "flight",
-      "train",
-      "travel",
-      "trip",
-      "transit",
-      "hotel",
-      "bus",
-      "outing",
-      "cab",
-      "metro",
-      "airport",
-      "station",
-      "commute",
-    ],
-  },
-  {
-    id: "other",
-    name: "Other",
-    color: "#D4537E",
-    keys: [],
-  },
+    "id": "other",
+    "name": "Other",
+    "color": "#D4537E",
+    "keys": []
+  }
 ];
 
 export const TIME_AUDIT_STORAGE_KEY = "routino_time_audit_categories_v2";
 
-export function loadSavedCategories(): TimeAuditCategory[] {
+/** Append missing keywords within each category; never move cross-category matches. */
+export function combineTimeAuditCategories(saved: TimeAuditCategory[]): TimeAuditCategory[] {
+  const result = saved.map(category => ({ ...category, keys: [...category.keys] }));
+  for (const required of DEFAULT_TIME_AUDIT_CATEGORIES) {
+    const existing = result.find(category => category.id === required.id || category.name.toLowerCase() === required.name.toLowerCase());
+    if (existing) {
+      const known = new Set(existing.keys.map(key => key.trim().toLowerCase()));
+      for (const key of required.keys) if (!known.has(key.toLowerCase())) { existing.keys.push(key); known.add(key.toLowerCase()); }
+    } else {
+      const index = result.findIndex(category => category.id === "other");
+      result.splice(index < 0 ? result.length : index, 0, { ...required, keys: [...required.keys] });
+    }
+  }
+  return result;
+}
+
+export function loadSavedCategories(account: string | null = null): TimeAuditCategory[] {
   if (typeof window === "undefined") return DEFAULT_TIME_AUDIT_CATEGORIES;
   try {
-    let raw = localStorage.getItem(TIME_AUDIT_STORAGE_KEY);
+    let raw = localStorage.getItem(accountStorageKey(TIME_AUDIT_STORAGE_KEY, account));
     if (!raw) {
-      raw = localStorage.getItem("routino_time_audit_categories_v1");
+      // Only the previously verified owner can adopt legacy preferences; originals stay intact.
+      const owner = localStorage.getItem("routino_legacy_cache_owner") || localStorage.getItem("routino_verified_workspace_account");
+      if (account && owner?.toLowerCase() === account.toLowerCase()) raw = localStorage.getItem(TIME_AUDIT_STORAGE_KEY) || localStorage.getItem("routino_time_audit_categories_v1");
     }
     if (!raw) return DEFAULT_TIME_AUDIT_CATEGORIES;
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // Ensure gaming category is included even if user previously saved v1
-      if (!parsed.some((c: TimeAuditCategory) => c.id === "gaming")) {
-        const gamingCat = DEFAULT_TIME_AUDIT_CATEGORIES.find((c) => c.id === "gaming")!;
-        const otherCat =
-          parsed.find((c: TimeAuditCategory) => c.id === "other") ||
-          DEFAULT_TIME_AUDIT_CATEGORIES[DEFAULT_TIME_AUDIT_CATEGORIES.length - 1];
-        const updated = [
-          ...parsed.filter((c: TimeAuditCategory) => c.id !== "other"),
-          gamingCat,
-          otherCat,
-        ];
-        saveCategories(updated);
-        return updated;
-      }
-      return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(category => category && typeof category.id === "string" && typeof category.name === "string" && typeof category.color === "string" && Array.isArray(category.keys) && category.keys.every((key: unknown) => typeof key === "string"))) {
+      const migrationKey = `${accountStorageKey(TIME_AUDIT_STORAGE_KEY, account)}:combined-lists-v1`;
+      if (localStorage.getItem(migrationKey)) return parsed;
+      const combined = combineTimeAuditCategories(parsed);
+      // Preserve the original bytes before the one-time, explicitly requested union.
+      const backupKey = `${migrationKey}:original`;
+      try {
+        if (!localStorage.getItem(backupKey)) writeBrowserStorage(backupKey, raw);
+        writeBrowserStorage(accountStorageKey(TIME_AUDIT_STORAGE_KEY, account), JSON.stringify(combined));
+        writeBrowserStorage(migrationKey, "1");
+      } catch { /* Keep original copies and show the storage failure warning. */ }
+      return combined;
     }
   } catch {
     // fallback
@@ -176,10 +227,12 @@ export function loadSavedCategories(): TimeAuditCategory[] {
   return DEFAULT_TIME_AUDIT_CATEGORIES;
 }
 
-export function saveCategories(categories: TimeAuditCategory[]): void {
+export function saveCategories(categories: TimeAuditCategory[], account: string | null = null): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(TIME_AUDIT_STORAGE_KEY, JSON.stringify(categories));
+    const key = accountStorageKey(TIME_AUDIT_STORAGE_KEY, account);
+    writeBrowserStorage(key, JSON.stringify(categories));
+    writeBrowserStorage(`${key}:combined-lists-v1`, "1");
   } catch {
     // ignore
   }
@@ -198,7 +251,8 @@ export function categorizeEventTitle(
         const lk = k.toLowerCase().trim();
         // If keyword is 3 chars or fewer (e.g. 'coc', 'sle', 'cod', 'gta', 'bus'), match with word boundary
         if (lk.length <= 3) {
-          const regex = new RegExp(`(^|[^a-z0-9])${lk}([^a-z0-9]|$)`, "i");
+          const literal = lk.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const regex = new RegExp(`(^|[^a-z0-9])${literal}([^a-z0-9]|$)`, "i");
           return regex.test(t);
         }
         return t.includes(lk);
