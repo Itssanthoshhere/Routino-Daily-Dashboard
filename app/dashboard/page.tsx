@@ -1,4 +1,5 @@
 "use client";
+import { writeBrowserStorage } from "@/lib/accountStorage";
 import { useWorkspaceResume } from "@/hooks/useWorkspaceResume";
 import { resumeSections, resumeTrackers } from "@/lib/workspaceResume";
 import { WorkspaceTools } from "@/components/WorkspaceTools";
@@ -408,7 +409,7 @@ export default function Home() {
   if (!currentAccount.current && typeof window !== "undefined" && !navigator.onLine) {
     try { currentAccount.current = localStorage.getItem("routino_verified_workspace_account"); } catch {}
   }
-  const browserStore = useMemo(() => scopedStorage({ getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value), removeItem: key => localStorage.removeItem(key) }, () => currentAccount.current), []);
+  const browserStore = useMemo(() => scopedStorage({ getItem: key => localStorage.getItem(key), setItem: (key, value) => writeBrowserStorage(key, value), removeItem: key => localStorage.removeItem(key) }, () => currentAccount.current), []);
   const [customEvents, setCustomEvents] = useState<DashboardEvent[]>([]);
   const customEventsRef = useRef(customEvents);
   customEventsRef.current = customEvents;
@@ -1287,7 +1288,7 @@ export default function Home() {
       } : {}) };
       try {
         const pending = JSON.parse(localStorage.getItem(accountKey) || "{}");
-        localStorage.setItem(accountKey, JSON.stringify({ ...queueWorkspacePatch(pending, incoming), expectedCoreRevision: pending.expectedCoreRevision ?? coreRevision.current }));
+        writeBrowserStorage(accountKey, JSON.stringify({ ...queueWorkspacePatch(pending, incoming), expectedCoreRevision: pending.expectedCoreRevision ?? coreRevision.current }));
       } catch { setWorkspaceSaveError(true); return false; }
       if (offline) { setWorkspaceSaveError(true); return false; }
       const operation = async () => {
@@ -1302,12 +1303,12 @@ export default function Home() {
           if (!res.ok || !json.success) { if (res.status === 409) { conflictBlocked.current = true; setCoreConflict(true); } setWorkspaceSaveError(true); return false; }
           recordDeviceSave(account,"core",json.savedAt || new Date().toISOString());
           coreRevision.current = json.revision;
-          localStorage.setItem(`routino_core_revision:${account}`, String(json.revision));
+          writeBrowserStorage(`routino_core_revision:${account}`, String(json.revision));
           const savedPatch = JSON.parse(snapshot);
           for (const field of coreCollections) if (savedPatch.collectionChanges?.[field]) coreSnapshot.current[field] = mergeCollection((coreSnapshot.current[field] || []) as {id:string}[], savedPatch[field], savedPatch.collectionChanges[field]);
           // A newer local patch stays pending for the queued request; never clear it accidentally.
           if (localStorage.getItem(accountKey) === snapshot) localStorage.removeItem(accountKey);
-          else { const latest = JSON.parse(localStorage.getItem(accountKey) || "{}"); localStorage.setItem(accountKey, JSON.stringify({ ...latest, expectedCoreRevision: json.revision })); }
+          else { const latest = JSON.parse(localStorage.getItem(accountKey) || "{}"); writeBrowserStorage(accountKey, JSON.stringify({ ...latest, expectedCoreRevision: json.revision })); }
           setLastSyncedAt(json.savedAt);
           if (json.dbStatus?.sourceLabel) setDbSource(json.dbStatus.sourceLabel);
           setWorkspaceSaveError(false);
@@ -1359,10 +1360,10 @@ export default function Home() {
         try { migrateAccountCache(localStorage, res.email.toLowerCase()); } catch { setWorkspaceSaveError(true); }
         currentAccount.current = res.email.toLowerCase();
         if (!conflictBlocked.current) coreRevision.current = res.data?.coreRevision || 0;
-        try { localStorage.setItem(`routino_core_revision:${res.email.toLowerCase()}`, String(res.data?.coreRevision || 0)); } catch {}
+        try { writeBrowserStorage(`routino_core_revision:${res.email.toLowerCase()}`, String(res.data?.coreRevision || 0)); } catch {}
         setWorkspaceSyncReady(true);
         setVerifiedWorkspaceAccount(res.email?.toLowerCase() || null);
-        try { if (res.email) localStorage.setItem("routino_verified_workspace_account", res.email.toLowerCase()); } catch {}
+        try { if (res.email) writeBrowserStorage("routino_verified_workspace_account", res.email.toLowerCase()); } catch {}
         if (res.dbStatus?.sourceLabel) {
           setDbSource(res.dbStatus.sourceLabel);
         }
@@ -1831,7 +1832,7 @@ export default function Home() {
   const dismissNotifications = (ids: string[]) => {
     setDismissedNotifications(previous => {
       const next = Array.from(new Set([...previous, ...ids]));
-      try { localStorage.setItem(`routino_notifications:${liveData?.user?.email || "guest"}:${notificationDay}`, JSON.stringify(next)); } catch {}
+      try { writeBrowserStorage(`routino_notifications:${liveData?.user?.email || "guest"}:${notificationDay}`, JSON.stringify(next)); } catch {}
       return next;
     });
   };
@@ -2100,8 +2101,8 @@ export default function Home() {
         const account = currentAccount.current;
         const key = `routino_workspace_pending:${account}`;
         if (localStorage.getItem(key) !== snapshot) throw new Error("Your draft changed. Compare the copies again before choosing.");
-        localStorage.setItem(`${key}:recovery:${Date.now()}`, snapshot);
-        if (!useCloud) localStorage.setItem(key, JSON.stringify({ ...JSON.parse(snapshot), expectedCoreRevision: revision }));
+        writeBrowserStorage(`${key}:recovery:${Date.now()}`, snapshot);
+        if (!useCloud) writeBrowserStorage(key, JSON.stringify({ ...JSON.parse(snapshot), expectedCoreRevision: revision }));
         coreRevision.current = revision;
         conflictBlocked.current = false; setCoreConflict(false);
         if (useCloud) { localStorage.removeItem(key); setWorkspaceSaveError(false); window.dispatchEvent(new Event("routino:workspace-restored")); }

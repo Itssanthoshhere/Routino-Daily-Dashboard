@@ -1,4 +1,5 @@
 "use client";
+import { writeBrowserStorage } from "@/lib/accountStorage";
 
 import { recordDeviceSave } from "@/lib/deviceSync";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -31,7 +32,7 @@ export function useTrackerWorkspace(email?: string | null) {
   const key = `routino_trackers_v2:${email?.trim().toLowerCase() || "guest"}`;
   const cache = useCallback(() => {
     const current = state.current;
-    localStorage.setItem(key, JSON.stringify({ data: current.data, revision: current.revision, pending: current.pending }));
+    writeBrowserStorage(key, JSON.stringify({ data: current.data, revision: current.revision, pending: current.pending }));
   }, [key]);
 
   const flush = useCallback(async () => {
@@ -90,8 +91,8 @@ export function useTrackerWorkspace(email?: string | null) {
       if (current.pending && !replaceLocal) return;
       if (replaceLocal) {
         const previousCache = localStorage.getItem(key);
-        if (previousCache) localStorage.setItem(`${key}:previous-cache`, previousCache);
-        if (current.pending) localStorage.setItem(`${key}:conflict-backup`, JSON.stringify(current.data));
+        if (previousCache) writeBrowserStorage(`${key}:previous-cache`, previousCache);
+        if (current.pending) writeBrowserStorage(`${key}:conflict-backup`, JSON.stringify(current.data));
       }
       current.data = server;
       current.revision = result.revision;

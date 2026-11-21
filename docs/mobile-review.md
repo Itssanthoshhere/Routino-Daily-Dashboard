@@ -133,3 +133,11 @@ Both previously outstanding data issues are implemented and regression-tested.
 - Regression tests cover saved-record validation, launch-intent precedence, tracker-specific offsets and account/guest isolation. Full tests, TypeScript and Webpack production build passed during implementation.
 
 - Commit review: wheel, touch and browser-history input during account loading suppress late restoration. Mocked lifecycle regressions cover these inputs, active restore cancellation, timer cleanup, hide-time flushes and explicit launch precedence.
+
+
+## Review findings — 21 November 2026
+
+- Email classification now matches UPI, ATM, AWS and viva as whole words while retaining existing rule priority and other keywords.
+- Conflict and travel detection use local midnight-to-midnight overlap instead of timestamp prefixes. Overnight events remain visible on the next day; conflict minutes are clipped to that day. Exclusive midnight ends and DST day lengths are respected. All-day events remain excluded from timed conflict reports.
+- Core workspace and tracker persistence paths report quota/access failures through a persistent PWA alert while rethrowing the original error. The warning does not infer localStorage capacity from the origin-wide storage estimate or recommend deleting user records. It does not replace backup/sync verification.
+- Isolated regression checks cover false-positive/positive email examples, classification precedence, IST/Los Angeles offsets, overnight travel, midnight edges, invalid dates, all-day travel, a 23-hour DST day, and failure notifications with original errors preserved. Full regression suite, TypeScript and Webpack production build pass. No provider or account records were written for these checks.

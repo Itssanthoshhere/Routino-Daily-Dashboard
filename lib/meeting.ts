@@ -333,6 +333,28 @@ export type ScheduleConflict = {
   overlapMinutes: number;
 };
 
+/** Local calendar boundaries use consecutive midnights, including DST transitions. */
+function localDayRange(value?: string): { start: number; end: number } | null {
+  const now = new Date();
+  const date = value || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const start = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}` !== date) return null;
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start: start.getTime(), end: end.getTime() };
+}
+
+function eventRange(event: DashboardEvent): { start: number; end: number } | null {
+  const parse = (value: string) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value).getTime();
+  const startValue = event.start?.dateTime || event.start?.date;
+  if (!startValue) return null;
+  const start = parse(startValue);
+  const endValue = event.end?.dateTime || event.end?.date;
+  const end = endValue ? parse(endValue) : start + 2 * 60 * 60 * 1000;
+  return Number.isFinite(start) && Number.isFinite(end) && end > start ? { start, end } : null;
+}
+
 /**
  * Detects overlapping or double-booked events for a given day.
  */
@@ -340,20 +362,13 @@ export function findScheduleConflicts(
   events: DashboardEvent[],
   targetDateStr?: string
 ): ScheduleConflict[] {
-  const datePrefix = targetDateStr || new Intl.DateTimeFormat("en-CA").format(new Date());
-
+  const day = localDayRange(targetDateStr);
+  if (!day) return [];
   const timedEvents = events
-    .filter((ev) => {
-      const s = ev.start?.dateTime;
-      const e = ev.end?.dateTime;
-      return s && e && s.startsWith(datePrefix);
-    })
-    .map((ev) => ({
-      event: ev,
-      start: new Date(ev.start!.dateTime!).getTime(),
-      end: new Date(ev.end!.dateTime!).getTime(),
-    }))
-    .filter((item) => !Number.isNaN(item.start) && !Number.isNaN(item.end) && item.end > item.start)
+    .filter(ev => ev.start?.dateTime && ev.end?.dateTime)
+    .map(event => ({ event, range: eventRange(event) }))
+    .filter((item): item is { event: DashboardEvent; range: { start: number; end: number } } => !!item.range && item.range.start < day.end && item.range.end > day.start)
+    .map(({ event, range }) => ({ event, start: Math.max(range.start, day.start), end: Math.min(range.end, day.end) }))
     .sort((a, b) => a.start - b.start);
 
   const conflicts: ScheduleConflict[] = [];
@@ -429,21 +444,16 @@ export function getTodayTravelInfo(
   events: DashboardEvent[],
   targetDateStr?: string
 ): TravelInfo | null {
-  const datePrefix = targetDateStr || new Intl.DateTimeFormat("en-CA").format(new Date());
-
-  const travelEvent = events.find((ev) => {
-    const s = ev.start?.dateTime || ev.start?.date;
-    if (!s || !s.startsWith(datePrefix)) return false;
-    const cat = inferEventCategory(ev);
-    return cat.tag === "TRAVEL";
+  const day = localDayRange(targetDateStr);
+  if (!day) return null;
+  const travelEvent = events.find(event => {
+    const range = eventRange(event);
+    return range && range.start < day.end && range.end > day.start && inferEventCategory(event).tag === "TRAVEL";
   });
-
   if (!travelEvent) return null;
-
-  const startStr = travelEvent.start?.dateTime || travelEvent.start?.date || "";
-  const endStr = travelEvent.end?.dateTime || travelEvent.end?.date || "";
-  const departureDate = new Date(startStr);
-  const arrivalDate = endStr ? new Date(endStr) : new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
+  const range = eventRange(travelEvent)!;
+  const departureDate = new Date(range.start);
+  const arrivalDate = new Date(range.end);
 
   const now = Date.now();
   const minutesUntilDeparture = Math.round((departureDate.getTime() - now) / (60 * 1000));

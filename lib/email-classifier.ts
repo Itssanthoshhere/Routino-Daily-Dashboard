@@ -38,11 +38,11 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
 
   // 2. Finance / Banking / UPI / Statements
   if (
-    text.includes("upi") ||
+    /\bupi\b/i.test(text) ||
     text.includes("credited") ||
     text.includes("debited") ||
     text.includes("bank") ||
-    text.includes("atm") ||
+    /\batm\b/i.test(text) ||
     text.includes("payout") ||
     text.includes("razorpay") ||
     text.includes("stripe") ||
@@ -61,7 +61,7 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
   // 3. Cloud / Dev Infra / Vendor policies
   if (
     text.includes("vercel") ||
-    text.includes("aws") ||
+    /\baws\b/i.test(text) ||
     text.includes("github") ||
     text.includes("supabase") ||
     text.includes("cloudflare") ||
@@ -90,7 +90,7 @@ export function classifyEmail(mail: Partial<DashboardMail>): ClassifiedActionBad
     text.includes("college") ||
     text.includes("evaluation") ||
     text.includes("faculty") ||
-    text.includes("viva")
+    /\bviva\b/i.test(text)
   ) {
     return {
       label: "CAREER",

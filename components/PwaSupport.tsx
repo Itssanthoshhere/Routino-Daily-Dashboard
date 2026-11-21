@@ -1,7 +1,15 @@
 "use client";
+import { getBrowserStorageFailure, type BrowserStorageFailure } from "@/lib/accountStorage";
 import { useEffect, useState } from "react";
 type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 export function PwaSupport() {
+  const [storageFailure, setStorageFailure] = useState<BrowserStorageFailure | null>(null);
+  useEffect(() => {
+    const update = () => setStorageFailure(getBrowserStorageFailure());
+    update();
+    window.addEventListener("routino:storage-failure", update);
+    return () => window.removeEventListener("routino:storage-failure", update);
+  }, []);
   const [prompt, setPrompt] = useState<InstallPrompt | null>(null);
   const [offline, setOffline] = useState(false);
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
@@ -26,5 +34,5 @@ export function PwaSupport() {
     window.addEventListener("beforeinstallprompt", install); window.addEventListener("appinstalled", installed); window.addEventListener("online", connectivity); window.addEventListener("offline", connectivity);
     return () => { navigator.serviceWorker?.removeEventListener("controllerchange", controlled); window.removeEventListener("routino:pwa-update", update); window.removeEventListener("beforeinstallprompt", install); window.removeEventListener("appinstalled", installed); window.removeEventListener("online", connectivity); window.removeEventListener("offline", connectivity); };
   }, []);
-  return <>{waiting && <button className="fixed bottom-14 right-3 z-40 rounded-lg bg-forest px-3 py-2 text-xs text-white" onClick={() => { window.dispatchEvent(new Event("routino:pwa-update")); waiting.postMessage({ type: "ACTIVATE_UPDATE" }); }}>Update & reload</button>}{offline && <div role="status" className="fixed bottom-3 left-3 z-[100] max-w-xs rounded-xl border border-line bg-white p-3 text-xs shadow-lg">Offline · using this device’s saved workspace. Google services and cloud sync need a connection.</div>}{prompt && <button className="fixed bottom-3 right-3 z-40 rounded-xl bg-forest px-4 py-2 text-xs font-semibold text-white shadow-lg" onClick={async () => { await prompt.prompt(); await prompt.userChoice; setPrompt(null); }}>Install Routino</button>}</>;
+  return <>{storageFailure && <div role="alert" className="fixed bottom-20 left-3 right-3 z-[110] rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900 shadow-lg sm:right-auto sm:max-w-md"><strong>{storageFailure === "quota" ? "Browser storage limit reached." : "Browser storage is unavailable."}</strong> Changes may not be saved on this device. Keep this page open, export a backup through Preferences, and verify cloud sync before reloading.</div>}{waiting && <button className="fixed bottom-14 right-3 z-40 rounded-lg bg-forest px-3 py-2 text-xs text-white" onClick={() => { window.dispatchEvent(new Event("routino:pwa-update")); waiting.postMessage({ type: "ACTIVATE_UPDATE" }); }}>Update & reload</button>}{offline && <div role="status" className="fixed bottom-3 left-3 z-[100] max-w-xs rounded-xl border border-line bg-white p-3 text-xs shadow-lg">Offline · using this device’s saved workspace. Google services and cloud sync need a connection.</div>}{prompt && <button className="fixed bottom-3 right-3 z-40 rounded-xl bg-forest px-4 py-2 text-xs font-semibold text-white shadow-lg" onClick={async () => { await prompt.prompt(); await prompt.userChoice; setPrompt(null); }}>Install Routino</button>}</>;
 }
