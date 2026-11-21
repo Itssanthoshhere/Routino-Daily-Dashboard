@@ -73,9 +73,13 @@ Plan your day, check messages, manage tasks and routines, keep encrypted notes, 
 
 The responsive interface includes desktop/mobile navigation, accessible dialogs, print layouts, and consistent crimson hover and keyboard-focus states. Preview records are fictional.
 
+**Phone and iPad layouts:** Below 1280px, the compact header keeps navigation, search and Quick Capture visible; **Workspace tools** contains Undo history, Reminders, Sync Center, notifications and profile controls. The sidebar becomes a drawer, tracker navigation uses a labelled selector, and renewals/yearly journal summaries expand on demand. At 1280px and above, desktop navigation remains visible. Phone expense transactions use readable cards; tablet/desktop use the table with the same filters and pagination. Phone task actions stack below the task content, with horizontally scrollable view/filter controls. See [mobile review and verification coverage](docs/mobile-review.md) for viewport checks and remaining physical-device verification.
+
+**Return to your place:** Reopening `/dashboard` remembers the last section, tracker and vertical scroll position on this device, separately for each account. Explicit section links, anchors, setup flows and Capture/Focus shortcuts take priority. Restoration briefly retries while asynchronous content mounts and stops immediately when you touch, scroll, type or use browser history. This saves navigation metadata locally; it does not save open dialogs, unsaved forms, tracker filters or additional journal rows loaded with Show More. Storage restrictions or changed page content can limit restoration. Existing open-app resume/sync behavior remains in place.
+
 ## 📅 Focus scheduling and meeting notes
 
-**Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 25-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability. Before booking a task focus session, Routino rechecks connected Google calendars, linked Outlook events, and saved events. Failed checks or a newly busy slot stop booking. Another calendar client can still create a conflicting event between that check and creation.
+**Find focus time** in Calendar or Focus Timer scans loaded Google, Outlook, and custom events for 15-, 25-, 30-, 45-, 60-, or 90-minute openings over the next seven days, within local 08:00–20:00 hours. Timed overlaps and all-day events block suggestions. Results depend on calendars successfully loaded; they do not reserve a slot or guarantee another person’s availability. Before booking a task focus session, Routino rechecks connected Google calendars, linked Outlook events, and saved events. Failed checks or a newly busy slot stop booking. Another calendar client can still create a conflicting event between that check and creation.
 
 **Workspace reliability:** core records now use account-scoped browser caches and a database revision. Legacy caches are copied only to their recorded original owner; original copies are retained, and caches without a known owner are not automatically assigned. Notes, habits, saved events, links, and templates send record changes while preserving saved ordering. A stale save opens a local/cloud comparison rather than overwriting another device’s changes. Both resolution choices retain an account-specific local recovery copy. Existing pending drafts without a known base revision require review. Older open tabs must refresh before saving with the new account/revision checks.
 
@@ -408,6 +412,8 @@ node scripts/test-calendar-navigation.cjs # date jumps, leap days, year boundari
 node scripts/test-calendar-colors.cjs # default category mappings and legacy auto-write prevention
 node scripts/test-calendar-color-manager.cjs # previews, exclusions, stale versions, selective Apply, and Undo
 node scripts/test-calendar-search.cjs # loaded-history search, categories, dates, and timezone boundaries
+node scripts/test-workspace-resume.cjs # saved-position validation, launch precedence, and account isolation
+node scripts/test-workspace-resume-lifecycle.cjs # restore cancellation, timers, and hide-time saves
 node scripts/test-management-features.cjs # habit history and private document validation
 npm run build                       # production build
 ```

@@ -12,6 +12,8 @@ Work preserves existing account records and original legacy browser copies.
 - [x] Reusable task templates
 - [x] Focus availability recheck before booking
 - [x] Unified local test command and pull-request CI
+- [x] Compact phone/iPad navigation and responsive expense/task presentation
+- [x] Device-local, account-scoped section/tracker/scroll restoration with explicit-link precedence
 
 Verification uses pure regression tests and disposable local UI drafts. Production records are not modified by tests.
 
