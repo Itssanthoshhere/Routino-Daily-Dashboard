@@ -7,12 +7,13 @@ export function journalBudgetUsage(journal: TrackerExpenseJournal, month: number
   const rows = validMonth ? journal.expenses.filter(row => row.year === journal.year && journalMonth(row) === month) : [];
   const summary = validMonth && journal.summarySync !== "unavailable" ? journal.sheetSummary?.months.find(row => row.month === month) : undefined;
   const available = validMonth && (Boolean(summary) || journal.journalSync !== "unavailable");
-  const spent = summary?.amount ?? rows.reduce((sum, row) => sum + (Number.isFinite(row.amount) ? row.amount : 0), 0);
+  const manualSpent = rows.filter(row => row.id.startsWith("manual-")).reduce((sum,row) => sum + row.amount, 0);
+  const spent = summary ? summary.amount + manualSpent : rows.reduce((sum, row) => sum + (Number.isFinite(row.amount) ? row.amount : 0), 0);
   const hasLimit = Number.isFinite(limit) && limit > 0;
   return {
     available,
     spent: available ? spent : null,
-    source: summary ? "Summary sheet" : "Full journal debits",
+    source: summary ? manualSpent ? "Summary sheet + manual records" : "Summary sheet" : "Full journal debits",
     entries: rows.length,
     percent: available && hasLimit ? Math.round(spent / limit * 100) : null,
     remaining: available && hasLimit ? Math.max(0, limit - spent) : null,

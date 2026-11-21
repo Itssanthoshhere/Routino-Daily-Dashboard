@@ -1,4 +1,5 @@
 "use client";
+import { journalYears } from "@/lib/journalCatalog";
 import { useState } from "react";
 import { journalReconciliation } from "@/lib/journalSummary";
 import type { TrackerExpenseJournal } from "@/types/dashboard";
@@ -36,12 +37,14 @@ export function JournalSummaries({ journals, isLive, onOpen }: {
   onOpen: (key: string, category?:string, month?:number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const years = journalYears(journals);
+  const range = years.length ? ` · ${years[0]}${years.length > 1 ? `–${years[years.length - 1]}` : ""}` : "";
   return <section className="rounded-2xl border border-line bg-white p-5" aria-labelledby="journal-summaries-title">
-    <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="journal-summaries-title" className="text-base font-bold">Journal summaries · 2023–2026</h3><span className="text-xs text-muted">{isLive ? "From your connected sheet" : "Preview / sample data"}</span></div>
+    <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="journal-summaries-title" className="text-base font-bold">Journal summaries{range}</h3><span className="text-xs text-muted">{isLive ? "From your connected sheet" : "Preview / sample data"}</span></div>
     <button type="button" aria-expanded={expanded} aria-controls="journal-summary-content" onClick={()=>setExpanded(value=>!value)} className="btn-theme mt-3 w-full rounded-xl border border-line px-3 py-2 text-xs font-semibold xl:hidden">{expanded ? "Hide yearly summaries" : "Show yearly summaries"}</button>
     <div id="journal-summary-content" className={`${expanded ? "block" : "hidden"} xl:block`}>
     <p className="mt-2 text-xs text-muted">Spending matches each year’s Summary-tab pivot. Credits, balances and entry counts describe the full journal. FamPay stays separate; transfers between journals are not combined into a spending total.</p>
-    <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[2023, 2024, 2025, 2026].map(year => {
+    <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{years.map(year => {
       const key = String(year), journal = journals[key], famPay = journals[`${year}-fampay`];
       return <article key={year} className="rounded-xl border border-line bg-[#fafbf8] p-4">
         <h4 className="text-lg font-bold">{year} Journal</h4>

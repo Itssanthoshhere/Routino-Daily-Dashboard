@@ -141,3 +141,30 @@ Both previously outstanding data issues are implemented and regression-tested.
 - Conflict and travel detection use local midnight-to-midnight overlap instead of timestamp prefixes. Overnight events remain visible on the next day; conflict minutes are clipped to that day. Exclusive midnight ends and DST day lengths are respected. All-day events remain excluded from timed conflict reports.
 - Core workspace and tracker persistence paths report quota/access failures through a persistent PWA alert while rethrowing the original error. The warning does not infer localStorage capacity from the origin-wide storage estimate or recommend deleting user records. It does not replace backup/sync verification.
 - Isolated regression checks cover false-positive/positive email examples, classification precedence, IST/Los Angeles offsets, overnight travel, midnight edges, invalid dates, all-day travel, a 23-hour DST day, and failure notifications with original errors preserved. Full regression suite, TypeScript and Webpack production build pass. No provider or account records were written for these checks.
+
+
+## Selected security and data-preservation fixes — 21 November 2026
+
+- Future year journal and Summary tabs are discovered from the existing link-readable Sheets HTML tab list without requesting broader OAuth permissions. Existing journal schemas and row IDs remain; missing discovered sources retain previous successful data as stale. Year tabs, summary cards and primary expense aliases are dynamic.
+- Manual expenses/readings now use the existing account tracker queue and revision guards, stored separately from sheet imports. JSON export/import and whole-workspace snapshots include the optional record collection. The read-only spreadsheet sync endpoint rejects its former temporary POST save path. Existing spreadsheet rows, pivots and saved workspace fields are not rewritten.
+- Calendar and timeline filter complete event intervals against local day boundaries before conflict checks; overnight and UTC-offset events remain visible. Personal project vocabulary and calendar colour rules are unchanged.
+- Email terms use whole-word matches; ambiguous application text needs recruitment/admission context. Overview token profiles/totals derive from loaded records.
+- Weather no longer falls back to Bengaluru or an automatic IP lookup after denied location access. Old unmarked weather caches are ignored, not deleted. User-content storage hooks report persistence failures. Outlook saves require provider confirmation and no longer silently fall back in production. Existing Time Audit preferences adopt legacy values only for their recorded owner; original legacy copies remain.
+- Tests mock Sheets discovery/GViz, tracker API writes, Outlook provider failures, browser storage and account isolation; no actual provider/account records are written. Browser inspection verified tracker forms and dynamic Overview totals without submission. Physical device and new-year real-sheet checks remain separate.
+
+- Journal summaries render only in Expense & Budget; other tracker tabs retain their own content without the journal-summary section.
+
+
+## Explicitly combined Time Audit keyword lists — 22 November 2026
+
+- Combined both owner-supplied category lists: Sleep 3, Typing/Journaling 3, Social Media 15, Study/Work 27, Entertainment 7, Daily Routine 24, Travel/Outings 15, Games/Gaming 18, Other 0.
+- Retains cross-category keywords such as gaming terms in both Social Media and Games/Gaming. Existing saved custom categories, colours, ordering and additional keywords remain. Duplicate terms are only suppressed when appending an already-present keyword within the same category.
+- A one-time merge saves the original stored bytes to a separate backup before updating the account-scoped list; unowned/legacy copies are not removed. Subsequent explicit edits remain authoritative. Failed writes leave existing stored data intact and use the existing storage warning.
+- Isolated regressions verify the complete combined keyword set, counts, custom data retention, original backup bytes, repeat-load idempotency and failed-write preservation. The combination takes effect when the updated app loads Time Audit in the relevant browser.
+
+## Account-synced Time Audit rules — 22 November 2026
+
+- Categories and keywords use the existing validated, account-scoped workspace preferences and revision-checked sync queue. Local combined rules seed accounts without saved rules; saved account rules win on other devices. Local originals and unrelated preferences remain intact.
+- Save Rules reports saving, pending, synced or conflict status. Offline edits queue normally. Refresh preserves an open editor draft, and saving is blocked if newer saved rules arrived while editing.
+- Mock database regression checks save/read across devices, malformed rule rejection, cross-category keyword preservation, unrelated preferences and stale revision protection. No live account records are written by verification.
+- Review also escapes short keyword punctuation before matching, so literal terms such as `C++` or `[` cannot break categorization or act as regular expressions; isolated regressions cover these inputs.

@@ -1,3 +1,4 @@
+import { primaryJournalKey } from "@/lib/journalCatalog";
 import type { TrackersData } from "@/types/trackers";
 
 function newerThan(previous: string, incoming: string) {
@@ -32,6 +33,10 @@ export function mergeTrackerSync(previous: TrackersData | undefined, next: Track
     }
     return [key, journal];
   }));
+  // Discovery/network failures must not drop previously synced future journals.
+  for (const [key, old] of Object.entries(previous.journals)) {
+    if (!journals[key]) journals[key] = { ...old, journalSync: "stale", summarySync: "stale" };
+  }
   const oldBudgetTime = previous.budgetUpdatedAt || previous.lastSyncedAt;
   const budget = previous.budgetSync !== "unavailable" && (next.budgetSync === "unavailable" ||
     newerThan(oldBudgetTime, next.budgetUpdatedAt || next.lastSyncedAt))
@@ -40,5 +45,5 @@ export function mergeTrackerSync(previous: TrackersData | undefined, next: Track
       budgetSync: next.budgetSync === "unavailable" || next.budgetSync === "stale" ? "stale" as const : previous.budgetSync || "fresh" as const,
       budgetUpdatedAt: oldBudgetTime,
     } : {};
-  return { ...next, ...budget, journals, expenses: journals["2026"]?.expenses || next.expenses };
+  return { ...next, ...budget, journals, expenses: journals[primaryJournalKey(journals)]?.expenses || next.expenses };
 }

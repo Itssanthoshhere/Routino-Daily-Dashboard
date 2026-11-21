@@ -1,4 +1,7 @@
 "use client";
+import { useContext, useRef } from "react";
+import { validTimeAuditCategories } from "@/lib/timeAuditPreferences";
+import { AccountStorageContext } from "@/components/AccountStorage";
 
 import { useState, useMemo, useEffect } from "react";
 import {
@@ -42,6 +45,11 @@ import {
 } from "@/lib/timeAudit";
 
 type TimeAuditViewProps = {
+  savedCategories?: TimeAuditCategory[];
+  categoriesReady?: boolean;
+  categorySyncReady?: boolean;
+  categorySaveStatus?: string;
+  onSaveCategories?: (categories: TimeAuditCategory[]) => Promise<void>;
   events: DashboardEvent[];
   isConnected: boolean;
 };
@@ -55,7 +63,8 @@ type DateFilterPreset =
   | "thisMonth"
   | "all";
 
-export function TimeAuditView({ events, isConnected }: TimeAuditViewProps) {
+export function TimeAuditView({ events, isConnected, savedCategories, categoriesReady = true, categorySyncReady = false, categorySaveStatus = "local", onSaveCategories }: TimeAuditViewProps) {
+  const account = useContext(AccountStorageContext);
   // Category Rules state
   const [categories, setCategories] = useState<TimeAuditCategory[]>(
     DEFAULT_TIME_AUDIT_CATEGORIES
@@ -77,20 +86,42 @@ export function TimeAuditView({ events, isConnected }: TimeAuditViewProps) {
   const [editingCategories, setEditingCategories] = useState<TimeAuditCategory[]>([]);
   const [newKeywordInput, setNewKeywordInput] = useState<{ [catId: string]: string }>({});
 
-  // Load saved categories on mount
+  const [categoryError, setCategoryError] = useState("");
+  const [savingCategories, setSavingCategories] = useState(false);
+  const migratedAccount = useRef<string | null>(null);
+  const editorBase = useRef("");
+  const saveCallback = useRef(onSaveCategories);
+  saveCallback.current = onSaveCategories;
+  // Account data wins once loaded. Keep an open editor's unsaved draft intact.
   useEffect(() => {
-    const saved = loadSavedCategories();
+    if (!categoriesReady) return;
+    const saved = savedCategories && validTimeAuditCategories(savedCategories) ? savedCategories : loadSavedCategories(account);
     setCategories(saved);
-    setEditingCategories(saved);
+    if (!showConfigModal) setEditingCategories(saved);
     setIsCategoriesLoaded(true);
-  }, []);
+    if (savedCategories) saveCategories(saved, account);
+    if (!savedCategories && categorySyncReady && account && migratedAccount.current !== account && saveCallback.current) {
+      migratedAccount.current = account;
+      void saveCallback.current(saved).catch(() => { setCategoryError("Your local rules are preserved. Could not queue account sync; use Save Rules to retry."); });
+    }
+  }, [account, categoriesReady, categorySyncReady, savedCategories, showConfigModal]);
 
-  // Save categories when updated
-  const handleSaveCategories = (newCats: TimeAuditCategory[]) => {
-    setCategories(newCats);
-    setEditingCategories(newCats);
-    saveCategories(newCats);
-    setShowConfigModal(false);
+  const handleSaveCategories = async (newCats: TimeAuditCategory[]) => {
+    if (!categoriesReady || savingCategories) return;
+    if (showConfigModal && editorBase.current !== JSON.stringify(savedCategories ?? categories)) {
+      setCategoryError("Rules changed while this editor was open. Your draft is still here. Copy any changes you need, then close and reopen Customize Rules to load the latest saved rules.");
+      return;
+    }
+    if (!validTimeAuditCategories(newCats)) { setCategoryError("Check category names, colours and keywords. Existing rules are unchanged."); return; }
+    setSavingCategories(true); setCategoryError("");
+    try {
+      // Keep the existing browser copy as well as the normal account sync queue.
+      saveCategories(newCats, account);
+      if (onSaveCategories) await onSaveCategories(newCats);
+      setCategories(newCats); setEditingCategories(newCats); setShowConfigModal(false);
+    } catch {
+      setCategoryError("Rules are kept locally, but account sync could not be queued. Keep this page open and retry Save Rules.");
+    } finally { setSavingCategories(false); }
   };
 
   const handleResetCategories = () => {
@@ -317,6 +348,9 @@ export function TimeAuditView({ events, isConnected }: TimeAuditViewProps) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
+      <p role="status" className="text-xs text-muted">Category settings: {savingCategories || categorySaveStatus === "saving" ? "Saving to your account…" : categorySaveStatus === "conflict" ? "Sync conflict — local rules preserved; review Sync Center." : categorySaveStatus === "pending" ? "Saved locally — account sync pending. Check Sync Center." : savedCategories && categorySaveStatus === "synced" ? "Synced with your account across devices." : "Saved on this device."}</p>
+      {categoryError && <p role="alert" className="text-sm text-red-700">{categoryError}</p>}
+
       {/* ─── Header & Top Actions ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-line pb-5">
         <div>
@@ -365,6 +399,8 @@ export function TimeAuditView({ events, isConnected }: TimeAuditViewProps) {
             type="button"
             onClick={() => {
               setEditingCategories(categories);
+              editorBase.current = JSON.stringify(categories);
+              setCategoryError("");
               setShowConfigModal(true);
             }}
             className="flex items-center gap-1.5 rounded-xl bg-forest px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer"
@@ -971,6 +1007,7 @@ export function TimeAuditView({ events, isConnected }: TimeAuditViewProps) {
 
             {/* Modal Body: List of categories with editable keywords */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 sidebar-scroll">
+              {categoryError && <p role="alert" className="text-sm text-red-700">{categoryError}</p>}
               {editingCategories.map((cat, idx) => (
                 <div
                   key={cat.id}
@@ -1099,10 +1136,11 @@ export function TimeAuditView({ events, isConnected }: TimeAuditViewProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSaveCategories(editingCategories)}
+                  disabled={!categoriesReady || savingCategories}
+                  onClick={() => void handleSaveCategories(editingCategories)}
                   className="rounded-xl bg-forest px-4 py-1.5 text-[11px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer"
                 >
-                  Save Rules
+                  {savingCategories ? "Saving…" : "Save Rules"}
                 </button>
               </div>
             </div>
