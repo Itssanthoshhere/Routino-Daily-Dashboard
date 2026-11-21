@@ -1,6 +1,6 @@
 "use client";
 import { useContext, useRef } from "react";
-import { validTimeAuditCategories } from "@/lib/timeAuditPreferences";
+import { appendTimeAuditKeywords, validTimeAuditCategories } from "@/lib/timeAuditPreferences";
 import { AccountStorageContext } from "@/components/AccountStorage";
 
 import { useState, useMemo, useEffect } from "react";
@@ -109,18 +109,21 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
     }
   }, [account, categoriesReady, categorySyncReady, savedCategories, showConfigModal]);
 
-  const handleSaveCategories = async (newCats: TimeAuditCategory[]) => {
+  const handleSaveCategories = async (newCats: TimeAuditCategory[], includePending = true) => {
     if (!categoriesReady || savingCategories) return;
     if (showConfigModal && editorBase.current !== JSON.stringify(savedCategories ?? categories)) {
       setCategoryError("Rules changed while this editor was open. Your draft is still here. Copy any changes you need, then close and reopen Customize Rules to load the latest saved rules.");
       return;
     }
+    try { if (includePending) newCats = appendTimeAuditKeywords(newCats, newKeywordInput); }
+    catch (error) { setCategoryError(error instanceof Error ? error.message : "Could not add keyword."); return; }
     if (!validTimeAuditCategories(newCats)) { setCategoryError("Check category names, colours and keywords. Existing rules are unchanged."); return; }
     setSavingCategories(true); setCategoryError("");
     try {
       // Keep the existing browser copy as well as the normal account sync queue.
       saveCategories(newCats, account);
       if (onSaveCategories) await onSaveCategories(newCats);
+      setNewKeywordInput({});
       setCategories(newCats); setEditingCategories(newCats); setShowConfigModal(false);
     } catch {
       setCategoryError("Rules are kept locally, but account sync could not be queued. Keep this page open and retry Save Rules.");
@@ -129,8 +132,16 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
 
   const handleResetCategories = () => {
     if (window.confirm("Reset all categories and keywords to initial defaults?")) {
-      handleSaveCategories(DEFAULT_TIME_AUDIT_CATEGORIES);
+      void handleSaveCategories(DEFAULT_TIME_AUDIT_CATEGORIES, false);
     }
+  };
+
+  const handleAddKeyword = (id: string) => {
+    try {
+      setEditingCategories(appendTimeAuditKeywords(editingCategories, { [id]: newKeywordInput[id] || "" }));
+      setNewKeywordInput(previous => ({ ...previous, [id]: "" }));
+      setCategoryError("");
+    } catch (error) { setCategoryError(error instanceof Error ? error.message : "Could not add keyword."); }
   };
 
   // Date Range Bounds computation
@@ -405,6 +416,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
               editorBase.current = JSON.stringify(categories);
               setCategoryError("");
               setPreviewTitle("");
+              setNewKeywordInput({});
               setShowConfigModal(true);
             }}
             className="flex items-center gap-1.5 rounded-xl bg-forest px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer"
@@ -1012,6 +1024,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
             {/* Modal Body: List of categories with editable keywords */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 sidebar-scroll">
               {categoryError && <p role="alert" className="text-sm text-red-700">{categoryError}</p>}
+              <p className="text-xs text-muted">Type a keyword and click + or press Enter. Save Rules also includes any keywords still typed in the fields.</p>
               <section className="rounded-2xl border border-line bg-[#f5f7f1] p-4 space-y-2" aria-labelledby="keyword-preview-title">
                 <h4 id="keyword-preview-title" className="text-sm font-semibold text-ink">Test an event title</h4>
                 <label htmlFor="keyword-preview-input" className="block text-xs text-muted">Preview your current draft rules before saving.</label>
@@ -1027,7 +1040,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
                   className="rounded-2xl border border-line bg-[#fcfdfa] p-4 space-y-2.5"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
                       <input
                         type="color"
                         value={cat.color}
@@ -1047,7 +1060,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
                           next[idx] = { ...cat, name: e.target.value };
                           setEditingCategories(next);
                         }}
-                        className="font-bold text-[13px] text-ink bg-transparent outline-none border-b border-transparent hover:border-black/20 focus:border-forest"
+                        className="min-w-0 w-full font-bold text-[13px] text-ink bg-transparent outline-none border-b border-transparent hover:border-black/20 focus:border-forest"
                       />
                     </div>
                     <span className="text-[10px] font-semibold text-muted">
@@ -1085,6 +1098,8 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
                       <input
                         type="text"
                         placeholder="+ Add keyword..."
+                        aria-label={`New keyword for ${cat.name}`}
+                        maxLength={200}
                         value={newKeywordInput[cat.id] || ""}
                         onChange={(e) =>
                           setNewKeywordInput((prev) => ({
@@ -1093,31 +1108,19 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
                           }))
                         }
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+                          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                             e.preventDefault();
-                            const val = (newKeywordInput[cat.id] || "").trim().toLowerCase();
-                            if (val && !cat.keys.includes(val)) {
-                              const next = [...editingCategories];
-                              next[idx] = { ...cat, keys: [...cat.keys, val] };
-                              setEditingCategories(next);
-                              setNewKeywordInput((prev) => ({ ...prev, [cat.id]: "" }));
-                            }
+                            handleAddKeyword(cat.id);
                           }
                         }}
                         className="rounded-lg border border-line bg-white px-2 py-0.5 text-[10.5px] font-mono text-ink outline-none focus:border-forest w-28"
                       />
                       <button
                         type="button"
-                        onClick={() => {
-                          const val = (newKeywordInput[cat.id] || "").trim().toLowerCase();
-                          if (val && !cat.keys.includes(val)) {
-                            const next = [...editingCategories];
-                            next[idx] = { ...cat, keys: [...cat.keys, val] };
-                            setEditingCategories(next);
-                            setNewKeywordInput((prev) => ({ ...prev, [cat.id]: "" }));
-                          }
-                        }}
-                        className="rounded-lg bg-black/5 hover:bg-black/10 p-1 text-ink cursor-pointer"
+                        onClick={() => handleAddKeyword(cat.id)}
+                        disabled={!(newKeywordInput[cat.id] || "").trim()}
+                        className="rounded-lg bg-black/5 hover:bg-black/10 p-1 text-ink cursor-pointer disabled:opacity-40"
+                        aria-label={`Add keyword to ${cat.name}`}
                         title="Add keyword"
                       >
                         <Plus size={11} />

@@ -18,16 +18,24 @@ function load(file) {
   return m.exports;
 }
 async function main() {
-  const { validTimeAuditCategories } = load('lib/timeAuditPreferences.ts');
+  const { appendTimeAuditKeywords, validTimeAuditCategories } = load('lib/timeAuditPreferences.ts');
   const { validWorkspacePreference } = load('lib/workspacePreferences.ts');
   const { collectionDiff } = load('lib/collectionChanges.ts');
   const api = load('app/api/user-data/route.ts');
   const categories = [{ id: 'social', name: 'Social Media', color: '#123456', keys: ['gaming', 'reels'] }, { id: 'games', name: 'Games / Gaming', color: '#abc', keys: ['gaming'] }];
   assert(validTimeAuditCategories(categories));
+  const unchanged = JSON.stringify(categories);
+  const typed = appendTimeAuditKeywords(categories, {social:'  NEW KEYWORD  ',games:'C++'});
+  assert.deepEqual(typed[0].keys, ['gaming','reels','new keyword']);
+  assert.deepEqual(typed[1].keys, ['gaming','c++']);
+  assert.equal(JSON.stringify(categories), unchanged);
+  assert.deepEqual(appendTimeAuditKeywords(typed, {social:'NEW KEYWORD',games:'   '}), typed);
+  assert.throws(()=>appendTimeAuditKeywords(categories,{social:'x'.repeat(201)}),/200/);
+  assert.throws(()=>appendTimeAuditKeywords([{...categories[0],keys:Array(500).fill('existing')}],{social:'new'}),/500/);
   assert(validWorkspacePreference({ id: 'time-audit', categories }));
   for (const bad of [[], [...categories, categories[0]], [{ ...categories[0], color: 'red' }], [{ ...categories[0], keys: [''] }], [{ ...categories[0], keys: Array(501).fill('x') }]]) assert(!validTimeAuditCategories(bad));
   const post = (revision, preferences, before = []) => api.POST({ json: async () => ({ expectedAccount: 'owner@example.test', expectedCoreRevision: revision, workspacePreferences: preferences, collectionChanges: { workspacePreferences: collectionDiff(before, preferences) } }) });
-  const pref = { id: 'time-audit', categories };
+  const pref = { id: 'time-audit', categories: typed };
   assert.equal((await post(0, [pref])).status, 200);
   assert.equal(stored.workspacePreferences.find(row => row.id === 'display').textSize, 'large');
   const deviceB = await api.GET();

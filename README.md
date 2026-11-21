@@ -102,6 +102,8 @@ The public introduction is at `/`; the workspace is at `/dashboard`. Routino is 
 
 **Keyword preview:** In **Time Audit → Customize Rules**, enter an event title under **Test an event title** to see its category and matching keyword using your current draft rules. The first matching category wins. Testing does not create events or save edits.
 
+To add a keyword, type it and click the compact **+** button or press Enter. **Save Rules** also includes text still in the keyword fields, so an unfinished entry is not silently discarded. Duplicate keywords within a category are ignored regardless of case. **Cancel** discards unsaved keyword changes.
+
 Weather uses browser location permission and Open-Meteo. If location is denied or unavailable, it shows **Weather unavailable**; it does not silently choose a city or perform an IP-location lookup.
 
 The responsive interface includes desktop/mobile navigation, accessible dialogs, print layouts, and consistent crimson hover and keyboard-focus states. Preview records are fictional.
