@@ -1,6 +1,15 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
 const cache={};function load(file){if(cache[file])return cache[file].exports;const module={exports:{}};cache[file]=module;new Function('require','module','exports',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(name=>name.startsWith('@/')?load(name.slice(2)+'.ts'):require(name),module,module.exports);return module.exports;}
 const audit=load('lib/timeAudit.ts'),{DEFAULT_TIME_AUDIT_CATEGORIES:required,combineTimeAuditCategories:combine}=audit;
+const snapshot=JSON.stringify(required);
+for(const [title,category,keyword] of [['Building Routino','study_work','routino'],['BGMI with friends','social','bgmi'],['An unmatched activity','other',null]]) {
+  const preview=audit.previewCategoryMatch(title,required);
+  assert.equal(preview.category.id,category);assert.equal(preview.keyword,keyword);
+  assert.equal(audit.categorizeEventTitle(title,required).id,category);
+}
+const draft=required.map(c=>({...c,keys:c.id==='other'?c.keys:['custom activity',...c.keys]}));
+assert.equal(audit.previewCategoryMatch('Custom activity',draft).category.id,'sleep');
+assert.equal(JSON.stringify(required),snapshot,'Previews never mutate rules');
 assert.deepEqual(required.map(c=>[c.name,c.keys.length]),[['Sleep',3],['Typing / Journaling',3],['Social Media',15],['Study / Work',27],['Entertainment',7],['Daily Routine',24],['Travel / Outings',15],['Games / Gaming',18],['Other',0]]);
 const local=required.map(c=>({...c,keys:c.keys.filter(k=>!['routino','building','candy crush'].includes(k))}));local[0].keys.push('my custom sleep');local[0].color='#123456';local.splice(2,0,{id:'custom',name:'Custom',color:'#fff',keys:['keep me']});
 const before=JSON.stringify(local),merged=combine(local);assert.equal(JSON.stringify(local),before);assert.deepEqual(merged.map(c=>c.id),local.map(c=>c.id));assert.equal(merged[0].color,'#123456');assert(merged[0].keys.includes('my custom sleep'));assert.deepEqual(merged.find(c=>c.id==='custom').keys,['keep me']);

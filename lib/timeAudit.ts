@@ -238,17 +238,17 @@ export function saveCategories(categories: TimeAuditCategory[], account: string 
   }
 }
 
-export function categorizeEventTitle(
+export function previewCategoryMatch(
   title: string,
   categories: TimeAuditCategory[]
-): TimeAuditCategory {
+): { category: TimeAuditCategory; keyword: string | null } {
   const t = (title || "").toLowerCase();
   for (const cat of categories) {
     if (cat.id === "other" || cat.name === "Other") continue;
-    if (
-      cat.keys.some((k) => {
+    const keyword = cat.keys.find((k) => {
         if (!k) return false;
         const lk = k.toLowerCase().trim();
+        if (!lk) return false;
         // If keyword is 3 chars or fewer (e.g. 'coc', 'sle', 'cod', 'gta', 'bus'), match with word boundary
         if (lk.length <= 3) {
           const literal = lk.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -256,15 +256,13 @@ export function categorizeEventTitle(
           return regex.test(t);
         }
         return t.includes(lk);
-      })
-    ) {
-      return cat;
-    }
+      });
+    if (keyword !== undefined) return { category: cat, keyword };
   }
   const otherCat = categories.find(
     (c) => c.id === "other" || c.name.toLowerCase() === "other"
   );
-  return (
+  return { keyword: null, category: (
     otherCat ||
     categories[categories.length - 1] || {
       id: "other",
@@ -272,7 +270,11 @@ export function categorizeEventTitle(
       color: "#D4537E",
       keys: [],
     }
-  );
+  ) };
+}
+
+export function categorizeEventTitle(title: string, categories: TimeAuditCategory[]): TimeAuditCategory {
+  return previewCategoryMatch(title, categories).category;
 }
 
 export function isHolidayOrBirthday(

@@ -37,6 +37,7 @@ import {
   DEFAULT_TIME_AUDIT_CATEGORIES,
   loadSavedCategories,
   saveCategories,
+  previewCategoryMatch,
   processEventForAudit,
   formatMinutes,
   formatHoursDecimal,
@@ -84,6 +85,8 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
 
   // Category editing state in modal
   const [editingCategories, setEditingCategories] = useState<TimeAuditCategory[]>([]);
+  const [previewTitle, setPreviewTitle] = useState("");
+  const previewMatch = useMemo(() => previewTitle.trim() ? previewCategoryMatch(previewTitle, editingCategories) : null, [previewTitle, editingCategories]);
   const [newKeywordInput, setNewKeywordInput] = useState<{ [catId: string]: string }>({});
 
   const [categoryError, setCategoryError] = useState("");
@@ -401,6 +404,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
               setEditingCategories(categories);
               editorBase.current = JSON.stringify(categories);
               setCategoryError("");
+              setPreviewTitle("");
               setShowConfigModal(true);
             }}
             className="flex items-center gap-1.5 rounded-xl bg-forest px-3.5 py-1.5 text-[11px] font-semibold text-white shadow-xs hover:bg-[#8b1116] transition cursor-pointer"
@@ -1008,6 +1012,15 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
             {/* Modal Body: List of categories with editable keywords */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 sidebar-scroll">
               {categoryError && <p role="alert" className="text-sm text-red-700">{categoryError}</p>}
+              <section className="rounded-2xl border border-line bg-[#f5f7f1] p-4 space-y-2" aria-labelledby="keyword-preview-title">
+                <h4 id="keyword-preview-title" className="text-sm font-semibold text-ink">Test an event title</h4>
+                <label htmlFor="keyword-preview-input" className="block text-xs text-muted">Preview your current draft rules before saving.</label>
+                <input id="keyword-preview-input" type="text" value={previewTitle} onChange={event => setPreviewTitle(event.target.value)} maxLength={300} placeholder="e.g. Building Routino" className="w-full min-w-0 rounded-xl border border-line bg-white px-3 py-2 text-base text-ink focus:border-forest focus:outline-none" />
+                <div role="status" aria-live="polite" className="break-words text-xs leading-relaxed text-ink">
+                  {previewMatch ? <><p>Category: <strong>{previewMatch.category.name}</strong></p><p>{previewMatch.keyword ? <>Matched keyword: <strong>{previewMatch.keyword}</strong>. The first matching category in your list wins.</> : "No keyword matched; using the fallback category."}</p></> : <p className="text-muted">Enter a title to see its category and matching keyword.</p>}
+                </div>
+                <p className="text-xs text-muted">Preview only. This does not create an event or save changes.</p>
+              </section>
               {editingCategories.map((cat, idx) => (
                 <div
                   key={cat.id}

@@ -100,6 +100,8 @@ The public introduction is at `/`; the workspace is at `/dashboard`. Routino is 
 
 **Time Audit rules:** Customize Categories & Keywords → **Save Rules** saves categories, colours and keywords to your signed-in account. Other devices using the same account load them through normal workspace refresh. Offline changes stay in the local sync queue until reconnection; check the category sync status or Sync Center. Existing local rules are adopted when the account has no saved rules, with the original local copy retained. An open editor preserves its draft and asks you to reopen if newer rules arrive before saving. These settings apply to the dashboard; Apps Script rules remain separately configured.
 
+**Keyword preview:** In **Time Audit → Customize Rules**, enter an event title under **Test an event title** to see its category and matching keyword using your current draft rules. The first matching category wins. Testing does not create events or save edits.
+
 Weather uses browser location permission and Open-Meteo. If location is denied or unavailable, it shows **Weather unavailable**; it does not silently choose a city or perform an IP-location lookup.
 
 The responsive interface includes desktop/mobile navigation, accessible dialogs, print layouts, and consistent crimson hover and keyboard-focus states. Preview records are fictional.
