@@ -1,6 +1,6 @@
 "use client";
 import { useContext, useRef } from "react";
-import { appendTimeAuditKeywords, validTimeAuditCategories } from "@/lib/timeAuditPreferences";
+import { appendTimeAuditKeywords, timeAuditKeywordOverlaps, validTimeAuditCategories } from "@/lib/timeAuditPreferences";
 import { AccountStorageContext } from "@/components/AccountStorage";
 
 import { useState, useMemo, useEffect } from "react";
@@ -47,10 +47,11 @@ import {
 
 type TimeAuditViewProps = {
   savedCategories?: TimeAuditCategory[];
+  previousCategories?: TimeAuditCategory[];
   categoriesReady?: boolean;
   categorySyncReady?: boolean;
   categorySaveStatus?: string;
-  onSaveCategories?: (categories: TimeAuditCategory[]) => Promise<void>;
+  onSaveCategories?: (categories: TimeAuditCategory[], undo?: boolean) => Promise<void>;
   events: DashboardEvent[];
   isConnected: boolean;
 };
@@ -64,7 +65,7 @@ type DateFilterPreset =
   | "thisMonth"
   | "all";
 
-export function TimeAuditView({ events, isConnected, savedCategories, categoriesReady = true, categorySyncReady = false, categorySaveStatus = "local", onSaveCategories }: TimeAuditViewProps) {
+export function TimeAuditView({ events, isConnected, savedCategories, previousCategories, categoriesReady = true, categorySyncReady = false, categorySaveStatus = "local", onSaveCategories }: TimeAuditViewProps) {
   const account = useContext(AccountStorageContext);
   // Category Rules state
   const [categories, setCategories] = useState<TimeAuditCategory[]>(
@@ -85,6 +86,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
 
   // Category editing state in modal
   const [editingCategories, setEditingCategories] = useState<TimeAuditCategory[]>([]);
+  const keywordOverlaps = useMemo(() => timeAuditKeywordOverlaps(editingCategories), [editingCategories]);
   const [previewTitle, setPreviewTitle] = useState("");
   const previewMatch = useMemo(() => previewTitle.trim() ? previewCategoryMatch(previewTitle, editingCategories) : null, [previewTitle, editingCategories]);
   const [newKeywordInput, setNewKeywordInput] = useState<{ [catId: string]: string }>({});
@@ -109,7 +111,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
     }
   }, [account, categoriesReady, categorySyncReady, savedCategories, showConfigModal]);
 
-  const handleSaveCategories = async (newCats: TimeAuditCategory[], includePending = true) => {
+  const handleSaveCategories = async (newCats: TimeAuditCategory[], includePending = true, undo = false) => {
     if (!categoriesReady || savingCategories) return;
     if (showConfigModal && editorBase.current !== JSON.stringify(savedCategories ?? categories)) {
       setCategoryError("Rules changed while this editor was open. Your draft is still here. Copy any changes you need, then close and reopen Customize Rules to load the latest saved rules.");
@@ -122,7 +124,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
     try {
       // Keep the existing browser copy as well as the normal account sync queue.
       saveCategories(newCats, account);
-      if (onSaveCategories) await onSaveCategories(newCats);
+      if (onSaveCategories) await onSaveCategories(newCats, undo);
       setNewKeywordInput({});
       setCategories(newCats); setEditingCategories(newCats); setShowConfigModal(false);
     } catch {
@@ -363,6 +365,7 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       <p role="status" className="text-xs text-muted">Category settings: {savingCategories || categorySaveStatus === "saving" ? "Saving to your account…" : categorySaveStatus === "conflict" ? "Sync conflict — local rules preserved; review Sync Center." : categorySaveStatus === "pending" ? "Saved locally — account sync pending. Check Sync Center." : savedCategories && categorySaveStatus === "synced" ? "Synced with your account across devices." : "Saved on this device."}</p>
+      {previousCategories && <button type="button" disabled={!categoriesReady || savingCategories || showConfigModal || categorySaveStatus === "conflict"} onClick={() => void handleSaveCategories(previousCategories, false, true)} className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-forest disabled:opacity-40">Undo last rule save</button>}
       {categoryError && <p role="alert" className="text-sm text-red-700">{categoryError}</p>}
 
       {/* ─── Header & Top Actions ─── */}
@@ -1034,6 +1037,11 @@ export function TimeAuditView({ events, isConnected, savedCategories, categories
                 </div>
                 <p className="text-xs text-muted">Preview only. This does not create an event or save changes.</p>
               </section>
+              <details className="rounded-2xl border border-line p-4 text-xs">
+                <summary className="cursor-pointer font-semibold text-ink">Shared keywords · {keywordOverlaps.length}</summary>
+                <p className="mt-2 text-muted">These keywords appear in more than one category. The first matching category in your list wins; other words in an event title can also affect its match. Your lists stay unchanged.</p>
+                {keywordOverlaps.length ? <ul className="mt-3 space-y-2 break-words">{keywordOverlaps.map(({keyword, categories: matches}) => <li key={keyword}><strong>{keyword}</strong>: {matches.map(category => category.name).join(" → ")} (priority order)</li>)}</ul> : <p className="mt-2 text-muted">No shared keywords in these draft rules.</p>}
+              </details>
               {editingCategories.map((cat, idx) => (
                 <div
                   key={cat.id}

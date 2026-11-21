@@ -1,5 +1,5 @@
 "use client";
-import { validTimeAuditCategories, type TimeAuditPreference } from "@/lib/timeAuditPreferences";
+import { nextTimeAuditPreference, validTimeAuditCategories, type TimeAuditPreference } from "@/lib/timeAuditPreferences";
 import { withManualTrackers, isManualTrackerRecords, type ManualTrackerRecords } from "@/lib/manualTrackers";
 import { writeBrowserStorage } from "@/lib/accountStorage";
 import { useWorkspaceResume } from "@/hooks/useWorkspaceResume";
@@ -2349,9 +2349,11 @@ export default function Home() {
               categoriesReady={hydrated && (workspaceSyncReady || liveData?.connected === false || (typeof navigator !== "undefined" && !navigator.onLine))}
               categorySyncReady={workspaceSyncReady && !!verifiedWorkspaceAccount}
               categorySaveStatus={coreConflict ? "conflict" : workspaceSaveError ? "pending" : isSyncing ? "saving" : workspaceSyncReady ? "synced" : "local"}
-              onSaveCategories={async categories => {
+              previousCategories={workspacePreferences.find((record): record is TimeAuditPreference => record.id === "time-audit")?.previousCategories}
+              onSaveCategories={async (categories, undo) => {
                 if (!validTimeAuditCategories(categories)) throw new Error("Invalid category settings. Existing rules are unchanged.");
-                const records: WorkspacePreference[] = [...workspacePreferences.filter(record => record.id !== "time-audit"), { id: "time-audit", categories }];
+                const current = workspacePreferences.find((record): record is TimeAuditPreference => record.id === "time-audit");
+                const records: WorkspacePreference[] = [...workspacePreferences.filter(record => record.id !== "time-audit"), nextTimeAuditPreference(current, categories, undo)];
                 browserStore.setItem("routino_workspace_preferences", JSON.stringify(records));
                 setWorkspacePreferences(records);
                 await syncToDatabase({ workspacePreferences: records });

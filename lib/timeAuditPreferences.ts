@@ -1,5 +1,28 @@
 import type { TimeAuditCategory } from "@/types/dashboard";
-export type TimeAuditPreference = { id: "time-audit"; categories: TimeAuditCategory[] };
+export type TimeAuditPreference = { id: "time-audit"; categories: TimeAuditCategory[]; previousCategories?: TimeAuditCategory[] };
+export function timeAuditKeywordOverlaps(categories: TimeAuditCategory[]) {
+  const matches = new Map<string, TimeAuditCategory[]>();
+  for (const category of categories) {
+    if (category.id === "other" || category.name === "Other") continue;
+    for (const keyword of Array.from(new Set(category.keys.map(key => key.trim().toLowerCase()).filter(Boolean)))) {
+      matches.set(keyword, [...(matches.get(keyword) || []), category]);
+    }
+  }
+  return Array.from(matches, ([keyword, categories]) => ({ keyword, categories })).filter(match => match.categories.length > 1);
+}
+/** Keep one account-synced undo snapshot; undo consumes it rather than toggling. */
+export function nextTimeAuditPreference(current: TimeAuditPreference | undefined, categories: TimeAuditCategory[], undo = false): TimeAuditPreference {
+  if (!validTimeAuditCategories(categories)) throw new Error("Invalid category settings.");
+  if (undo) {
+    if (!current?.previousCategories || JSON.stringify(current.previousCategories) !== JSON.stringify(categories)) throw new Error("Saved rules changed. Refresh before undoing.");
+    return { id: "time-audit", categories: structuredClone(categories) };
+  }
+  if (current && JSON.stringify(current.categories) === JSON.stringify(categories)) return current;
+  return { id: "time-audit", categories: structuredClone(categories), ...(current ? { previousCategories: structuredClone(current.categories) } : {}) };
+}
+export function validTimeAuditPreference(value: Record<string, unknown>): boolean {
+  return validTimeAuditCategories(value.categories) && (value.previousCategories === undefined || validTimeAuditCategories(value.previousCategories));
+}
 /** Include unfinished keyword fields when saving, without altering source rules. */
 export function appendTimeAuditKeywords(categories: TimeAuditCategory[], pending: Record<string, string>): TimeAuditCategory[] {
   return categories.map(category => {

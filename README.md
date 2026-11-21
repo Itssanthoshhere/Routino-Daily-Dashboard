@@ -104,6 +104,8 @@ The public introduction is at `/`; the workspace is at `/dashboard`. Routino is 
 
 To add a keyword, type it and click the compact **+** button or press Enter. **Save Rules** also includes text still in the keyword fields, so an unfinished entry is not silently discarded. Duplicate keywords within a category are ignored regardless of case. **Cancel** discards unsaved keyword changes.
 
+**Shared keywords** in Customize Rules lists exact keywords used in multiple categories, in priority order, using your draft rules. It preserves intentional duplicates. **Undo last rule save** in Time Audit restores the previous saved category list, colours and keywords through account sync. One previous version is retained; unchanged saves keep it, and Undo consumes it. Undo is unavailable during a sync conflict until that conflict is resolved.
+
 Weather uses browser location permission and Open-Meteo. If location is denied or unavailable, it shows **Weather unavailable**; it does not silently choose a city or perform an IP-location lookup.
 
 The responsive interface includes desktop/mobile navigation, accessible dialogs, print layouts, and consistent crimson hover and keyboard-focus states. Preview records are fictional.

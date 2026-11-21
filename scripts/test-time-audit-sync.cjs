@@ -18,12 +18,16 @@ function load(file) {
   return m.exports;
 }
 async function main() {
-  const { appendTimeAuditKeywords, validTimeAuditCategories } = load('lib/timeAuditPreferences.ts');
+  const { appendTimeAuditKeywords, validTimeAuditCategories, nextTimeAuditPreference, timeAuditKeywordOverlaps } = load('lib/timeAuditPreferences.ts');
   const { validWorkspacePreference } = load('lib/workspacePreferences.ts');
   const { collectionDiff } = load('lib/collectionChanges.ts');
   const api = load('app/api/user-data/route.ts');
   const categories = [{ id: 'social', name: 'Social Media', color: '#123456', keys: ['gaming', 'reels'] }, { id: 'games', name: 'Games / Gaming', color: '#abc', keys: ['gaming'] }];
   assert(validTimeAuditCategories(categories));
+  const overlaps=timeAuditKeywordOverlaps(categories);
+  assert.deepEqual(overlaps.map(row=>[row.keyword,row.categories.map(c=>c.id)]),[['gaming',['social','games']]]);
+  assert.deepEqual(timeAuditKeywordOverlaps([{...categories[0],keys:[' GAMING ','gaming']},categories[1],{id:'other',name:'Other',color:'#fff',keys:['gaming']}]).map(row=>row.categories.length),[2]);
+  assert.deepEqual(timeAuditKeywordOverlaps([categories[0]]),[]);
   const unchanged = JSON.stringify(categories);
   const typed = appendTimeAuditKeywords(categories, {social:'  NEW KEYWORD  ',games:'C++'});
   assert.deepEqual(typed[0].keys, ['gaming','reels','new keyword']);
@@ -40,13 +44,25 @@ async function main() {
   assert.equal(stored.workspacePreferences.find(row => row.id === 'display').textSize, 'large');
   const deviceB = await api.GET();
   assert.deepEqual(deviceB.body.data.workspacePreferences.find(row => row.id === 'time-audit'), pref);
-  const updated = { ...pref, categories: categories.map(row => row.id === 'social' ? { ...row, keys: ['gaming', 'reels', 'routino'] } : row) };
+  const updated = nextTimeAuditPreference(pref, categories.map(row => row.id === 'social' ? { ...row, keys: ['gaming', 'reels', 'routino'] } : row));
+  assert.deepEqual(updated.previousCategories,typed);
+  assert.deepEqual(nextTimeAuditPreference(updated,updated.categories),updated,'No-op saves keep undo');
+  assert(validWorkspacePreference(updated));
+  assert(!validWorkspacePreference({...updated,previousCategories:[]}));
   assert.equal((await post(1, [updated], [pref])).status, 200);
   const after = structuredClone(stored);
   assert.equal((await post(1, [pref], [updated])).status, 409);
   assert.deepEqual(stored, after);
   assert.equal((await post(2, [{ id: 'time-audit', categories: [] }])).status, 400);
   assert.deepEqual(stored, after);
+  const remotePreference=(await api.GET()).body.data.workspacePreferences.find(row=>row.id==='time-audit');
+  const restored=nextTimeAuditPreference(remotePreference,remotePreference.previousCategories,true);
+  assert.deepEqual(restored.categories,typed);assert.equal(restored.previousCategories,undefined);
+  assert.equal((await post(2,[restored],[updated])).status,200);
+  assert.deepEqual(stored.workspacePreferences.find(row=>row.id==='time-audit'),pref);
+  assert.throws(()=>nextTimeAuditPreference(restored,typed,true),/changed/);
+  assert.throws(()=>nextTimeAuditPreference(updated,categories,true),/changed/);
+  assert.equal(stored.workspacePreferences.find(row=>row.id==='display').textSize,'large');
   console.log('Passed: account category save/read across devices, cross-category keywords, validation, unrelated preference preservation and stale-device rejection (mock database only).');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
