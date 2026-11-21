@@ -43,15 +43,42 @@
 
 ## 📌 Overview
 
-**Routino** is an open-source personal dashboard built with Next.js, React, TypeScript, and Tailwind CSS. The public landing page lives at `/`; the daily workspace is at `/dashboard`.
+**Routino** is an open-source personal workspace that brings your day into one dashboard: appointments, email previews, tasks, notes, habits, focus sessions, and recurring expenses. It is designed for an individual who wants to plan work and personal life together, on a laptop, tablet, or phone.
 
-Plan your day, check messages, manage tasks and routines, keep encrypted notes, and track recurring costs. Google and Microsoft integrations are optional. Cross-device workspace sync requires the same signed-in account and a configured durable database.
+Start with tasks, notes, and routines, then connect Google or Microsoft services as needed. You can turn an email into a task, find time between meetings, record meeting actions, and review upcoming subscription or recharge dates. You choose what to connect and which actions to save.
+
+The public introduction is at `/`; the workspace is at `/dashboard`. Routino is a Next.js, React, TypeScript, and Tailwind CSS web app that you can self-host. Cross-device sync requires the same signed-in account and configured durable storage.
 
 [Source code](https://github.com/Itssanthoshhere/Routino-Daily-Dashboard) · [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md)
 
-**Explore:** [Calendar & focus](#-focus-scheduling-and-meeting-notes) · [Notes](#-notes-and-linked-records) · [Features](#-features) · [Tasks](#-tasks-and-repeating-schedules) · [Trackers](#-subscriptions-recharges-and-payment-reports) · [Recovery](#-recycle-bin-and-undo) · [Run locally](#-run-locally) · [Environment](#-environment-variables) · [Backups](#-sync-backups-and-health) · [Deployment](#-deploy-to-vercel)
+**Explore:** [Getting started](#-getting-started) · [Features](#-features) · [Calendar & focus](#-focus-scheduling-and-meeting-notes) · [Notes](#-notes-and-linked-records) · [Tasks](#-tasks-and-repeating-schedules) · [Trackers](#-subscriptions-recharges-and-payment-reports) · [Recovery](#-recycle-bin-and-undo) · [Run locally](#-run-locally) · [Environment](#-environment-variables) · [Backups](#-sync-backups-and-health) · [Deployment](#-deploy-to-vercel)
 
 > **Privacy for self-hosters:** Connect your own OAuth applications and database. Never commit credentials, personal records, private spreadsheet IDs, or recovery exports. The optional Google Sheets adapter uses Google Visualization and requires a link-readable spreadsheet. Anyone with its URL may be able to read it; do not use confidential sheets. A private OAuth Sheets API adapter is not enabled.
+
+## 🧭 Getting started
+
+**Try the interface:** Open the [live dashboard](https://routino-daily-dashboard.vercel.app) and enter the workspace. Disconnected preview records are fictional; connected calendars, mail, and spreadsheet reports require their corresponding setup. For your own installation, follow [Run locally](#-run-locally) or [Deploy to Vercel](#-deploy-to-vercel).
+
+**A typical day:**
+
+1. Open **Overview** to see your schedule, priorities, and habits.
+2. Use **Quick Capture** to jot down a task, note, or temporary scratchpad entry. Open **Tasks** to organise deadlines and repeats.
+3. Check **Calendar** for meetings and free time. Start the focus timer or explicitly book an available Google Calendar focus slot.
+4. Use **Trackers** to review recorded expenses, subscriptions, recharges, or assets. Open **Reminders** for approaching deadlines and renewals.
+5. Check **Sync Center** before moving devices to confirm saves and review any pending changes.
+
+**What needs connecting?**
+
+| Capability | Requirement |
+| --- | --- |
+| Tasks, notes, habits, focus timer, and quick links | Browser workspace; locally saved data can be used offline after loading the app. |
+| The same saved workspace on multiple devices | Same signed-in account and a configured durable database. Browser storage alone stays on one device. |
+| Google Calendar, Gmail previews, and Drive file listings | Your Google sign-in and the requested permissions. Drive listings show metadata, not document contents. |
+| Outlook mail and calendar previews | Optional Microsoft connection; Outlook access is read-only. |
+| Spreadsheet journals, budgets, and other sheet-backed trackers | Optional configured spreadsheet source. A **journal** here means a table of recorded financial transactions. |
+| Deleted-record recovery and database snapshots | Neon Postgres; optional private Blob storage adds encrypted external copies. |
+
+**How data behaves:** A **workspace** is your saved collection of tasks, notes, routines, and settings. **Sync** saves and refreshes those records across signed-in devices; **backups** retain recoverable copies. Neither turns a forecast into a payment. Gmail/Outlook previews do not send mail, and recharge/subscription tracking does not purchase or cancel services. Protected notes are encrypted in the browser and require your passphrase; ordinary notes are also supported.
 
 ## ✨ Features
 
@@ -61,7 +88,7 @@ Plan your day, check messages, manage tasks and routines, keep encrypted notes, 
 | **Calendar** | Today/week views, overlap warnings, focus-slot finder, Google focus scheduling/edit/delete with Undo, meeting-note creation, and colorization | Google Calendar, read-only Outlook, and saved custom events |
 | **Inbox** | Mail previews, pagination, triage, email-to-task review, and a live unread badge for the last 48 hours | Read-only Gmail and Outlook |
 | **Tasks and routines** | Editable tasks, subtasks, repeating schedules, snooze, skip, pause/resume, and activity history | Account workspace |
-| **Notes** | Browser-side encryption with Web Crypto before persistence | Encrypted account records; your passphrase is required |
+| **Notes** | Ordinary notes with optional browser-side Web Crypto encryption before persistence | Account workspace; protected notes require your passphrase |
 | **Focus tools** | Timer, synthesized ambient audio, focus-slot finder, keyboard shortcuts, command palette, and voice Quick Capture | Workspace settings, browser speech support, and Google Calendar |
 | **Drive files** | Recent file names, types, timestamps, and links | Google Drive metadata only; no file contents |
 | **Subscription Manager** | Active-first plans, status filters, payment history, total expense, payment calendar, and monthly reports | Journal imports and editable account records |
@@ -183,7 +210,7 @@ Add, edit, search, and filter subscriptions, with active plans first. Plans need
 
 **Subscription follow-up:** Log cancellation requests, confirmations, final charges, and refunds without changing plan status/totals. Track domain/certificate/licence expiries and review possible service overlaps. Nothing automatically cancels or merges plans.
 
-**Subscription planning:** The **Renewal decision queue** records Keep, Cancel, or Decide later for overdue/next-30-day reviews; provider cancellation remains manual. Account-synced **Monthly subscription budgets** separate INR/USD/EUR/GBP and flag 90%/over-budget projections.
+**Subscription planning:** Use the **Renewal decision queue** for overdue/next-30-day reviews, or edit a plan to choose **Keep**, **Cancel before renewal**, or **Decide later**. Cancellation intent appears in renewal alerts; billing continues until you cancel with the provider. Account-synced **Monthly subscription budgets** separate INR/USD/EUR/GBP and flag 90%/over-budget projections.
 
 **Payment reconciliation:** Preview a local CSV (`name,date,amount,currency,reference`; reference optional), match existing plans, and approve. Supports 500 rows / 500 KB, ISO dates, and positive two-decimal amounts. Only unique exact name/currency matches are suggested; duplicates are skipped and unmatched selections block approval. Imports preserve existing payments and plan settings without creating plans or charging bundles separately.
 
@@ -191,9 +218,7 @@ Add, edit, search, and filter subscriptions, with active plans first. Plans need
 
 The **Total expense** dialog separates recorded payments from monthly/yearly projections, keeps currencies separate, and counts shared bundles once. Journal imports detect named service payments; their start date is the first recorded payment, not a verified signup date. Monthly cadence is inferred only from repeated payments. Duplicate invoice/journal representations are counted once.
 
-**Renewal decisions:** choose **Keep**, **Cancel before renewal**, or **Decide later** when editing a plan. Cancellation intent is also shown in renewal alerts. This is a planning label; billing continues until you cancel with the provider.
-
-**Price history:** creating a subscription records its current rate; changing amount, currency, or billing cycle appends a dated rate. Existing records establish their previous rate when first changed, without assuming a historical effective date. The latest 500 entries remain with the subscription. Compare rate changes in the expanded history and actual paid spending in Monthly report. Rates do not create payment receipts or alter past expenses; comparisons stay within matching currencies and cycles. Annual-equivalent comparisons support billing-cycle changes; bundled/nonrecurring rates stay separate and free previous rates have no percentage baseline.
+**Price history:** creating a subscription records its current rate; changing amount, currency, or billing cycle appends a dated rate. Existing records establish their previous rate when first changed, without assuming a historical effective date. The latest 500 entries remain with the subscription. Compare rate changes in the expanded history and actual paid spending in Monthly report. Rates do not create payment receipts or alter past expenses. Direct rate comparisons use matching currencies and billing cycles; annual-equivalent comparisons can compare different recurring billing cycles within the same currency. Bundled/nonrecurring rates stay separate, and free previous rates have no percentage baseline.
 
 **Planning and usage:** monthly/annual equivalents and category totals keep currencies separate. The upcoming-payment timeline covers three calendar months and labels projections and access expiries. Comparable recorded price increases are highlighted. **Used recently** records the date you confirm usage; it does not monitor provider activity. Status changes saved through Edit append dated history, without reconstructing earlier pauses.
 
@@ -283,7 +308,7 @@ Google tokens remain on the Auth.js server and are omitted from the browser-visi
 
 ## 🚀 Run locally
 
-Use Node.js 20 or newer and npm. Configure your own Google OAuth client, and optionally Microsoft Entra and durable storage.
+Use Node.js 20.9 or newer and npm. Configure your own Google OAuth client, and optionally Microsoft Entra and durable storage.
 
 ```bash
 git clone https://github.com/Itssanthoshhere/Routino-Daily-Dashboard.git
